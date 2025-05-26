@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: pizzaria_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pizzaria_pgdata:/var/lib/postgresql/data
+    networks:
+      - pizzaria_net
+
+volumes:
+  pizzaria_pgdata:
+
+networks:
+  pizzaria_net:
+    driver: bridge
