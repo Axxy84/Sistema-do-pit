@@ -15,17 +15,17 @@ router.get('/', authenticateToken, async (req, res) => {
         c.nome as cliente_nome,
         c.telefone as cliente_telefone,
         c.endereco as cliente_endereco,
-        e.nome as entregador_nome,
-        e.telefone as entregador_telefone,
         cp.codigo as cupom_codigo,
         cp.tipo_desconto as cupom_tipo,
         cp.valor_desconto as cupom_valor,
         p.tipo_pedido,
         p.numero_mesa,
-        p.endereco_entrega
+        p.endereco_entrega,
+        p.taxa_entrega,
+        p.entregador_nome,
+        p.multiplos_pagamentos
       FROM pedidos p
       LEFT JOIN clientes c ON p.cliente_id = c.id
-      LEFT JOIN entregadores e ON p.entregador_id = e.id
       LEFT JOIN cupons cp ON p.cupom_id = cp.id
       WHERE 1=1
     `;
@@ -34,17 +34,17 @@ router.get('/', authenticateToken, async (req, res) => {
     let paramIndex = 1;
 
     if (status) {
-      query += ` AND p.status_pedido = $${paramIndex++}`;
+      query += ` AND LOWER(p.status_pedido) = LOWER($${paramIndex++})`;
       params.push(status);
     }
 
     if (data_inicio) {
-      query += ` AND p.data_pedido >= $${paramIndex++}`;
+      query += ` AND DATE(COALESCE(p.data_pedido, p.created_at)) >= DATE($${paramIndex++})`;
       params.push(data_inicio);
     }
 
     if (data_fim) {
-      query += ` AND p.data_pedido <= $${paramIndex++}`;
+      query += ` AND DATE(COALESCE(p.data_pedido, p.created_at)) <= DATE($${paramIndex++})`;
       params.push(data_fim);
     }
 
@@ -57,9 +57,10 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const ordersResult = await db.query(query, params);
     
-    // Buscar itens de cada pedido
+    // Buscar itens e pagamentos de cada pedido
     const ordersWithItems = await Promise.all(
       ordersResult.rows.map(async (order) => {
+        // Buscar itens do pedido
         const itemsResult = await db.query(`
           SELECT 
             ip.*,
@@ -72,20 +73,28 @@ router.get('/', authenticateToken, async (req, res) => {
           ORDER BY ip.created_at
         `, [order.id]);
 
+        // Buscar múltiplos pagamentos se habilitado
+        let pagamentos = [];
+        if (order.multiplos_pagamentos) {
+          const pagamentosResult = await db.query(`
+            SELECT * FROM pagamentos_pedido 
+            WHERE pedido_id = $1 
+            ORDER BY created_at
+          `, [order.id]);
+          pagamentos = pagamentosResult.rows;
+        }
+
         return {
           ...order,
           itens_pedido: itemsResult.rows,
+          pagamentos: pagamentos,
           cliente_id: order.cliente_id ? {
             id: order.cliente_id,
             nome: order.cliente_nome,
             telefone: order.cliente_telefone,
             endereco: order.cliente_endereco
           } : null,
-          entregador_id: order.entregador_id ? {
-            id: order.entregador_id,
-            nome: order.entregador_nome,
-            telefone: order.entregador_telefone
-          } : null,
+          entregador_nome: order.entregador_nome,
           cupom_id_data: order.cupom_id ? {
             id: order.cupom_id,
             codigo: order.cupom_codigo,
@@ -117,17 +126,17 @@ router.get('/:id', authenticateToken, async (req, res) => {
         c.nome as cliente_nome,
         c.telefone as cliente_telefone,
         c.endereco as cliente_endereco,
-        e.nome as entregador_nome,
-        e.telefone as entregador_telefone,
         cp.codigo as cupom_codigo,
         cp.tipo_desconto as cupom_tipo,
         cp.valor_desconto as cupom_valor,
         p.tipo_pedido,
         p.numero_mesa,
-        p.endereco_entrega
+        p.endereco_entrega,
+        p.taxa_entrega,
+        p.entregador_nome,
+        p.multiplos_pagamentos
       FROM pedidos p
       LEFT JOIN clientes c ON p.cliente_id = c.id
-      LEFT JOIN entregadores e ON p.entregador_id = e.id
       LEFT JOIN cupons cp ON p.cupom_id = cp.id
       WHERE p.id = $1
     `, [id]);
@@ -151,20 +160,28 @@ router.get('/:id', authenticateToken, async (req, res) => {
       ORDER BY ip.created_at
     `, [id]);
 
+    // Buscar múltiplos pagamentos se habilitado
+    let pagamentos = [];
+    if (order.multiplos_pagamentos) {
+      const pagamentosResult = await db.query(`
+        SELECT * FROM pagamentos_pedido 
+        WHERE pedido_id = $1 
+        ORDER BY created_at
+      `, [id]);
+      pagamentos = pagamentosResult.rows;
+    }
+
     const orderWithItems = {
       ...order,
       itens_pedido: itemsResult.rows,
+      pagamentos: pagamentos,
       cliente_id: order.cliente_id ? {
         id: order.cliente_id,
         nome: order.cliente_nome,
         telefone: order.cliente_telefone,
         endereco: order.cliente_endereco
       } : null,
-      entregador_id: order.entregador_id ? {
-        id: order.entregador_id,
-        nome: order.entregador_nome,
-        telefone: order.entregador_telefone
-      } : null,
+      entregador_nome: order.entregador_nome,
       cupom_id_data: order.cupom_id ? {
         id: order.cupom_id,
         codigo: order.cupom_codigo,
@@ -192,7 +209,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const { 
       cliente_id,
-      entregador_id,
+      entregador_nome,
       total,
       forma_pagamento,
       valor_pago,
@@ -205,7 +222,11 @@ router.post('/', authenticateToken, async (req, res) => {
       items = [],
       tipo_pedido = 'delivery',
       numero_mesa,
-      endereco_entrega
+      endereco_entrega,
+      taxa_entrega = 0,
+      // Novos campos para múltiplos pagamentos
+      multiplos_pagamentos = false,
+      pagamentos = []
     } = req.body;
 
     // Validações básicas
@@ -226,18 +247,26 @@ router.post('/', authenticateToken, async (req, res) => {
       throw new Error('Tipo de pedido deve ser "delivery" ou "mesa"');
     }
 
+    // Validar múltiplos pagamentos se habilitado
+    if (multiplos_pagamentos && pagamentos.length > 0) {
+      const totalPagamentos = pagamentos.reduce((sum, p) => sum + parseFloat(p.valor || 0), 0);
+      if (Math.abs(totalPagamentos - parseFloat(total)) > 0.01) {
+        throw new Error('A soma dos pagamentos deve ser igual ao total do pedido');
+      }
+    }
+
     // Criar o pedido
     const orderResult = await client.query(`
       INSERT INTO pedidos (
-        cliente_id, entregador_id, total, forma_pagamento, valor_pago,
+        cliente_id, entregador_nome, total, forma_pagamento, valor_pago,
         troco_calculado, cupom_id, desconto_aplicado, pontos_ganhos,
         pontos_resgatados, observacoes, status_pedido, tipo_pedido,
-        numero_mesa, endereco_entrega
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        numero_mesa, endereco_entrega, taxa_entrega, multiplos_pagamentos
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *
     `, [
       cliente_id, 
-      tipo_pedido === 'delivery' ? entregador_id : null,
+      entregador_nome,
       parseFloat(total), 
       forma_pagamento,
       valor_pago ? parseFloat(valor_pago) : null,
@@ -250,10 +279,30 @@ router.post('/', authenticateToken, async (req, res) => {
       'pendente',
       tipo_pedido,
       tipo_pedido === 'mesa' ? parseInt(numero_mesa) : null,
-      tipo_pedido === 'delivery' ? endereco_entrega : null
+      tipo_pedido === 'delivery' ? endereco_entrega : null,
+      parseFloat(taxa_entrega),
+      multiplos_pagamentos
     ]);
 
     const savedOrder = orderResult.rows[0];
+
+    // Salvar múltiplos pagamentos se habilitado
+    if (multiplos_pagamentos && pagamentos.length > 0) {
+      for (const pagamento of pagamentos) {
+        if (parseFloat(pagamento.valor || 0) > 0) {
+          await client.query(`
+            INSERT INTO pagamentos_pedido (
+              pedido_id, forma_pagamento, valor, observacoes
+            ) VALUES ($1, $2, $3, $4)
+          `, [
+            savedOrder.id,
+            pagamento.forma_pagamento,
+            parseFloat(pagamento.valor),
+            pagamento.observacoes || null
+          ]);
+        }
+      }
+    }
 
     // Criar itens do pedido
     const itemsToSave = items.map(item => [
@@ -295,11 +344,9 @@ router.post('/', authenticateToken, async (req, res) => {
     const completeOrderResult = await db.query(`
       SELECT 
         p.*,
-        c.nome as cliente_nome,
-        e.nome as entregador_nome
+        c.nome as cliente_nome
       FROM pedidos p
       LEFT JOIN clientes c ON p.cliente_id = c.id
-      LEFT JOIN entregadores e ON p.entregador_id = e.id
       WHERE p.id = $1
     `, [savedOrder.id]);
 
@@ -327,7 +374,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { 
       cliente_id,
-      entregador_id,
+      entregador_nome,
       total,
       forma_pagamento,
       valor_pago,
@@ -341,7 +388,8 @@ router.patch('/:id', authenticateToken, async (req, res) => {
       items = [],
       tipo_pedido,
       numero_mesa,
-      endereco_entrega
+      endereco_entrega,
+      taxa_entrega
     } = req.body;
 
     // Verificar se pedido existe
@@ -364,7 +412,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     const updateResult = await client.query(`
       UPDATE pedidos SET
         cliente_id = COALESCE($1, cliente_id),
-        entregador_id = $2,
+        entregador_nome = $2,
         total = COALESCE($3, total),
         forma_pagamento = COALESCE($4, forma_pagamento),
         valor_pago = $5,
@@ -378,12 +426,13 @@ router.patch('/:id', authenticateToken, async (req, res) => {
         tipo_pedido = COALESCE($13, tipo_pedido),
         numero_mesa = $14,
         endereco_entrega = $15,
+        taxa_entrega = COALESCE($16, taxa_entrega),
         updated_at = NOW()
-      WHERE id = $16
+      WHERE id = $17
       RETURNING *
     `, [
       cliente_id,
-      entregador_id,
+      entregador_nome,
       total ? parseFloat(total) : null,
       forma_pagamento,
       valor_pago ? parseFloat(valor_pago) : null,
@@ -397,6 +446,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
       tipo_pedido,
       tipo_pedido === 'mesa' ? parseInt(numero_mesa) : null,
       tipo_pedido === 'delivery' ? endereco_entrega : null,
+      taxa_entrega ? parseFloat(taxa_entrega) : null,
       id
     ]);
 
@@ -429,11 +479,9 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     const completeOrderResult = await db.query(`
       SELECT 
         p.*,
-        c.nome as cliente_nome,
-        e.nome as entregador_nome
+        c.nome as cliente_nome
       FROM pedidos p
       LEFT JOIN clientes c ON p.cliente_id = c.id
-      LEFT JOIN entregadores e ON p.entregador_id = e.id
       WHERE p.id = $1
     `, [id]);
 

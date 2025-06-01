@@ -156,20 +156,15 @@ router.post('/', authenticateToken, async (req, res) => {
     const { 
       data_fechamento,
       total_pedidos,
-      vendas_brutas,
-      descontos_totais,
-      vendas_liquidas,
-      vendas_dinheiro,
-      vendas_cartao,
-      vendas_pix,
-      pedidos_dinheiro,
-      pedidos_cartao,
-      pedidos_pix,
-      total_despesas,
-      receitas_extras = 0,
-      receita_total,
+      total_vendas,
+      total_despesas_extras,
+      total_receitas_extras,
+      total_descontos,
+      total_impostos = 0,
+      total_taxas_entrega,
       saldo_final,
-      observacoes
+      observacoes,
+      vendas_por_metodo = {}
     } = req.body;
 
     // Validações básicas
@@ -193,29 +188,23 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const result = await db.query(`
       INSERT INTO fechamento_caixa (
-        data_fechamento, total_pedidos, vendas_brutas, descontos_totais,
-        vendas_liquidas, vendas_dinheiro, vendas_cartao, vendas_pix,
-        pedidos_dinheiro, pedidos_cartao, pedidos_pix, total_despesas,
-        receitas_extras, receita_total, saldo_final, observacoes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        data_fechamento, total_pedidos, total_vendas, total_despesas_extras,
+        total_receitas_extras, total_descontos, total_impostos, total_taxas_entrega,
+        saldo_final, observacoes, vendas_por_metodo
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `, [
       data_fechamento,
       parseInt(total_pedidos || 0),
-      parseFloat(vendas_brutas || 0),
-      parseFloat(descontos_totais || 0),
-      parseFloat(vendas_liquidas || 0),
-      parseFloat(vendas_dinheiro || 0),
-      parseFloat(vendas_cartao || 0),
-      parseFloat(vendas_pix || 0),
-      parseInt(pedidos_dinheiro || 0),
-      parseInt(pedidos_cartao || 0),
-      parseInt(pedidos_pix || 0),
-      parseFloat(total_despesas || 0),
-      parseFloat(receitas_extras || 0),
-      parseFloat(receita_total || 0),
+      parseFloat(total_vendas || 0),
+      parseFloat(total_despesas_extras || 0),
+      parseFloat(total_receitas_extras || 0),
+      parseFloat(total_descontos || 0),
+      parseFloat(total_impostos || 0),
+      parseFloat(total_taxas_entrega || 0),
       parseFloat(saldo_final || 0),
-      observacoes
+      observacoes,
+      JSON.stringify(vendas_por_metodo)
     ]);
 
     res.status(201).json({ cash_closing: result.rows[0] });

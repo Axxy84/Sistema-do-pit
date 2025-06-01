@@ -4,7 +4,7 @@ export const cashClosingService = {
   async getAllCashClosings() {
     try {
       const data = await apiClient.get('/cash-closing');
-      return data.cashClosings || [];
+      return data.cash_closings || [];
     } catch (error) {
       console.error('Error fetching cash closings:', error.message);
       throw error;
@@ -14,7 +14,7 @@ export const cashClosingService = {
   async getCurrentDayData() {
     try {
       const data = await apiClient.get('/cash-closing/current');
-      return data.data || {};
+      return data || {};
     } catch (error) {
       console.error('Error fetching current day data:', error.message);
       throw error;
@@ -24,7 +24,7 @@ export const cashClosingService = {
   async createCashClosing(closingData) {
     try {
       const data = await apiClient.post('/cash-closing', closingData);
-      return data.cashClosing;
+      return data.cash_closing;
     } catch (error) {
       console.error('Error creating cash closing:', error.message);
       throw error;
@@ -34,7 +34,7 @@ export const cashClosingService = {
   async updateCashClosing(id, closingData) {
     try {
       const data = await apiClient.patch(`/cash-closing/${id}`, closingData);
-      return data.cashClosing;
+      return data.cash_closing;
     } catch (error) {
       console.error('Error updating cash closing:', error.message);
       throw error;

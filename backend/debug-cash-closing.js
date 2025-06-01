@@ -1,4 +1,5 @@
-import { query } from './db.js';
+import pkg from './config/database.js';
+const { query } = pkg;
 
 async function debugCashClosing() {
     console.log('=== DEBUG FECHAMENTO DE CAIXA ===\n');

@@ -22,6 +22,8 @@ import DeliveryStatusForm from './DeliveryStatusForm';
 import OrderTotalSummary from './OrderTotalSummary';
 import CouponSection from './form-sections/CouponSection';
 import PointsRedemptionSection from './form-sections/PointsRedemptionSection';
+import DeliveryFeeInput from './DeliveryFeeInput';
+import MultiplePaymentForm from './MultiplePaymentForm';
 import { PAYMENT_METHODS, ORDER_STATUSES_GENERAL } from '@/lib/constants'; 
 import customerService from '@/services/customerService';
 
@@ -37,12 +39,21 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
   const [tipoPedido, setTipoPedido] = useState('delivery');
   const [numeroMesa, setNumeroMesa] = useState('');
 
-  const [items, setItems] = useState([{ itemType: 'pizza', flavor: '', size: '', quantity: 1, unitPrice: 0, totalPrice: 0, productId: null }]);
+  const [items, setItems] = useState([{ itemType: 'pizza', flavor: '', size: '', border: 'none', borderPrice: 0, quantity: 1, unitPrice: 0, totalPrice: 0, productId: null }]);
+  
+  // Estados para múltiplos pagamentos
+  const [useMultiplePayments, setUseMultiplePayments] = useState(false);
+  const [payments, setPayments] = useState([]);
+  
+  // Estados de pagamento único (para compatibilidade)
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]?.id || '');
+  const [amountPaid, setAmountPaid] = useState(''); 
+  
   const [orderStatus, setOrderStatus] = useState(ORDER_STATUSES_GENERAL.find(s => s.id === 'pendente')?.id || 'pendente'); 
-  const [delivererId, setDelivererId] = useState(null); 
+  const [delivererName, setDelivererName] = useState(''); 
   
   const [subtotal, setSubtotal] = useState(0);
+  const [deliveryFee, setDeliveryFee] = useState(0);
   const [discountValue, setDiscountValue] = useState(0);
   const [pointsDiscountValue, setPointsDiscountValue] = useState(0);
   const [totalValue, setTotalValue] = useState(0);
@@ -50,15 +61,13 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [pointsToRedeem, setPointsToRedeem] = useState('');
   
-  const [amountPaid, setAmountPaid] = useState(''); 
   const [isCustomerLoading, setIsCustomerLoading] = useState(false);
-  const [isDeliverersLoading, setIsDeliverersLoading] = useState(false); 
 
   const { toast } = useToast();
   const customerNameInputRef = useRef(null);
 
   const PONTOS_POR_REAL = 0.1; 
-  const VALOR_REAL_POR_PONTO = 0.5; 
+  const VALOR_REAL_POR_PONTO = 0.5;
 
   const calculateTotals = useCallback(() => {
     const currentSubtotal = items.reduce((sum, item) => sum + (parseFloat(item.totalPrice) || 0), 0);
@@ -83,13 +92,54 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
     currentPointsDiscount = Math.min(currentPointsDiscount, maxPointsDiscount);
     setPointsDiscountValue(currentPointsDiscount);
 
-    const finalTotal = Math.max(0, currentSubtotal - currentCouponDiscount - currentPointsDiscount);
+    const finalTotal = Math.max(0, currentSubtotal - currentCouponDiscount - currentPointsDiscount + deliveryFee);
     setTotalValue(finalTotal);
-  }, [items, appliedCoupon, pointsToRedeem, customerPoints, VALOR_REAL_POR_PONTO]);
+  }, [items, appliedCoupon, pointsToRedeem, customerPoints, deliveryFee, VALOR_REAL_POR_PONTO]);
+
+  // Função para validar múltiplos pagamentos
+  const validateMultiplePayments = useCallback(() => {
+    if (!useMultiplePayments) return true;
+    
+    const totalPaid = payments.reduce((sum, payment) => {
+      return sum + (parseFloat(payment.valor) || 0);
+    }, 0);
+    
+    return Math.abs(totalPaid - totalValue) < 0.01; // Tolerância para decimais
+  }, [useMultiplePayments, payments, totalValue]);
+
+  // Função para lidar com mudanças nos pagamentos
+  const handlePaymentsChange = useCallback((newPayments) => {
+    setPayments(newPayments);
+    
+    // Atualizar pagamento único para compatibilidade se houver apenas um pagamento
+    if (newPayments.length === 1) {
+      setPaymentMethod(newPayments[0].forma_pagamento);
+      setAmountPaid(newPayments[0].valor?.toString() || '');
+    }
+  }, []);
+
+  // Função para lidar com toggle de múltiplos pagamentos
+  const handleMultipleToggle = useCallback((enabled) => {
+    setUseMultiplePayments(enabled);
+    
+    if (!enabled) {
+      // Se desabilitar múltiplos pagamentos, manter apenas o primeiro ou criar um novo
+      const singlePayment = payments.length > 0 ? payments[0] : {
+        id: 1,
+        forma_pagamento: paymentMethod,
+        valor: totalValue,
+        observacoes: ''
+      };
+      
+      setPayments([singlePayment]);
+      setPaymentMethod(singlePayment.forma_pagamento);
+      setAmountPaid(singlePayment.valor?.toString() || totalValue.toString());
+    }
+  }, [payments, paymentMethod, totalValue]);
 
   useEffect(() => {
     calculateTotals();
-  }, [items, appliedCoupon, pointsToRedeem, calculateTotals]);
+  }, [items, appliedCoupon, pointsToRedeem, deliveryFee, calculateTotals]);
 
   const resetFormFields = useCallback(() => {
     setCustomerName('');
@@ -99,19 +149,21 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
     setCustomerPoints(0);
     setTipoPedido('delivery');
     setNumeroMesa('');
-    setItems([{ itemType: 'pizza', flavor: '', size: '', quantity: 1, unitPrice: 0, totalPrice: 0, productId: null }]);
+    setItems([{ itemType: 'pizza', flavor: '', size: '', border: 'none', borderPrice: 0, quantity: 1, unitPrice: 0, totalPrice: 0, productId: null }]);
     setOrderStatus(ORDER_STATUSES_GENERAL.find(s => s.id === 'pendente')?.id || 'pendente');
     setPaymentMethod(PAYMENT_METHODS[0]?.id || '');
-    setDelivererId(null);
+    setDelivererName('');
     setSubtotal(0);
+    setDeliveryFee(0);
     setDiscountValue(0);
     setPointsDiscountValue(0);
     setTotalValue(0);
     setAppliedCoupon(null);
     setPointsToRedeem('');
     setAmountPaid('');
+    setUseMultiplePayments(false);
+    setPayments([]);
     setIsCustomerLoading(false);
-    setIsDeliverersLoading(false);
   }, []);
 
   useEffect(() => {
@@ -121,7 +173,7 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
             setCustomerPhone(initialOrderData.customerPhone || '');
             setCustomerAddress(initialOrderData.customerAddress || '');
             setCustomerId(initialOrderData.customerId || null);
-            setDelivererId(initialOrderData.entregador_id?.id || initialOrderData.deliverer || null);
+            setDelivererName(initialOrderData.entregador_nome || '');
             
             // Inicializar tipo de pedido e número da mesa
             setTipoPedido(initialOrderData.tipo_pedido || 'delivery');
@@ -255,6 +307,16 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
          toast({ title: 'Erro de Validação', description: 'Todos os outros itens (bebidas, etc.) devem ser selecionados e ter quantidade válida.', variant: 'destructive' });
       return;
     }
+
+    // Validação de múltiplos pagamentos
+    if (!validateMultiplePayments()) {
+      toast({ 
+        title: 'Erro de Validação', 
+        description: 'A soma dos valores dos pagamentos deve ser igual ao total do pedido.', 
+        variant: 'destructive' 
+      });
+      return;
+    }
  
     try {
       const parsedAmountPaid = parseFloat(amountPaid) || 0;
@@ -273,8 +335,9 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
         items,
         status_pedido: orderStatus,
         forma_pagamento: paymentMethod,
-        entregador_id: delivererId, 
+        entregador_nome: delivererName,
         subtotal,
+        taxa_entrega: deliveryFee,
         cupom_id: appliedCoupon?.id || null,
         desconto_aplicado: discountValue,
         pontos_resgatados: actualPointsRedeemed,
@@ -282,6 +345,9 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
         pontos_ganhos: pontosGanhos,
         valor_pago: parsedAmountPaid, 
         troco_calculado: calculatedChange,
+        // Dados de múltiplos pagamentos
+        multiplos_pagamentos: useMultiplePayments,
+        pagamentos: payments,
       });
     } catch (error) {
       // Error handling is primarily done by parent (OrdersPage)
@@ -353,10 +419,16 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
           <DeliveryStatusForm
             paymentMethod={paymentMethod}
             setPaymentMethod={setPaymentMethod}
-            delivererId={delivererId}
-            setDelivererId={setDelivererId}
-            setIsDeliverersLoading={setIsDeliverersLoading} 
+            delivererName={delivererName}
+            setDelivererName={setDelivererName}
           />
+
+          {tipoPedido === 'delivery' && (
+            <DeliveryFeeInput
+              value={deliveryFee}
+              onChange={setDeliveryFee}
+            />
+          )}
 
           <CouponSection
             subtotal={subtotal}
@@ -378,18 +450,20 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
             />
           )}
 
-          <OrderTotalSummary 
-            totalValue={totalValue} 
-            amountPaid={amountPaid}
-            setAmountPaid={setAmountPaid}
+          <MultiplePaymentForm
+            totalValue={totalValue}
+            onPaymentsChange={handlePaymentsChange}
+            initialPayments={payments}
+            isMultipleEnabled={useMultiplePayments}
+            onMultipleToggle={handleMultipleToggle}
           />
 
           <DialogFooter className="mt-6 sticky bottom-0 bg-card py-4 border-t">
             <DialogClose asChild>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmittingOrder || isDeliverersLoading}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmittingOrder}>Cancelar</Button>
             </DialogClose>
-            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={isSubmittingOrder || isDeliverersLoading || isCustomerLoading}>
-              {(isSubmittingOrder || isDeliverersLoading || isCustomerLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={isSubmittingOrder || isCustomerLoading}>
+              {(isSubmittingOrder || isCustomerLoading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {initialOrderData ? 'Salvar Alterações' : 'Registrar Pedido'}
             </Button>
           </DialogFooter>

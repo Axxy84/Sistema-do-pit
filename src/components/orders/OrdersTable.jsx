@@ -9,11 +9,9 @@ import {
   TableCaption,
 } from '@/components/ui/table';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ORDER_STATUSES_GENERAL } from '@/lib/constants'; 
-import delivererService from '@/services/delivererService';
-import { useToast } from '@/components/ui/use-toast';
+import { ORDER_STATUSES_GENERAL, PAYMENT_METHODS } from '@/lib/constants'; 
 import { formatCurrency } from '@/lib/utils';
-import { Truck, Coffee } from 'lucide-react';
+import { Truck, Coffee, CreditCard, DollarSign, Smartphone, Layers } from 'lucide-react';
 
 const OrdersTable = ({ 
   orders = [], 
@@ -22,30 +20,11 @@ const OrdersTable = ({
   onPrint = () => {}, 
   actionsComponent: ActionsComponent = null 
 }) => {
-  const { toast } = useToast();
-  const [deliverers, setDeliverers] = React.useState([]);
-
-  React.useEffect(() => {
-    const fetchDeliverers = async () => {
-      try {
-        const data = await delivererService.getAllDeliverers();
-        setDeliverers(data || []);
-      } catch (err) {
-        toast({ title: "Erro ao buscar entregadores", description: err.message, variant: "destructive" });
-      }
-    };
-    fetchDeliverers();
-  }, [toast]);
 
   const getStatusBadge = (statusId) => {
     const statusInfo = ORDER_STATUSES_GENERAL.find(s => s.id === statusId);
     if (!statusInfo) return <span className={`px-2 py-1 text-xs font-semibold text-white rounded-full bg-gray-400`}>Desconhecido</span>;
     return <span className={`px-2 py-1 text-xs font-semibold text-white rounded-full ${statusInfo.color}`}>{statusInfo.name}</span>;
-  };
-
-  const getDelivererName = (delivererId) => {
-    const deliverer = deliverers.find(d => d.id === delivererId);
-    return deliverer?.nome || 'N/A';
   };
 
   const getOrderTypeBadge = (order) => {
@@ -65,6 +44,46 @@ const OrdersTable = ({
     );
   };
 
+  const getPaymentInfo = (order) => {
+    if (order.multiplos_pagamentos && order.pagamentos && order.pagamentos.length > 0) {
+      return (
+        <div className="flex flex-col gap-1">
+          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-purple-700 bg-purple-100 rounded-full dark:bg-purple-900/30 dark:text-purple-400">
+            <Layers className="h-3 w-3" />
+            {order.pagamentos.length} formas
+          </span>
+          <div className="text-xs text-muted-foreground">
+            {order.pagamentos.map((pagamento, index) => {
+              const icon = pagamento.forma_pagamento === 'dinheiro' ? '💵' :
+                          pagamento.forma_pagamento === 'cartao' ? '💳' :
+                          pagamento.forma_pagamento === 'pix' ? '📱' : '💰';
+              return (
+                <div key={index} className="flex justify-between">
+                  <span>{icon} {pagamento.forma_pagamento}</span>
+                  <span>{formatCurrency(pagamento.valor)}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    } else {
+      // Pagamento único
+      const paymentMethod = PAYMENT_METHODS.find(pm => pm.id === order.paymentMethod);
+      const icon = order.paymentMethod === 'dinheiro' ? <DollarSign className="h-3 w-3" /> :
+                   order.paymentMethod === 'cartao' ? <CreditCard className="h-3 w-3" /> :
+                   order.paymentMethod === 'pix' ? <Smartphone className="h-3 w-3" /> :
+                   <CreditCard className="h-3 w-3" />;
+      
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-green-700 bg-green-100 rounded-full dark:bg-green-900/30 dark:text-green-400">
+          {icon}
+          {paymentMethod?.name || order.paymentMethodName || 'N/A'}
+        </span>
+      );
+    }
+  };
+
   return (
     <div className="overflow-x-auto">
       <Table>
@@ -74,6 +93,7 @@ const OrdersTable = ({
             <TableHead className="text-foreground/90">Tipo</TableHead>
             <TableHead className="text-foreground/90">Cliente</TableHead>
             <TableHead className="text-foreground/90">Valor Total</TableHead>
+            <TableHead className="text-foreground/90">Pagamento</TableHead>
             <TableHead className="text-foreground/90">Entregador</TableHead>
             <TableHead className="text-foreground/90">Status</TableHead>
             <TableHead className="text-foreground/90">Data</TableHead>
@@ -95,8 +115,9 @@ const OrdersTable = ({
                 <TableCell>{getOrderTypeBadge(order)}</TableCell>
                 <TableCell className="font-medium text-foreground">{order.customerName}</TableCell>
                 <TableCell className="text-foreground/90">{formatCurrency(order.totalValue)}</TableCell>
+                <TableCell>{getPaymentInfo(order)}</TableCell>
                 <TableCell className="text-foreground/90">
-                  {order.tipo_pedido === 'mesa' ? '-' : getDelivererName(order.entregador_id?.id || order.deliverer)}
+                  {order.tipo_pedido === 'mesa' ? '-' : (order.delivererName || order.entregador_nome || 'N/A')}
                 </TableCell>
                 <TableCell>{getStatusBadge(order.status)}</TableCell>
                 <TableCell className="text-foreground/80 text-sm">{new Date(order.createdAt).toLocaleDateString()}</TableCell>

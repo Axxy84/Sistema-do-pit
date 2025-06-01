@@ -20,6 +20,11 @@ import { orderService } from '@/services/orderService';
 const fetchDailyOrdersAndTransactions = async (dateString) => {
   try {
     console.log('[DEBUG] Buscando pedidos para data:', dateString);
+    console.log('[DEBUG] Fazendo chamada para orderService.getAllOrders com:', {
+      data_inicio: dateString,
+      data_fim: dateString,
+      status: 'entregue'
+    });
     
     // Buscar pedidos do dia com status 'entregue'
     const ordersData = await orderService.getAllOrders({
@@ -29,7 +34,17 @@ const fetchDailyOrdersAndTransactions = async (dateString) => {
     });
     
     console.log('[DEBUG] Pedidos encontrados:', ordersData?.length || 0);
-    console.log('[DEBUG] Pedidos:', ordersData);
+    console.log('[DEBUG] Pedidos completos:', ordersData);
+    
+    // Se não encontrou pedidos, vamos tentar buscar todos os pedidos do dia para debug
+    if (!ordersData || ordersData.length === 0) {
+      console.log('[DEBUG] Nenhum pedido entregue encontrado, buscando todos os pedidos do dia...');
+      const allOrdersData = await orderService.getAllOrders({
+        data_inicio: dateString,
+        data_fim: dateString
+      });
+      console.log('[DEBUG] Todos os pedidos do dia:', allOrdersData?.length || 0, allOrdersData);
+    }
 
     // Buscar transações do dia
     const { data: dailyTransactionsData, error: transactionsError } = await expenseService.fetchDailyTransactions(dateString);
@@ -59,7 +74,7 @@ const calculateDailySummary = (orders, transactions) => {
   const totalDiscounts = totalCouponDiscounts + totalPointsDiscounts;
 
   const totalTaxes = 0; // Placeholder, not implemented
-  const totalDeliveryFees = 0; // Placeholder, depends on how delivery fees are stored/calculated
+  const totalDeliveryFees = orders.reduce((sum, order) => sum + (parseFloat(order.taxa_entrega) || 0), 0);
 
   const netRevenue = totalSales + totalExtraRevenues - totalExpenses;
 
@@ -143,7 +158,7 @@ const CashClosingPage = () => {
             totalDiscounts: d.total_descontos,
             totalTaxes: d.total_impostos, 
             totalDeliveryFees: d.total_taxas_entrega, 
-            totalOrdersCount: d.total_pedidos_dia || 0, 
+            totalOrdersCount: d.total_pedidos || 0, 
             salesByPaymentMethod: d.vendas_por_metodo || {} 
         }));
         setCashClosings(formattedClosings);
@@ -185,15 +200,15 @@ const CashClosingPage = () => {
         
         const closingData = {
             data_fechamento: filterDate,
+            total_pedidos: dailySummary.totalOrdersCount,
             total_vendas: dailySummary.totalSales,
+            total_despesas_extras: dailySummary.totalExpenses,
+            total_receitas_extras: dailySummary.totalExtraRevenues,
             total_descontos: dailySummary.totalDiscounts,
             total_impostos: dailySummary.totalTaxes,
             total_taxas_entrega: dailySummary.totalDeliveryFees,
-            total_despesas_extras: dailySummary.totalExpenses,
-            total_receitas_extras: dailySummary.totalExtraRevenues,
             saldo_final: dailySummary.netRevenue,
             observacoes: `Fechamento do dia ${new Date(filterDate+'T00:00:00').toLocaleDateString()}`,
-            total_pedidos_dia: dailySummary.totalOrdersCount,
             vendas_por_metodo: dailySummary.salesByPaymentMethod,
         };
 

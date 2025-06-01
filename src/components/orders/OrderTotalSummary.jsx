@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatCurrency } from '@/lib/utils';
 
-const OrderTotalSummary = ({ totalValue, amountPaid, setAmountPaid }) => {
+const OrderTotalSummary = ({ totalValue, amountPaid, setAmountPaid, deliveryFee = 0, subtotal = 0 }) => {
   const parsedAmountPaid = parseFloat(amountPaid);
   const change = !isNaN(parsedAmountPaid) && parsedAmountPaid > totalValue ? parsedAmountPaid - totalValue : 0;
 
@@ -17,6 +17,18 @@ const OrderTotalSummary = ({ totalValue, amountPaid, setAmountPaid }) => {
   
   return (
     <div className="mt-6 p-6 border rounded-lg bg-muted/30 shadow-sm space-y-6">
+      <div className="space-y-2 mb-4">
+        <div className="flex justify-between text-sm">
+          <span>Subtotal:</span>
+          <span>{formatCurrency(subtotal)}</span>
+        </div>
+        {deliveryFee > 0 && (
+          <div className="flex justify-between text-sm">
+            <span>Taxa de Entrega:</span>
+            <span>{formatCurrency(deliveryFee)}</span>
+          </div>
+        )}
+      </div>
       <div className="text-center">
         <p className="text-sm font-medium text-muted-foreground">VALOR TOTAL DO PEDIDO</p>
         <p className="text-4xl font-extrabold text-green-600 dark:text-green-400 tracking-tight">

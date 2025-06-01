@@ -12,6 +12,7 @@ import {
 import { Trash2, PlusCircle } from 'lucide-react';
 import { PIZZA_FLAVORS, PIZZA_SIZES } from '@/lib/constants';
 import { formatCurrency } from '@/lib/utils';
+import PizzaBorderSelector, { PIZZA_BORDERS } from './PizzaBorderSelector';
 
 const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => {
 
@@ -33,6 +34,11 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
     return 0;
   };
 
+  const getBorderPrice = (borderId) => {
+    const border = PIZZA_BORDERS.find(b => b.id === borderId);
+    return border ? border.price : 0;
+  };
+
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     const currentItem = { ...newItems[index] };
@@ -43,10 +49,12 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
       currentItem.unitPrice = price;
     }
     
-    // Always recalculate totalPrice if quantity or unitPrice changes
+    // Calcular preço total incluindo borda
     const quantity = parseInt(currentItem.quantity, 10) || 0;
     const unitPrice = parseFloat(currentItem.unitPrice) || 0;
-    currentItem.totalPrice = quantity * unitPrice;
+    const borderPrice = getBorderPrice(currentItem.border || 'none');
+    currentItem.borderPrice = borderPrice;
+    currentItem.totalPrice = quantity * (unitPrice + borderPrice);
     
     newItems[index] = currentItem;
     setItems(newItems);
@@ -54,15 +62,25 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
   };
 
   const addItem = () => {
-    const newItems = [...items, { itemType: 'pizza', flavor: '', size: '', quantity: 1, unitPrice: 0, totalPrice: 0, productId: null }];
+    const newItems = [...items, { 
+      itemType: 'pizza', 
+      flavor: '', 
+      size: '', 
+      border: 'none',
+      borderPrice: 0,
+      quantity: 1, 
+      unitPrice: 0, 
+      totalPrice: 0, 
+      productId: null 
+    }];
     setItems(newItems);
-    if (onItemsChange) onItemsChange(newItems); // Ensure parent recalculates total order value
+    if (onItemsChange) onItemsChange(newItems);
   };
 
   const removeItem = (index) => {
     const newItems = items.filter((_, i) => i !== index);
     setItems(newItems);
-    if (onItemsChange) onItemsChange(newItems); // Ensure parent recalculates total order value
+    if (onItemsChange) onItemsChange(newItems);
   };
   
   const availablePizzaProducts = allProductsData.filter(p => p.tipo_produto === 'pizza' && p.ativo);
@@ -109,6 +127,15 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
                 </Select>
               </div>
             </div>
+            
+            {/* Seletor de Borda */}
+            <div className="w-full">
+              <PizzaBorderSelector
+                value={item.border || 'none'}
+                onChange={(value) => handleItemChange(actualItemIndex, 'border', value)}
+              />
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
               <div>
                 <Label htmlFor={`item-quantity-${actualItemIndex}`} className="text-xs">Quantidade</Label>
@@ -126,7 +153,7 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
                 <Input
                   id={`item-unitprice-${actualItemIndex}`}
                   type="text"
-                  value={formatCurrency(item.unitPrice)}
+                  value={formatCurrency(item.unitPrice + (item.borderPrice || 0))}
                   readOnly
                   className="bg-muted/70 cursor-not-allowed"
                 />
@@ -143,6 +170,9 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
                       <Trash2 className="h-5 w-5" />
                   </Button>
               </div>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              <p>Pizza: {formatCurrency(item.unitPrice)} {item.borderPrice > 0 && `+ Borda: ${formatCurrency(item.borderPrice)}`}</p>
             </div>
             <p className="text-sm font-medium text-right hidden md:block">Total do Item: {formatCurrency(item.totalPrice)}</p>
           </div>

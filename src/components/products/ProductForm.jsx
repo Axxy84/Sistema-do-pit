@@ -97,6 +97,11 @@ const ProductForm = ({
         toast({ title: 'Erro de Validação', description: 'Para pizzas, todos os tamanhos devem ter um preço válido e positivo.', variant: 'destructive' });
         return;
       }
+    } else if (tipoProduto === 'borda') {
+      if (!precoUnitario || parseFloat(precoUnitario) <= 0) {
+        toast({ title: 'Erro de Validação', description: 'Preço da borda é obrigatório e deve ser positivo.', variant: 'destructive' });
+        return;
+      }
     } else { // Outros produtos
       if (!precoUnitario || parseFloat(precoUnitario) <= 0) {
         toast({ title: 'Erro de Validação', description: 'Preço unitário é obrigatório e deve ser positivo para este tipo de produto.', variant: 'destructive' });
@@ -113,8 +118,8 @@ const ProductForm = ({
       tipo_produto: tipoProduto,
       categoria,
       tamanhos_precos: tipoProduto === 'pizza' ? tamanhosPrecos.map(tp => ({...tp, preco: parseFloat(tp.preco)})) : null,
-      preco_unitario: tipoProduto !== 'pizza' ? parseFloat(precoUnitario) : null,
-      estoque_disponivel: tipoProduto !== 'pizza' && estoqueDisponivel ? parseInt(estoqueDisponivel, 10) : null,
+      preco_unitario: (tipoProduto !== 'pizza' && tipoProduto !== 'borda') ? parseFloat(precoUnitario) : (tipoProduto === 'borda' ? parseFloat(precoUnitario) : null),
+      estoque_disponivel: (tipoProduto !== 'pizza' && tipoProduto !== 'borda') && estoqueDisponivel ? parseInt(estoqueDisponivel, 10) : null,
       ativo
     };
 
@@ -183,7 +188,24 @@ const ProductForm = ({
             </>
           )}
 
-          {tipoProduto !== 'pizza' && (
+          {tipoProduto === 'borda' && (
+            <>
+              <div className="grid gap-2">
+                <Label htmlFor="product-price" className="text-foreground/80">Preço da Borda (R$)</Label>
+                <Input 
+                  id="product-price"
+                  type="number" 
+                  step="0.01" 
+                  placeholder="Ex: 5.00"
+                  value={precoUnitario} 
+                  onChange={(e) => setPrecoUnitario(e.target.value)} 
+                  required 
+                  className="bg-background/70"/>
+              </div>
+            </>
+          )}
+
+          {tipoProduto !== 'pizza' && tipoProduto !== 'borda' && (
             <>
               {(tipoProduto === 'bebida' || tipoProduto === 'sobremesa' || tipoProduto === 'acompanhamento') && productCategories[tipoProduto] && (
                 <div className="grid gap-2">

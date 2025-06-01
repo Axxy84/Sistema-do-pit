@@ -14,6 +14,7 @@ export const PRODUCT_TYPES = [
   { id: 'bebida', name: 'Bebida' },
   { id: 'sobremesa', name: 'Sobremesa' },
   { id: 'acompanhamento', name: 'Acompanhamento' },
+  { id: 'borda', name: 'Borda Recheada' },
   { id: 'outro', name: 'Outro' },
 ];
 

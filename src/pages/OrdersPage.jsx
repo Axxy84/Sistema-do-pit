@@ -11,14 +11,12 @@ import { formatOrderTicketForPrint, testSimplePrint } from '@/lib/printerUtils';
 
 import { orderService } from '@/services/orderService';
 import { productService } from '@/services/productService';
-import { delivererService } from '@/services/delivererService';
 import customerService from '@/services/customerService';
 
 
 const OrdersPage = () => {
   const [orders, setOrders] = useState([]);
   const [allProductsData, setAllProductsData] = useState([]);
-  const [deliverersList, setDeliverersList] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
@@ -27,15 +25,6 @@ const OrdersPage = () => {
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
   const { toast } = useToast();
-
-  const fetchDeliverers = useCallback(async () => {
-    try {
-      const data = await delivererService.getActiveDeliverers();
-      setDeliverersList(data || []);
-    } catch (err) {
-      toast({ title: "Erro ao buscar entregadores", description: err.message, variant: "destructive" });
-    }
-  }, [toast]);
 
   const fetchAllProducts = useCallback(async () => {
     setIsLoadingProducts(true);
@@ -53,65 +42,75 @@ const OrdersPage = () => {
     setIsLoadingOrders(true);
     try {
       const data = await orderService.getAllOrders();
-      const formattedOrders = data.map(order => ({
-        id: order.id,
-        customerName: order.cliente_id?.nome || 'Cliente não encontrado',
-        customerPhone: order.cliente_id?.telefone || 'N/A',
-        customerAddress: order.cliente_id?.endereco || order.endereco_entrega || 'N/A',
-        deliverer: order.entregador_id?.id || 'none', 
-        delivererName: order.entregador_id?.nome,
-        delivererPhone: order.entregador_id?.telefone,
-        status: order.status_pedido,
-        paymentMethod: order.forma_pagamento,
-        paymentMethodName: PAYMENT_METHODS.find(pm => pm.id === order.forma_pagamento)?.name || order.forma_pagamento,
-        totalValue: order.total,
-        amountPaid: order.valor_pago,
-        calculatedChange: order.troco_calculado,
-        createdAt: order.created_at,
-        updatedAt: order.updated_at,
-        orderDate: order.data_pedido,
-        cupom_id: order.cupom_id,
-        cupom_codigo: order.cupom_id_data?.codigo,
-        cupom_tipo_desconto: order.cupom_id_data?.tipo_desconto,
-        cupom_valor_desconto: order.cupom_id_data?.valor_desconto,
-        desconto_aplicado: order.desconto_aplicado,
-        pontos_ganhos: order.pontos_ganhos,
-        pontos_resgatados: order.pontos_resgatados,
-        observacoes: order.observacoes,
-        tipo_pedido: order.tipo_pedido || 'delivery',
-        numero_mesa: order.numero_mesa,
-        items: order.itens_pedido.map(item => {
-          const isPizza = item.produto_id_ref?.tipo_produto === 'pizza' || (item.sabor_registrado && item.tamanho_registrado);
-          let sizeName = item.tamanho_registrado;
-          let unitPrice = item.valor_unitario;
+      const formattedOrders = data.map(order => {
+        // Calcular subtotal baseado nos itens
+        const calculatedSubtotal = order.itens_pedido.reduce((sum, item) => {
+          return sum + (parseFloat(item.valor_unitario) * parseInt(item.quantidade));
+        }, 0);
 
-          if (isPizza) {
-            if (item.produto_id_ref?.tamanhos_precos) { 
-              const sizeInfo = item.produto_id_ref.tamanhos_precos.find(tp => tp.id_tamanho === item.tamanho_registrado);
-              sizeName = sizeInfo?.nome_tamanho || item.tamanho_registrado;
-            } else { 
-              const legacySize = PIZZA_SIZES.find(s => s.id === item.tamanho_registrado);
-              sizeName = legacySize?.name || item.tamanho_registrado;
+        return {
+          id: order.id,
+          customerName: order.cliente_id?.nome || 'Cliente não encontrado',
+          customerPhone: order.cliente_id?.telefone || 'N/A',
+          customerAddress: order.cliente_id?.endereco || order.endereco_entrega || 'N/A',
+          deliverer: 'none', // Não usado mais
+          delivererName: order.entregador_nome || 'N/A',
+          delivererPhone: null, // Não usado mais
+          status: order.status_pedido,
+          paymentMethod: order.forma_pagamento,
+          paymentMethodName: PAYMENT_METHODS.find(pm => pm.id === order.forma_pagamento)?.name || order.forma_pagamento,
+          totalValue: order.total,
+          subtotal: calculatedSubtotal, // Adicionar subtotal calculado
+          taxa_entrega: order.taxa_entrega || 0, // Taxa de entrega do banco
+          amountPaid: order.valor_pago,
+          calculatedChange: order.troco_calculado,
+          createdAt: order.created_at,
+          updatedAt: order.updated_at,
+          orderDate: order.data_pedido,
+          cupom_id: order.cupom_id,
+          cupom_codigo: order.cupom_id_data?.codigo,
+          cupom_tipo_desconto: order.cupom_id_data?.tipo_desconto,
+          cupom_valor_desconto: order.cupom_id_data?.valor_desconto,
+          desconto_aplicado: order.desconto_aplicado,
+          pontos_ganhos: order.pontos_ganhos,
+          pontos_resgatados: order.pontos_resgatados,
+          observacoes: order.observacoes,
+          tipo_pedido: order.tipo_pedido || 'delivery',
+          numero_mesa: order.numero_mesa,
+          entregador_nome: order.entregador_nome, // Adicionar campo direto
+          items: order.itens_pedido.map(item => {
+            const isPizza = item.produto_id_ref?.tipo_produto === 'pizza' || (item.sabor_registrado && item.tamanho_registrado);
+            let sizeName = item.tamanho_registrado;
+            let unitPrice = item.valor_unitario;
+
+            if (isPizza) {
+              if (item.produto_id_ref?.tamanhos_precos) { 
+                const sizeInfo = item.produto_id_ref.tamanhos_precos.find(tp => tp.id_tamanho === item.tamanho_registrado);
+                sizeName = sizeInfo?.nome_tamanho || item.tamanho_registrado;
+              } else { 
+                const legacySize = PIZZA_SIZES.find(s => s.id === item.tamanho_registrado);
+                sizeName = legacySize?.name || item.tamanho_registrado;
+              }
             }
-          }
-          
-          return {
-            id: item.id,
-            itemType: isPizza ? 'pizza' : (item.produto_id_ref?.tipo_produto || 'other'),
-            productId: item.produto_id_ref?.id || null,
-            flavor: isPizza ? (item.produto_id_ref?.nome || item.sabor_registrado) : null,
-            size: item.tamanho_registrado, 
-            sizeName: sizeName, 
-            productName: !isPizza ? (item.produto_id_ref?.nome || item.sabor_registrado) : null,
-            category: item.produto_id_ref?.categoria,
-            quantity: item.quantidade,
-            unitPrice: unitPrice,
-            totalPrice: unitPrice * item.quantidade,
-          };
-        }),
-        cliente_id: order.cliente_id, 
-        entregador_id: order.entregador_id 
-      }));
+            
+            return {
+              id: item.id,
+              itemType: isPizza ? 'pizza' : (item.produto_id_ref?.tipo_produto || 'other'),
+              productId: item.produto_id_ref?.id || null,
+              flavor: isPizza ? (item.produto_id_ref?.nome || item.sabor_registrado) : null,
+              size: item.tamanho_registrado, 
+              sizeName: sizeName, 
+              productName: !isPizza ? (item.produto_id_ref?.nome || item.sabor_registrado) : null,
+              category: item.produto_id_ref?.categoria,
+              quantity: item.quantidade,
+              unitPrice: unitPrice,
+              totalPrice: unitPrice * item.quantidade,
+            };
+          }),
+          cliente_id: order.cliente_id, 
+          entregador_id: order.entregador_id 
+        };
+      });
       setOrders(formattedOrders);
     } catch (error) {
       toast({ title: 'Erro ao buscar pedidos', description: error.message, variant: 'destructive' });
@@ -121,13 +120,9 @@ const OrdersPage = () => {
   }, [toast]);
 
   useEffect(() => {
-    fetchDeliverers();
     fetchAllProducts();
     fetchOrders();
 
-    const handleDeliverersUpdated = () => fetchDeliverers();
-    window.addEventListener('deliverersUpdated', handleDeliverersUpdated);
-    
     const handleOrderStatusChanged = () => fetchOrders();
     window.addEventListener('orderStatusChanged', handleOrderStatusChanged);
 
@@ -136,11 +131,10 @@ const OrdersPage = () => {
 
 
     return () => {
-      window.removeEventListener('deliverersUpdated', handleDeliverersUpdated);
       window.removeEventListener('orderStatusChanged', handleOrderStatusChanged);
       window.removeEventListener('orderSaved', handleOrderSavedGlobal);
     };
-  }, [fetchDeliverers, fetchAllProducts, fetchOrders]);
+  }, [fetchAllProducts, fetchOrders]);
 
 
   const resetFormState = useCallback(() => {
@@ -191,10 +185,9 @@ const OrdersPage = () => {
          finalToastMessage = 'Cliente atualizado e pedido salvo!';
       }
 
-
       const pedidoToSave = {
         cliente_id: clienteId,
-        entregador_id: orderFormData.entregador_id === '' || orderFormData.entregador_id === 'none' ? null : orderFormData.entregador_id,
+        entregador_nome: orderFormData.entregador_nome || null,
         status_pedido: orderFormData.status_pedido,
         total: orderFormData.total,
         forma_pagamento: orderFormData.forma_pagamento,
@@ -209,7 +202,11 @@ const OrdersPage = () => {
         updated_at: new Date().toISOString(),
         tipo_pedido: orderFormData.tipo_pedido,
         numero_mesa: orderFormData.numero_mesa,
-        endereco_entrega: orderFormData.customerAddress
+        endereco_entrega: orderFormData.customerAddress,
+        taxa_entrega: orderFormData.taxa_entrega || 0,
+        // Dados de múltiplos pagamentos
+        multiplos_pagamentos: orderFormData.multiplos_pagamentos || false,
+        pagamentos: orderFormData.pagamentos || []
       };
       if (!currentOrder?.id) {
         pedidoToSave.created_at = new Date().toISOString();
@@ -223,12 +220,18 @@ const OrdersPage = () => {
         } else { 
             productRefId = item.productId || null;
         }
+        
+        // Para pizzas, incluir o preço da borda no valor unitário
+        const valorUnitario = item.itemType === 'pizza' ? 
+          item.unitPrice + (item.borderPrice || 0) : 
+          item.unitPrice;
+        
         return {
             produto_id_ref: productRefId, 
             sabor_registrado: item.itemType === 'pizza' ? item.flavor : item.productName,
             tamanho_registrado: item.itemType === 'pizza' ? item.size : null,
             quantidade: item.quantity,
-            valor_unitario: item.unitPrice,
+            valor_unitario: valorUnitario,
         };
       });
 
@@ -242,14 +245,21 @@ const OrdersPage = () => {
         customerPhone: savedOrder.cliente_id?.telefone || orderFormData.customerPhone,
         customerAddress: savedOrder.cliente_id?.endereco || orderFormData.customerAddress,
         items: orderFormData.items, // Use items from form for print consistency for now
-        delivererName: savedOrder.entregador_id?.nome || 'Não atribuído',
-        delivererPhone: savedOrder.entregador_id?.telefone || '',
+        delivererName: orderFormData.entregador_nome || 'Não atribuído',
         paymentMethodName: PAYMENT_METHODS.find(pm => pm.id === savedOrder.forma_pagamento)?.name || 'Não informado',
         cupom_codigo: savedOrder.cupom_id_data?.codigo,
         observacoes: savedOrder.observacoes,
         amountPaid: savedOrder.valor_pago,
         calculatedChange: savedOrder.troco_calculado,
         orderDate: savedOrder.data_pedido || savedOrder.created_at,
+        // Adicionar valores do formulário para impressão correta
+        subtotal: orderFormData.subtotal,
+        totalValue: orderFormData.total,
+        desconto_aplicado: orderFormData.desconto_aplicado || 0,
+        taxa_entrega: orderFormData.taxa_entrega || 0,
+        // Dados de múltiplos pagamentos para impressão
+        multiplos_pagamentos: orderFormData.multiplos_pagamentos || false,
+        pagamentos: orderFormData.pagamentos || []
       };
       
       success = true;
@@ -291,7 +301,7 @@ const OrdersPage = () => {
         customerName: order.customerName,
         customerPhone: order.customerPhone,
         customerAddress: order.customerAddress,
-        deliverer: order.entregador_id?.id || 'none',
+        entregador_nome: order.entregador_nome || '',
         status_pedido: order.status,
         forma_pagamento: order.paymentMethod || PAYMENT_METHODS[0].id,
         valor_pago: order.amountPaid || '',
@@ -304,9 +314,13 @@ const OrdersPage = () => {
         troco_calculado: order.calculatedChange,
         observacoes: order.observacoes,
         items: order.items,
-        orderDate: order.orderDate || order.createdAt,
         tipo_pedido: order.tipo_pedido || 'delivery',
-        numero_mesa: order.numero_mesa
+        numero_mesa: order.numero_mesa,
+        endereco_entrega: order.endereco_entrega,
+        taxa_entrega: order.taxa_entrega || 0,
+        // Dados de múltiplos pagamentos
+        multiplos_pagamentos: order.multiplos_pagamentos || false,
+        pagamentos: order.pagamentos || []
     };
     setCurrentOrder(orderForForm);
     setIsFormOpen(true);
@@ -337,8 +351,7 @@ const OrdersPage = () => {
       
       const completeOrderDataForPrint = {
         ...orderToPrint,
-        delivererName: orderToPrint.delivererName || deliverersList.find(d => d.id === orderToPrint.entregador_id?.id)?.nome || 'Não atribuído',
-        delivererPhone: orderToPrint.delivererPhone || deliverersList.find(d => d.id === orderToPrint.entregador_id?.id)?.telefone || '',
+        delivererName: orderToPrint.delivererName || 'Não atribuído',
         paymentMethodName: orderToPrint.paymentMethodName || PAYMENT_METHODS.find(pm => pm.id === orderToPrint.forma_pagamento)?.name || 'Não informado',
       };
 
@@ -397,7 +410,7 @@ const OrdersPage = () => {
       console.error('[PRINT] Erro crítico:', error);
       toast({ title: 'Erro Crítico', description: 'Falha crítica no sistema de impressão', variant: 'destructive' });
     }
-  }, [allProductsData, deliverersList, toast]);
+  }, [allProductsData, toast]);
 
   const filteredOrders = useMemo(() => orders.filter(order => 
     (order.customerName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
