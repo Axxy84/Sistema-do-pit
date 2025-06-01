@@ -12,7 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabaseClient';
+import delivererService from '@/services/delivererService';
 import { Loader2, UserPlus } from 'lucide-react';
 
 const DelivererQuickForm = ({ isOpen, onOpenChange, onDelivererAdded }) => {
@@ -34,13 +34,11 @@ const DelivererQuickForm = ({ isOpen, onOpenChange, onDelivererAdded }) => {
     }
     setIsLoading(true);
     try {
-      const { data: newDeliverer, error } = await supabase
-        .from('entregadores')
-        .insert([{ nome: name, telefone: phone, ativo: true }])
-        .select()
-        .single();
-
-      if (error) throw error;
+      const newDeliverer = await delivererService.createDeliverer({ 
+        nome: name, 
+        telefone: phone, 
+        ativo: true 
+      });
 
       toast({ title: 'Entregador Adicionado!', description: `${name} foi cadastrado com sucesso.` });
       if (onDelivererAdded) {

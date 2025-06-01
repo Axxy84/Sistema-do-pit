@@ -11,7 +11,8 @@ const CustomerDetailsForm = ({
   customerAddress, setCustomerAddress,
   onPhoneBlur,
   isLoading,
-  nameInputRef // Accept ref from parent
+  nameInputRef, // Accept ref from parent
+  showAddress = true // Novo prop com valor padrão
 }) => {
   return (
     <Card>
@@ -50,16 +51,21 @@ const CustomerDetailsForm = ({
             </Button>
           </div>
         </div>
-        <div className="grid gap-2 md:col-span-2">
-          <Label htmlFor="customerAddress">Endereço de Entrega</Label>
-          <Input 
-            id="customerAddress" 
-            value={customerAddress} 
-            onChange={(e) => setCustomerAddress(e.target.value)} 
-            placeholder="Rua, Número, Bairro, Complemento" 
-            disabled={isLoading}
-          />
-        </div>
+        {showAddress && (
+          <div className="grid gap-2 md:col-span-2 animate-in slide-in-from-top duration-200">
+            <Label htmlFor="customerAddress">
+              Endereço de Entrega <span className="text-red-500">*</span>
+            </Label>
+            <Input 
+              id="customerAddress" 
+              value={customerAddress} 
+              onChange={(e) => setCustomerAddress(e.target.value)} 
+              placeholder="Rua, Número, Bairro, Complemento" 
+              disabled={isLoading}
+              required
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -56,7 +56,7 @@ const OrdersPage = () => {
         id: order.id,
         customerName: order.cliente_id?.nome || 'Cliente não encontrado',
         customerPhone: order.cliente_id?.telefone || 'N/A',
-        customerAddress: order.cliente_id?.endereco || 'N/A',
+        customerAddress: order.cliente_id?.endereco || order.endereco_entrega || 'N/A',
         deliverer: order.entregador_id?.id || 'none', 
         delivererName: order.entregador_id?.nome,
         delivererPhone: order.entregador_id?.telefone,
@@ -77,6 +77,8 @@ const OrdersPage = () => {
         pontos_ganhos: order.pontos_ganhos,
         pontos_resgatados: order.pontos_resgatados,
         observacoes: order.observacoes,
+        tipo_pedido: order.tipo_pedido || 'delivery',
+        numero_mesa: order.numero_mesa,
         items: order.itens_pedido.map(item => {
           const isPizza = item.produto_id_ref?.tipo_produto === 'pizza' || (item.sabor_registrado && item.tamanho_registrado);
           let sizeName = item.tamanho_registrado;
@@ -192,6 +194,9 @@ const OrdersPage = () => {
         pontos_ganhos: orderFormData.pontos_ganhos,
         pontos_resgatados: orderFormData.pontos_resgatados,
         updated_at: new Date().toISOString(),
+        tipo_pedido: orderFormData.tipo_pedido,
+        numero_mesa: orderFormData.numero_mesa,
+        endereco_entrega: orderFormData.customerAddress
       };
       if (!currentOrder?.id) {
         pedidoToSave.created_at = new Date().toISOString();
@@ -279,6 +284,8 @@ const OrdersPage = () => {
         observacoes: order.observacoes,
         items: order.items,
         orderDate: order.orderDate || order.createdAt,
+        tipo_pedido: order.tipo_pedido || 'delivery',
+        numero_mesa: order.numero_mesa
     };
     setCurrentOrder(orderForForm);
     setIsFormOpen(true);

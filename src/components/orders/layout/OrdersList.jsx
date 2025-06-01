@@ -4,8 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Loader2, Search, AlertTriangle, CheckCircle2, Printer, Edit2, Trash2 } from 'lucide-react'; // Added Printer, Edit2, Trash2
 import OrdersTable from '@/components/orders/OrdersTable';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/lib/supabaseClient';
+import { orderService } from '@/services/orderService';
 import { useToast } from '@/components/ui/use-toast';
+
+// Componente padrão para ações da tabela
+const DefaultActionsComponent = ({ order, onEdit, onDelete, onPrint }) => (
+  <>
+    <Button variant="ghost" size="icon" onClick={() => onPrint(order)} className="text-sky-500 hover:text-sky-700 hover:bg-sky-100 dark:hover:bg-sky-800/50">
+      <Printer className="h-4 w-4" />
+    </Button>
+    <Button variant="ghost" size="icon" onClick={() => onEdit(order)} className="text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-800/50">
+      <Edit2 className="h-4 w-4" />
+    </Button>
+    <Button variant="ghost" size="icon" onClick={() => onDelete(order.id)} className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-800/50">
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  </>
+);
 
 const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPrint, isLoading, fetchOrders }) => {
   const [updatingStatusOrderId, setUpdatingStatusOrderId] = useState(null);
@@ -14,12 +29,7 @@ const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPri
   const handleMarkAsDelivered = async (orderId) => {
     setUpdatingStatusOrderId(orderId);
     try {
-      const { error } = await supabase
-        .from('pedidos')
-        .update({ status_pedido: 'entregue', updated_at: new Date().toISOString() })
-        .eq('id', orderId);
-
-      if (error) throw error;
+      await orderService.updateOrderStatus(orderId, 'entregue');
 
       toast({ title: 'Sucesso!', description: 'Pedido marcado como entregue.' });
       fetchOrders(); // Re-fetch orders to update the list
@@ -52,7 +62,7 @@ const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPri
             Entregue
           </Button>
         )}
-         <OrdersTable.defaultProps.actionsComponent 
+         <DefaultActionsComponent 
             order={order} 
             onEdit={onEdit} 
             onDelete={onDelete} 
@@ -111,23 +121,5 @@ const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPri
     </Card>
   );
 };
-
-// Providing default empty actions component for OrdersTable if not overridden
-OrdersTable.defaultProps = {
-  actionsComponent: ({ order, onEdit, onDelete, onPrint }) => (
-    <>
-      <Button variant="ghost" size="icon" onClick={() => onPrint(order)} className="text-sky-500 hover:text-sky-700 hover:bg-sky-100 dark:hover:bg-sky-800/50">
-        <Printer className="h-4 w-4" />
-      </Button>
-      <Button variant="ghost" size="icon" onClick={() => onEdit(order)} className="text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-800/50">
-        <Edit2 className="h-4 w-4" />
-      </Button>
-      <Button variant="ghost" size="icon" onClick={() => onDelete(order.id)} className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-800/50">
-        <Trash2 className="h-4 w-4" />
-      </Button>
-    </>
-  )
-};
-
 
 export default OrdersList;

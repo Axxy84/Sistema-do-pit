@@ -11,7 +11,11 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2 } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import CustomerDetailsForm from './CustomerDetailsForm';
+import OrderTypeSection from './form-sections/OrderTypeSection';
 import PizzaItemsForm from './PizzaItemsForm';
 import OtherItemsForm from './OtherItemsForm';
 import DeliveryStatusForm from './DeliveryStatusForm';
@@ -19,7 +23,7 @@ import OrderTotalSummary from './OrderTotalSummary';
 import CouponSection from './form-sections/CouponSection';
 import PointsRedemptionSection from './form-sections/PointsRedemptionSection';
 import { PAYMENT_METHODS, ORDER_STATUSES_GENERAL } from '@/lib/constants'; 
-import { supabase } from '@/lib/supabaseClient'; // Direct supabase usage here for now, can be refactored later
+import customerService from '@/services/customerService';
 
 const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProductsData, isSubmittingOrder }) => {
   const [customerName, setCustomerName] = useState('');
@@ -27,6 +31,10 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerId, setCustomerId] = useState(null);
   const [customerPoints, setCustomerPoints] = useState(0);
+  
+  // Novos estados para tipo de pedido
+  const [tipoPedido, setTipoPedido] = useState('delivery');
+  const [numeroMesa, setNumeroMesa] = useState('');
 
   const [items, setItems] = useState([{ itemType: 'pizza', flavor: '', size: '', quantity: 1, unitPrice: 0, totalPrice: 0, productId: null }]);
   const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS[0]?.id || '');
@@ -88,6 +96,8 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
     setCustomerAddress('');
     setCustomerId(null);
     setCustomerPoints(0);
+    setTipoPedido('delivery');
+    setNumeroMesa('');
     setItems([{ itemType: 'pizza', flavor: '', size: '', quantity: 1, unitPrice: 0, totalPrice: 0, productId: null }]);
     setOrderStatus(ORDER_STATUSES_GENERAL.find(s => s.id === 'pendente')?.id || 'pendente');
     setPaymentMethod(PAYMENT_METHODS[0]?.id || '');
@@ -111,6 +121,10 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
             setCustomerAddress(initialOrderData.customerAddress || '');
             setCustomerId(initialOrderData.customerId || null);
             setDelivererId(initialOrderData.entregador_id?.id || initialOrderData.deliverer || null);
+            
+            // Inicializar tipo de pedido e número da mesa
+            setTipoPedido(initialOrderData.tipo_pedido || 'delivery');
+            setNumeroMesa(initialOrderData.numero_mesa ? initialOrderData.numero_mesa.toString() : '');
             
             if (initialOrderData.customerId) {
                 fetchCustomerPoints(initialOrderData.customerId);
@@ -159,28 +173,24 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
     if (!customerPhone) return;
     setIsCustomerLoading(true);
     try {
-      const { data: cliente, error } = await supabase
-        .from('clientes')
-        .select('id, nome, endereco, clientes_pontos(pontos_atuais)')
-        .eq('telefone', customerPhone)
-        .single();
-
-      if (error && error.code !== 'PGRST116') throw error; 
-
+      const cliente = await customerService.getByPhone(customerPhone);
+      
       if (cliente) {
         setCustomerName(cliente.nome);
         setCustomerAddress(cliente.endereco || '');
         setCustomerId(cliente.id);
-        setCustomerPoints(cliente.clientes_pontos && cliente.clientes_pontos.length > 0 ? cliente.clientes_pontos[0].pontos_atuais : 0);
+        setCustomerPoints(cliente.pontos_atuais || 0);
         toast({ title: 'Cliente Encontrado', description: `Dados de ${cliente.nome} carregados.` });
-      } else {
-        setCustomerAddress('');
-        setCustomerId(null); // Important to clear if not found, so a new one can be created
-        setCustomerPoints(0);
-        toast({ title: 'Cliente Não Encontrado', description: 'Você pode preencher os dados para um novo cadastro.', variant: 'default' });
       }
     } catch (err) {
-      toast({ title: 'Erro ao buscar cliente', description: err.message, variant: 'destructive' });
+      if (err.message.includes('404') || err.message.includes('não encontrado')) {
+        setCustomerAddress('');
+        setCustomerId(null);
+        setCustomerPoints(0);
+        toast({ title: 'Cliente Não Encontrado', description: 'Você pode preencher os dados para um novo cadastro.', variant: 'default' });
+      } else {
+        toast({ title: 'Erro ao buscar cliente', description: err.message, variant: 'destructive' });
+      }
     } finally {
       setIsCustomerLoading(false);
     }
@@ -192,13 +202,8 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
         return;
     }
     try {
-        const { data, error } = await supabase
-            .from('clientes_pontos')
-            .select('pontos_atuais')
-            .eq('cliente_id', cId)
-            .single();
-        if (error && error.code !== 'PGRST116') throw error;
-        setCustomerPoints(data?.pontos_atuais || 0);
+        const points = await customerService.getCustomerPoints(cId);
+        setCustomerPoints(points || 0);
     } catch (err) {
         console.error("Erro ao buscar pontos do cliente:", err);
         setCustomerPoints(0);
@@ -211,6 +216,17 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
       toast({ title: 'Erro de Validação', description: 'Nome e telefone do cliente são obrigatórios.', variant: 'destructive' });
       return;
     }
+    
+    // Validações baseadas no tipo de pedido
+    if (tipoPedido === 'delivery' && !customerAddress) {
+      toast({ title: 'Erro de Validação', description: 'Endereço é obrigatório para pedidos de delivery.', variant: 'destructive' });
+      return;
+    }
+    if (tipoPedido === 'mesa' && !numeroMesa) {
+      toast({ title: 'Erro de Validação', description: 'Número da mesa é obrigatório para pedidos de mesa.', variant: 'destructive' });
+      return;
+    }
+    
     if (items.length === 0 || items.every(item => !item.productId && !item.flavor)) {
       toast({ title: 'Erro de Validação', description: 'Adicione pelo menos um item válido ao pedido.', variant: 'destructive' });
       return;
@@ -234,8 +250,10 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
       await onSubmit({ 
         customerName,
         customerPhone,
-        customerAddress,
+        customerAddress: tipoPedido === 'delivery' ? customerAddress : null,
         customerId, // This will be null if a new customer, or the ID if existing
+        tipo_pedido: tipoPedido,
+        numero_mesa: tipoPedido === 'mesa' ? parseInt(numeroMesa, 10) : null,
         items,
         status_pedido: orderStatus,
         forma_pagamento: paymentMethod,
@@ -268,6 +286,13 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 py-4 max-h-[80vh] overflow-y-auto pr-2">
+          <OrderTypeSection
+            tipoPedido={tipoPedido}
+            setTipoPedido={setTipoPedido}
+            numeroMesa={numeroMesa}
+            setNumeroMesa={setNumeroMesa}
+          />
+          
           <CustomerDetailsForm
             customerName={customerName}
             setCustomerName={setCustomerName}
@@ -277,7 +302,8 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
             setCustomerAddress={setCustomerAddress}
             onPhoneBlur={fetchCustomerByPhone}
             isLoading={isCustomerLoading} 
-            nameInputRef={customerNameInputRef} 
+            nameInputRef={customerNameInputRef}
+            showAddress={tipoPedido === 'delivery'}
           />
           
           <PizzaItemsForm 

@@ -49,7 +49,6 @@ router.post('/', authenticateToken, async (req, res) => {
       tipo_produto,
       categoria,
       tamanhos_precos,
-      ingredientes,
       preco_unitario,
       estoque_disponivel,
       ativo = true
@@ -65,15 +64,14 @@ router.post('/', authenticateToken, async (req, res) => {
     const result = await db.query(`
       INSERT INTO produtos (
         nome, tipo_produto, categoria, tamanhos_precos, 
-        ingredientes, preco_unitario, estoque_disponivel, ativo
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        preco_unitario, estoque_disponivel, ativo
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `, [
       nome,
       tipo_produto,
       categoria,
       tamanhos_precos ? JSON.stringify(tamanhos_precos) : null,
-      ingredientes ? JSON.stringify(ingredientes) : null,
       preco_unitario,
       estoque_disponivel,
       ativo
@@ -98,7 +96,6 @@ router.patch('/:id', authenticateToken, async (req, res) => {
       tipo_produto,
       categoria,
       tamanhos_precos,
-      ingredientes,
       preco_unitario,
       estoque_disponivel,
       ativo
@@ -130,10 +127,6 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     if (tamanhos_precos !== undefined) {
       fields.push(`tamanhos_precos = $${paramIndex++}`);
       values.push(tamanhos_precos ? JSON.stringify(tamanhos_precos) : null);
-    }
-    if (ingredientes !== undefined) {
-      fields.push(`ingredientes = $${paramIndex++}`);
-      values.push(ingredientes ? JSON.stringify(ingredientes) : null);
     }
     if (preco_unitario !== undefined) {
       fields.push(`preco_unitario = $${paramIndex++}`);

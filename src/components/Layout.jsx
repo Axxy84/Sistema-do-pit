@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Pizza, ShoppingCart, Users, Truck, BarChart2, DollarSign, LogIn, LogOut, Sun, Moon, Package, Settings, ShieldCheck, Loader2, Warehouse, BadgePercent as TicketPercent } from 'lucide-react';
+import { Home, Pizza, ShoppingCart, Users, Truck, BarChart2, DollarSign, LogIn, LogOut, Sun, Moon, Package, Settings, ShieldCheck, Loader2, BadgePercent as TicketPercent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useTheme } from '@/contexts/ThemeProvider.jsx'; 
@@ -13,7 +13,6 @@ import { useAuthLogger } from '@/hooks/useAuthLogger';
 const navItems = [
   { href: '/dashboard', icon: Home, label: 'Dashboard', adminOnly: false, allowedRoles: ['admin', 'atendente', 'entregador'] },
   { href: '/produtos', icon: Package, label: 'Produtos', adminOnly: false, allowedRoles: ['admin', 'atendente'] },
-  { href: '/ingredientes', icon: Warehouse, label: 'Ingredientes', adminOnly: false, allowedRoles: ['admin', 'atendente'] },
   { href: '/pedidos', icon: ShoppingCart, label: 'Pedidos', adminOnly: false, allowedRoles: ['admin', 'atendente'] },
   { href: '/clientes', icon: Users, label: 'Clientes', adminOnly: false, allowedRoles: ['admin', 'atendente'] },
   { href: '/entregas', icon: Truck, label: 'Entregas', adminOnly: false, allowedRoles: ['admin', 'atendente', 'entregador'] },

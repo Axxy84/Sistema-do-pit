@@ -10,19 +10,25 @@ import {
 } from '@/components/ui/table';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ORDER_STATUSES_GENERAL } from '@/lib/constants'; 
-import { supabase } from '@/lib/supabaseClient';
+import delivererService from '@/services/delivererService';
 import { useToast } from '@/components/ui/use-toast';
 import { formatCurrency } from '@/lib/utils';
+import { Truck, Coffee } from 'lucide-react';
 
-const OrdersTable = ({ orders, onEdit, onDelete, onPrint, actionsComponent: ActionsComponent }) => {
+const OrdersTable = ({ 
+  orders = [], 
+  onEdit = () => {}, 
+  onDelete = () => {}, 
+  onPrint = () => {}, 
+  actionsComponent: ActionsComponent = null 
+}) => {
   const { toast } = useToast();
   const [deliverers, setDeliverers] = React.useState([]);
 
   React.useEffect(() => {
     const fetchDeliverers = async () => {
       try {
-        const { data, error } = await supabase.from('entregadores').select('id, nome');
-        if (error) throw error;
+        const data = await delivererService.getAllDeliverers();
         setDeliverers(data || []);
       } catch (err) {
         toast({ title: "Erro ao buscar entregadores", description: err.message, variant: "destructive" });
@@ -42,12 +48,30 @@ const OrdersTable = ({ orders, onEdit, onDelete, onPrint, actionsComponent: Acti
     return deliverer?.nome || 'N/A';
   };
 
+  const getOrderTypeBadge = (order) => {
+    if (order.tipo_pedido === 'mesa') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-amber-700 bg-amber-100 rounded-full dark:bg-amber-900/30 dark:text-amber-400">
+          <Coffee className="h-3 w-3" />
+          Mesa {order.numero_mesa}
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-blue-700 bg-blue-100 rounded-full dark:bg-blue-900/30 dark:text-blue-400">
+        <Truck className="h-3 w-3" />
+        Delivery
+      </span>
+    );
+  };
+
   return (
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-muted/20">
             <TableHead className="text-foreground/90">ID</TableHead>
+            <TableHead className="text-foreground/90">Tipo</TableHead>
             <TableHead className="text-foreground/90">Cliente</TableHead>
             <TableHead className="text-foreground/90">Valor Total</TableHead>
             <TableHead className="text-foreground/90">Entregador</TableHead>
@@ -68,9 +92,12 @@ const OrdersTable = ({ orders, onEdit, onDelete, onPrint, actionsComponent: Acti
                 className="hover:bg-muted/30 transition-colors"
               >
                 <TableCell className="font-mono text-xs text-foreground/80">#{order.id.slice(-5).toUpperCase()}</TableCell>
+                <TableCell>{getOrderTypeBadge(order)}</TableCell>
                 <TableCell className="font-medium text-foreground">{order.customerName}</TableCell>
                 <TableCell className="text-foreground/90">{formatCurrency(order.totalValue)}</TableCell>
-                <TableCell className="text-foreground/90">{getDelivererName(order.entregador_id?.id || order.deliverer)}</TableCell>
+                <TableCell className="text-foreground/90">
+                  {order.tipo_pedido === 'mesa' ? '-' : getDelivererName(order.entregador_id?.id || order.deliverer)}
+                </TableCell>
                 <TableCell>{getStatusBadge(order.status)}</TableCell>
                 <TableCell className="text-foreground/80 text-sm">{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">

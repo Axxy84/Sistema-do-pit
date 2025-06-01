@@ -11,7 +11,6 @@ import ReportsPage from '@/pages/ReportsPage';
 import CashClosingPage from '@/pages/CashClosingPage';
 import AuthPage from '@/pages/AuthPage';
 import TonyPage from '@/pages/TonyPage'; 
-import IngredientsPage from '@/pages/IngredientsPage.jsx';
 import CouponsPage from '@/pages/CouponsPage.jsx';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/contexts/ThemeProvider.jsx';
@@ -74,13 +73,6 @@ function App() {
                       <ErrorBoundary>
                         <ProtectedRoute allowedRoles={['admin', 'atendente']}>
                           <CashClosingPage />
-                        </ProtectedRoute>
-                      </ErrorBoundary>
-                    } />
-                    <Route path="/ingredientes" element={
-                      <ErrorBoundary>
-                        <ProtectedRoute allowedRoles={['admin', 'atendente']}>
-                          <IngredientsPage />
                         </ProtectedRoute>
                       </ErrorBoundary>
                     } />

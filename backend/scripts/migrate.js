@@ -4,7 +4,7 @@ const createTables = async () => {
   try {
     console.log('🚀 Iniciando criação das tabelas...');
 
-    // Tabela de usuários (substitui auth.users do Supabase)
+    // Tabela de usuários
     await db.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

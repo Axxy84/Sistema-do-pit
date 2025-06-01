@@ -1,86 +1,53 @@
-import { apiClient } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 
-export const couponService = {
+const couponService = {
+  // Buscar todos os cupons
   async getAllCoupons() {
-    try {
-      const data = await apiClient.get('/coupons');
-      return data.coupons || [];
-    } catch (error) {
-      console.error('Error fetching coupons:', error.message);
-      throw error;
-    }
+    const response = await apiClient.request('/coupons');
+    return response.coupons;
   },
 
-  async getActiveCoupons() {
-    try {
-      const data = await apiClient.get('/coupons/active');
-      return data.coupons || [];
-    } catch (error) {
-      console.error('Error fetching active coupons:', error.message);
-      throw error;
-    }
+  // Buscar cupom por código
+  async getByCode(codigo) {
+    const response = await apiClient.request('/coupons/code/' + encodeURIComponent(codigo));
+    return response.coupon;
   },
 
-  async getCouponById(id) {
-    try {
-      const data = await apiClient.get(`/coupons/${id}`);
-      return data.coupon;
-    } catch (error) {
-      console.error('Error fetching coupon:', error.message);
-      throw error;
-    }
+  // Buscar cupom por ID
+  async getById(id) {
+    const response = await apiClient.request(`/coupons/${id}`);
+    return response.coupon;
   },
 
-  async validateCoupon(couponCode, orderValue) {
-    try {
-      const data = await apiClient.post('/coupons/validate', { 
-        codigo: couponCode, 
-        valorPedido: orderValue 
-      });
-      return data.coupon;
-    } catch (error) {
-      console.error('Error validating coupon:', error.message);
-      throw error;
-    }
-  },
-
+  // Criar novo cupom
   async createCoupon(couponData) {
-    try {
-      const data = await apiClient.post('/coupons', couponData);
-      return data.coupon;
-    } catch (error) {
-      console.error('Error creating coupon:', error.message);
-      throw error;
-    }
+    const response = await apiClient.request('/coupons', {
+      method: 'POST',
+      body: JSON.stringify(couponData)
+    });
+    return response.coupon;
   },
 
+  // Atualizar cupom
   async updateCoupon(id, couponData) {
-    try {
-      const data = await apiClient.patch(`/coupons/${id}`, couponData);
-      return data.coupon;
-    } catch (error) {
-      console.error('Error updating coupon:', error.message);
-      throw error;
-    }
+    const response = await apiClient.request(`/coupons/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(couponData)
+    });
+    return response.coupon;
   },
 
-  async useCoupon(id) {
-    try {
-      const data = await apiClient.patch(`/coupons/${id}/use`);
-      return data.coupon;
-    } catch (error) {
-      console.error('Error using coupon:', error.message);
-      throw error;
-    }
-  },
-
+  // Deletar cupom
   async deleteCoupon(id) {
-    try {
-      await apiClient.delete(`/coupons/${id}`);
-      return { success: true };
-    } catch (error) {
-      console.error('Error deleting coupon:', error.message);
-      throw error;
-    }
+    const response = await apiClient.request(`/coupons/${id}`, {
+      method: 'DELETE'
+    });
+    return response;
   }
-}; 
+};
+
+// Named export
+export { couponService };
+
+// Default export
+export default couponService; 

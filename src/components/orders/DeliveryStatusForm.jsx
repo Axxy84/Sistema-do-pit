@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select';
 import { PAYMENT_METHODS } from '@/lib/constants';
 import { Bike, Loader2, PlusCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import delivererService from '@/services/delivererService';
 import { useToast } from '@/components/ui/use-toast';
 import DelivererFormModal from '@/components/deliverers/DelivererFormModal';
 
@@ -29,18 +29,7 @@ const DeliveryStatusForm = ({
     setIsLoading(true);
     setIsDeliverersLoading(true); // Notify parent
     try {
-      const { data, error } = await supabase
-        .from('entregadores')
-        .select('id, nome, telefone')
-        .eq('ativo', true)
-        .order('nome', { ascending: true });
-
-      if (error) {
-        toast({ title: "Erro ao carregar entregadores", description: error.message, variant: "destructive" });
-        console.error("Erro ao carregar entregadores:", error);
-        setDeliverers([]);
-        return;
-      }
+      const data = await delivererService.getActiveDeliverers();
       
       if (!data || data.length === 0) {
         toast({ title: "Nenhum entregador ativo", description: "Não há entregadores ativos cadastrados.", variant: "default" });
@@ -48,7 +37,6 @@ const DeliveryStatusForm = ({
       } else {
         setDeliverers(data);
       }
-
     } catch (err) {
       toast({ title: "Erro ao carregar entregadores", description: err.message, variant: "destructive" });
       console.error("Erro ao carregar entregadores:", err);
@@ -85,13 +73,7 @@ const DeliveryStatusForm = ({
     // It's called from DeliverersManager, so we need to ensure it's robust
     setIsLoading(true);
     try {
-      const { data: savedDeliverer, error } = await supabase
-        .from('entregadores')
-        .insert(newDelivererData)
-        .select()
-        .single();
-
-      if (error) throw error;
+      const savedDeliverer = await delivererService.createDeliverer(newDelivererData);
 
       toast({ title: 'Sucesso!', description: 'Novo entregador cadastrado.' });
       fetchDeliverers(); // Re-fetch to include the new one

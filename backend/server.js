@@ -84,27 +84,29 @@ app.use((req, res, next) => {
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const clientRoutes = require('./routes/clients');
+const customerRoutes = require('./routes/customers');
 const orderRoutes = require('./routes/orders');
 const productRoutes = require('./routes/products');
-const ingredientRoutes = require('./routes/ingredients');
 const delivererRoutes = require('./routes/deliverers');
 const couponRoutes = require('./routes/coupons');
 const expenseRoutes = require('./routes/expenses');
 const cashClosingRoutes = require('./routes/cash-closing');
 const dashboardRoutes = require('./routes/dashboard');
+const reportRoutes = require('./routes/reports');
 
 // Usar rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/clients', clientRoutes);
+app.use('/api/customers', customerRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/products', productRoutes);
-app.use('/api/ingredients', ingredientRoutes);
 app.use('/api/deliverers', delivererRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/cash-closing', cashClosingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Ignorar requisições para favicon.ico
 app.get('/favicon.ico', (req, res) => res.status(204).end());

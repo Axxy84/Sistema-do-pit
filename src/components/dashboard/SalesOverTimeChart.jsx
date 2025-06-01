@@ -19,7 +19,7 @@ const CustomTooltip = ({ active, payload, label }) => {
 const SalesOverTimeChart = ({ salesData, isLoading }) => {
   const formattedData = salesData.map(item => ({
     ...item,
-    // Supabase returns date as YYYY-MM-DD, format for display
+    // Formatar data para exibição
     data: new Date(item.data_pedido).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
     vendas: parseFloat(item.total_vendas_dia),
   }));

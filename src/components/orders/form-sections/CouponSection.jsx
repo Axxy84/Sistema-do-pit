@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, BadgePercent as TicketPercent, XCircle, CheckCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import couponService from '@/services/couponService';
 import { formatCurrency } from '@/lib/utils';
 
 const CouponSection = ({ subtotal, appliedCoupon, setAppliedCoupon, onCouponChange }) => {
@@ -33,21 +33,8 @@ const CouponSection = ({ subtotal, appliedCoupon, setAppliedCoupon, onCouponChan
     setCouponMessage('');
     
     try {
-      const { data: cupom, error } = await supabase
-        .from('cupons')
-        .select('*')
-        .eq('codigo', couponCode.toUpperCase())
-        .single();
+      const cupom = await couponService.getByCode(couponCode.toUpperCase());
 
-      if (error && error.code !== 'PGRST116') throw error;
-
-      if (!cupom) {
-        setCouponMessage('Cupom inválido ou não encontrado.');
-        toast({ title: 'Cupom Inválido', description: 'O código inserido não foi encontrado.', variant: 'destructive' });
-        setAppliedCoupon(null); 
-        onCouponChange();
-        return;
-      }
       if (!cupom.ativo) {
         setCouponMessage('Este cupom não está mais ativo.');
         toast({ title: 'Cupom Inativo', variant: 'destructive' });
@@ -83,8 +70,13 @@ const CouponSection = ({ subtotal, appliedCoupon, setAppliedCoupon, onCouponChan
       onCouponChange();
 
     } catch (err) {
-      setCouponMessage('Erro ao validar cupom.');
-      toast({ title: 'Erro ao Validar Cupom', description: err.message, variant: 'destructive' });
+      if (err.message.includes('404') || err.message.includes('não encontrado')) {
+        setCouponMessage('Cupom inválido ou não encontrado.');
+        toast({ title: 'Cupom Inválido', description: 'O código inserido não foi encontrado.', variant: 'destructive' });
+      } else {
+        setCouponMessage('Erro ao validar cupom.');
+        toast({ title: 'Erro ao Validar Cupom', description: err.message, variant: 'destructive' });
+      }
       setAppliedCoupon(null);
       onCouponChange();
     } finally {

@@ -7,7 +7,7 @@ import { PlusCircle, Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import PizzaForm from '@/components/pizzas/PizzaForm';
 import PizzasTable from '@/components/pizzas/PizzasTable';
-import { supabase } from '@/lib/supabaseClient';
+import { pizzaService } from '@/services/pizzaService';
 import { PIZZA_FLAVORS, PIZZA_SIZES } from '@/lib/constants';
 
 const PizzasPage = () => {
@@ -22,14 +22,7 @@ const PizzasPage = () => {
   const fetchPizzas = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('pizzas')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        throw error;
-      }
+      const data = await pizzaService.getAll();
       setPizzas(data || []);
     } catch (error) {
       toast({
@@ -60,7 +53,6 @@ const PizzasPage = () => {
   const handleSavePizza = async (pizzaData) => {
     setIsLoading(true);
     try {
-      let response;
       const dataToSave = {
         sabor: pizzaData.flavor,
         tamanho: pizzaData.size,
@@ -69,22 +61,9 @@ const PizzasPage = () => {
       };
 
       if (currentPizza && currentPizza.id) {
-        response = await supabase
-          .from('pizzas')
-          .update(dataToSave)
-          .eq('id', currentPizza.id)
-          .select()
-          .single();
+        await pizzaService.update(currentPizza.id, dataToSave);
       } else {
-        response = await supabase
-          .from('pizzas')
-          .insert(dataToSave)
-          .select()
-          .single();
-      }
-
-      if (response.error) {
-        throw response.error;
+        await pizzaService.create(dataToSave);
       }
 
       toast({ title: 'Sucesso!', description: `Pizza ${currentPizza ? 'atualizada' : 'adicionada'} com sucesso.` });
@@ -111,14 +90,8 @@ const PizzasPage = () => {
   const handleDelete = async (id) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('pizzas')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        throw error;
-      }
+      await pizzaService.delete(id);
+      
       toast({ title: 'Sucesso!', description: 'Pizza removida com sucesso.' });
       fetchPizzas(); // Re-fetch to update list
     } catch (error) {

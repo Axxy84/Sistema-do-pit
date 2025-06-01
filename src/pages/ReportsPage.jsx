@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarChart2, AlertTriangle, Loader2, Filter, CalendarDays, RefreshCw, Printer } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabaseClient';
+import reportService from '@/services/reportService';
 import { formatCurrency } from '@/lib/utils';
 
 const ReportsPage = () => {
@@ -31,12 +31,7 @@ const ReportsPage = () => {
   const fetchCashClosings = useCallback(async (start, end, showToast = false) => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.rpc('get_fechamentos_por_periodo', {
-        data_inicial: start,
-        data_final: end,
-      });
-
-      if (error) throw error;
+      const data = await reportService.getFechamentosPorPeriodo(start, end);
       setCashClosings(data || []);
       if (showToast) {
         toast({ title: 'Relatórios Atualizados', description: 'Os dados de fechamento foram recarregados.' });
@@ -64,33 +59,10 @@ const ReportsPage = () => {
 
     window.addEventListener('cashClosed', handleCashClosedEvent);
 
-    // Supabase Realtime listener for direct table changes (backup or alternative)
-    const channel = supabase
-      .channel('public:fechamento_caixa_reports') // Unique channel name for this page
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fechamento_caixa' }, (payload) => {
-        console.log('Realtime: Novo fechamento de caixa detectado na ReportsPage', payload.new);
-        const newClosingDate = payload.new.data_fechamento;
-        if (newClosingDate >= startDate && newClosingDate <= endDate) {
-          fetchCashClosings(startDate, endDate, true);
-        } else {
-           toast({ title: 'Novo Fechamento Registrado', description: `Um novo fechamento para ${new Date(newClosingDate + 'T00:00:00').toLocaleDateString()} foi salvo. Atualize os filtros para visualizá-lo.` });
-        }
-      })
-      .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Conectado ao canal de fechamento_caixa (ReportsPage) do Supabase Realtime!');
-        }
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.error('Erro no canal de fechamento_caixa (ReportsPage) do Supabase Realtime:', err);
-        }
-      });
-
     return () => {
       window.removeEventListener('cashClosed', handleCashClosedEvent);
-      supabase.removeChannel(channel);
     };
   }, [startDate, endDate, fetchCashClosings, toast]);
-
 
   const handlePeriodChange = (selectedPeriod) => {
     setPeriod(selectedPeriod);

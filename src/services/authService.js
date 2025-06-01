@@ -39,7 +39,7 @@ export const authService = {
   },
   
   onAuthStateChange(callback) {
-    // Verificar mudanças no localStorage (para simular o comportamento do Supabase)
+    // Verificar mudanças no localStorage
     let lastToken = localStorage.getItem('authToken');
     
     const checkAuthState = async () => {

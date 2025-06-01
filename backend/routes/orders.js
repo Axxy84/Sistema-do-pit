@@ -19,7 +19,10 @@ router.get('/', authenticateToken, async (req, res) => {
         e.telefone as entregador_telefone,
         cp.codigo as cupom_codigo,
         cp.tipo_desconto as cupom_tipo,
-        cp.valor_desconto as cupom_valor
+        cp.valor_desconto as cupom_valor,
+        p.tipo_pedido,
+        p.numero_mesa,
+        p.endereco_entrega
       FROM pedidos p
       LEFT JOIN clientes c ON p.cliente_id = c.id
       LEFT JOIN entregadores e ON p.entregador_id = e.id
@@ -118,7 +121,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
         e.telefone as entregador_telefone,
         cp.codigo as cupom_codigo,
         cp.tipo_desconto as cupom_tipo,
-        cp.valor_desconto as cupom_valor
+        cp.valor_desconto as cupom_valor,
+        p.tipo_pedido,
+        p.numero_mesa,
+        p.endereco_entrega
       FROM pedidos p
       LEFT JOIN clientes c ON p.cliente_id = c.id
       LEFT JOIN entregadores e ON p.entregador_id = e.id
@@ -196,7 +202,10 @@ router.post('/', authenticateToken, async (req, res) => {
       pontos_ganhos = 0,
       pontos_resgatados = 0,
       observacoes,
-      items = []
+      items = [],
+      tipo_pedido = 'delivery',
+      numero_mesa,
+      endereco_entrega
     } = req.body;
 
     // Validações básicas
@@ -204,21 +213,44 @@ router.post('/', authenticateToken, async (req, res) => {
       throw new Error('Total e itens são obrigatórios');
     }
 
+    // Validações específicas por tipo de pedido
+    if (tipo_pedido === 'delivery' && !endereco_entrega) {
+      throw new Error('Endereço de entrega é obrigatório para pedidos de delivery');
+    }
+
+    if (tipo_pedido === 'mesa' && !numero_mesa) {
+      throw new Error('Número da mesa é obrigatório para pedidos de mesa');
+    }
+
+    if (!['delivery', 'mesa'].includes(tipo_pedido)) {
+      throw new Error('Tipo de pedido deve ser "delivery" ou "mesa"');
+    }
+
     // Criar o pedido
     const orderResult = await client.query(`
       INSERT INTO pedidos (
         cliente_id, entregador_id, total, forma_pagamento, valor_pago,
         troco_calculado, cupom_id, desconto_aplicado, pontos_ganhos,
-        pontos_resgatados, observacoes, status_pedido
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        pontos_resgatados, observacoes, status_pedido, tipo_pedido,
+        numero_mesa, endereco_entrega
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING *
     `, [
-      cliente_id, entregador_id, parseFloat(total), forma_pagamento,
+      cliente_id, 
+      tipo_pedido === 'delivery' ? entregador_id : null,
+      parseFloat(total), 
+      forma_pagamento,
       valor_pago ? parseFloat(valor_pago) : null,
       troco_calculado ? parseFloat(troco_calculado) : null,
-      cupom_id, parseFloat(desconto_aplicado),
-      parseInt(pontos_ganhos), parseInt(pontos_resgatados),
-      observacoes, 'pendente'
+      cupom_id, 
+      parseFloat(desconto_aplicado),
+      parseInt(pontos_ganhos), 
+      parseInt(pontos_resgatados),
+      observacoes, 
+      'pendente',
+      tipo_pedido,
+      tipo_pedido === 'mesa' ? parseInt(numero_mesa) : null,
+      tipo_pedido === 'delivery' ? endereco_entrega : null
     ]);
 
     const savedOrder = orderResult.rows[0];
@@ -279,6 +311,139 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(500).json({ 
       error: 'Erro interno do servidor',
       message: error.message 
+    });
+  } finally {
+    client.release();
+  }
+});
+
+// PATCH /api/orders/:id - Atualizar pedido completo
+router.patch('/:id', authenticateToken, async (req, res) => {
+  const client = await db.pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    const { id } = req.params;
+    const { 
+      cliente_id,
+      entregador_id,
+      total,
+      forma_pagamento,
+      valor_pago,
+      troco_calculado,
+      cupom_id,
+      desconto_aplicado,
+      pontos_ganhos,
+      pontos_resgatados,
+      observacoes,
+      status_pedido,
+      items = [],
+      tipo_pedido,
+      numero_mesa,
+      endereco_entrega
+    } = req.body;
+
+    // Verificar se pedido existe
+    const existingOrder = await client.query('SELECT * FROM pedidos WHERE id = $1', [id]);
+    if (existingOrder.rows.length === 0) {
+      throw new Error('Pedido não encontrado');
+    }
+
+    // Validações específicas por tipo de pedido
+    if (tipo_pedido) {
+      if (tipo_pedido === 'delivery' && !endereco_entrega) {
+        throw new Error('Endereço de entrega é obrigatório para pedidos de delivery');
+      }
+      if (tipo_pedido === 'mesa' && !numero_mesa) {
+        throw new Error('Número da mesa é obrigatório para pedidos de mesa');
+      }
+    }
+
+    // Atualizar o pedido
+    const updateResult = await client.query(`
+      UPDATE pedidos SET
+        cliente_id = COALESCE($1, cliente_id),
+        entregador_id = $2,
+        total = COALESCE($3, total),
+        forma_pagamento = COALESCE($4, forma_pagamento),
+        valor_pago = $5,
+        troco_calculado = $6,
+        cupom_id = $7,
+        desconto_aplicado = COALESCE($8, desconto_aplicado),
+        pontos_ganhos = COALESCE($9, pontos_ganhos),
+        pontos_resgatados = COALESCE($10, pontos_resgatados),
+        observacoes = $11,
+        status_pedido = COALESCE($12, status_pedido),
+        tipo_pedido = COALESCE($13, tipo_pedido),
+        numero_mesa = $14,
+        endereco_entrega = $15,
+        updated_at = NOW()
+      WHERE id = $16
+      RETURNING *
+    `, [
+      cliente_id,
+      entregador_id,
+      total ? parseFloat(total) : null,
+      forma_pagamento,
+      valor_pago ? parseFloat(valor_pago) : null,
+      troco_calculado ? parseFloat(troco_calculado) : null,
+      cupom_id,
+      desconto_aplicado ? parseFloat(desconto_aplicado) : null,
+      pontos_ganhos ? parseInt(pontos_ganhos) : null,
+      pontos_resgatados ? parseInt(pontos_resgatados) : null,
+      observacoes,
+      status_pedido,
+      tipo_pedido,
+      tipo_pedido === 'mesa' ? parseInt(numero_mesa) : null,
+      tipo_pedido === 'delivery' ? endereco_entrega : null,
+      id
+    ]);
+
+    // Se há itens para atualizar
+    if (items && items.length > 0) {
+      // Deletar itens antigos
+      await client.query('DELETE FROM itens_pedido WHERE pedido_id = $1', [id]);
+      
+      // Inserir novos itens
+      for (const item of items) {
+        await client.query(`
+          INSERT INTO itens_pedido (
+            pedido_id, produto_id_ref, sabor_registrado, 
+            tamanho_registrado, quantidade, valor_unitario
+          ) VALUES ($1, $2, $3, $4, $5, $6)
+        `, [
+          id,
+          item.produto_id_ref || null,
+          item.sabor_registrado || null,
+          item.tamanho_registrado || null,
+          parseInt(item.quantidade),
+          parseFloat(item.valor_unitario)
+        ]);
+      }
+    }
+
+    await client.query('COMMIT');
+
+    // Buscar pedido atualizado com joins
+    const completeOrderResult = await db.query(`
+      SELECT 
+        p.*,
+        c.nome as cliente_nome,
+        e.nome as entregador_nome
+      FROM pedidos p
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      LEFT JOIN entregadores e ON p.entregador_id = e.id
+      WHERE p.id = $1
+    `, [id]);
+
+    res.json({ order: completeOrderResult.rows[0] });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao atualizar pedido:', error);
+    res.status(error.message === 'Pedido não encontrado' ? 404 : 500).json({ 
+      error: error.message || 'Erro interno do servidor'
     });
   } finally {
     client.release();

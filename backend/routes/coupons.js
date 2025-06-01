@@ -61,6 +61,29 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// GET /api/coupons/code/:code - Buscar cupom por código
+router.get('/code/:code', authenticateToken, async (req, res) => {
+  try {
+    const { code } = req.params;
+    const result = await db.query(
+      'SELECT * FROM cupons WHERE UPPER(codigo) = UPPER($1)',
+      [code]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cupom não encontrado' });
+    }
+    
+    res.json({ coupon: result.rows[0] });
+  } catch (error) {
+    console.error('Erro ao buscar cupom por código:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
 // POST /api/coupons/validate - Validar cupom por código
 router.post('/validate', authenticateToken, async (req, res) => {
   try {

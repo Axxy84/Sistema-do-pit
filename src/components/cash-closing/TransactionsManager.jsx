@@ -31,7 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useToast } from '@/components/ui/use-toast';
 import { PlusCircle, Edit2, Trash2, TrendingDown, Loader2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-import { supabase } from '@/lib/supabaseClient';
+import transactionService from '@/services/transactionService';
 
 const TransactionsManager = ({ initialTransactions, onTransactionsChange, filterDate, fetchDailyDataForGivenDate }) => {
   const [isTransactionFormOpen, setIsTransactionFormOpen] = useState(false);
@@ -83,17 +83,10 @@ const TransactionsManager = ({ initialTransactions, onTransactionsChange, filter
 
     try {
       if (currentTransaction && currentTransaction.id) {
-        const { error } = await supabase
-          .from('despesas_receitas')
-          .update(transactionDataToSave)
-          .eq('id', currentTransaction.id);
-        if (error) throw error;
+        await transactionService.updateTransaction(currentTransaction.id, transactionDataToSave);
         toast({ title: 'Sucesso', description: 'Transação atualizada.' });
       } else {
-        const { error } = await supabase
-          .from('despesas_receitas')
-          .insert(transactionDataToSave);
-        if (error) throw error;
+        await transactionService.createTransaction(transactionDataToSave);
         toast({ title: 'Sucesso', description: 'Transação adicionada.' });
       }
       await fetchDailyDataForGivenDate(filterDate); 
@@ -118,11 +111,7 @@ const TransactionsManager = ({ initialTransactions, onTransactionsChange, filter
   const handleDeleteTransaction = async (id) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('despesas_receitas')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
+      await transactionService.deleteTransaction(id);
       toast({ title: 'Sucesso', description: 'Transação removida.' });
       await fetchDailyDataForGivenDate(filterDate);
     } catch (error) {

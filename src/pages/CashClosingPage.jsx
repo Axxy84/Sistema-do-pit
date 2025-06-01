@@ -180,7 +180,7 @@ const CashClosingPage = () => {
         return;
     }
     
-    const closingDataForSupabase = {
+    const closingData = {
         data_fechamento: filterDate,
         total_vendas: dailySummary.totalSales,
         total_descontos: dailySummary.totalDiscounts,
@@ -194,7 +194,7 @@ const CashClosingPage = () => {
         vendas_por_metodo: dailySummary.salesByPaymentMethod,
     };
 
-    // const { data: newClosing, error: closingError } = await cashClosingService.closeCash(closingDataForSupabase);
+    // const { data: newClosing, error: closingError } = await cashClosingService.closeCash(closingData);
     const newClosing = { id: 'temp-id' }; // Simular sucesso
     const closingError = null; // Simular sucesso
 

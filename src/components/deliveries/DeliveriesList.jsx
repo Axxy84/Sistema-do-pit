@@ -17,7 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Truck, AlertTriangle, Edit2, Loader2, Filter } from 'lucide-react';
-import { supabase } from '@/lib/supabaseClient';
+import { orderService } from '@/services/orderService';
 import { useToast } from '@/components/ui/use-toast';
 import { ORDER_STATUSES_GENERAL } from '@/lib/constants';
 
@@ -49,12 +49,8 @@ const DeliveriesList = ({ deliveries, deliverersList, isLoading, fetchDeliveries
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from('pedidos')
-        .update(updateData)
-        .eq('id', deliveryId);
+      await orderService.updateOrder(deliveryId, updateData);
       
-      if (error) throw error;
       toast({ title: 'Sucesso!', description: 'Entrega atualizada.' });
       fetchDeliveries();
       handleCancelEdit();
