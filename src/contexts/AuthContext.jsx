@@ -3,17 +3,54 @@ import { authService } from '@/services/authService';
 
 const AuthContext = createContext(null);
 
+// Função auxiliar para obter dados iniciais do localStorage
+const getInitialAuthState = () => {
+  try {
+    const token = localStorage.getItem('authToken');
+    const userProfileData = localStorage.getItem('userProfile');
+    
+    if (token && userProfileData) {
+      const userData = JSON.parse(userProfileData);
+      return {
+        session: { user: userData, access_token: token },
+        user: userData,
+        userProfile: {
+          full_name: userData.full_name,
+          role: userData.role
+        },
+        userRole: userData.role,
+        loading: false, // Não está carregando pois já temos dados
+        initialized: true
+      };
+    }
+  } catch (error) {
+    console.error('Erro ao recuperar dados iniciais:', error);
+  }
+  
+  return {
+    session: null,
+    user: null,
+    userProfile: null,
+    userRole: null,
+    loading: true,
+    initialized: false
+  };
+};
+
 export const AuthProvider = ({ children }) => {
   console.log('🔐 AuthProvider - Componente renderizado');
   
-  const [session, setSession] = useState(null);
-  const [user, setUser] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
-  const [userRole, setUserRole] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
+  // Inicializar com dados do localStorage se disponíveis
+  const initialState = getInitialAuthState();
+  
+  const [session, setSession] = useState(initialState.session);
+  const [user, setUser] = useState(initialState.user);
+  const [userProfile, setUserProfile] = useState(initialState.userProfile);
+  const [userRole, setUserRole] = useState(initialState.userRole);
+  const [loading, setLoading] = useState(initialState.loading);
+  const [initialized, setInitialized] = useState(initialState.initialized);
 
-  console.log('🔐 AuthProvider - Estado atual:', {
+  console.log('🔐 AuthProvider - Estado inicial:', {
     hasSession: !!session,
     loading: loading,
     initialized: initialized,
@@ -31,70 +68,39 @@ export const AuthProvider = ({ children }) => {
     setInitialized(true);
   }, []);
 
-  // Função para restaurar dados do localStorage rapidamente
-  const restoreFromLocalStorage = useCallback(() => {
-    console.log('⚡ AuthProvider - Tentando restaurar do localStorage...');
-    try {
-      const token = localStorage.getItem('authToken');
-      const userProfileData = localStorage.getItem('userProfile');
-      
-      if (token && userProfileData) {
-        const userData = JSON.parse(userProfileData);
-        const mockSession = { 
-          user: userData, 
-          access_token: token 
-        };
-        const mockProfile = {
-          full_name: userData.full_name,
-          role: userData.role
-        };
-        
-        console.log('⚡ AuthProvider - Restaurando dados do localStorage:', userData);
-        updateUserState(mockSession, userData, mockProfile);
-        return true;
-      }
-    } catch (error) {
-      console.error('❌ AuthProvider - Erro ao restaurar dados do localStorage:', error);
-    }
-    console.log('❌ AuthProvider - Nenhum dado válido no localStorage');
-    return false;
-  }, [updateUserState]);
-
   useEffect(() => {
     console.log('🔐 AuthProvider - useEffect principal executado');
     
-    const initializeAuth = async () => {
-      console.log('🚀 AuthProvider - Inicializando autenticação...');
-      
-      // Primeiro, tentar restaurar rapidamente do localStorage
-      const restoredFromLocal = restoreFromLocalStorage();
-      
-      if (restoredFromLocal) {
-        console.log('✅ AuthProvider - Dados restaurados do localStorage, validando no servidor...');
-        // Se restaurou do localStorage, validar no servidor em background
+    const validateAuth = async () => {
+      // Se já temos dados do localStorage, validar em background
+      if (initialState.initialized && initialState.user) {
+        console.log('✅ AuthProvider - Validando dados do localStorage no servidor...');
         try {
           const activeSession = await authService.getSession();
-          const activeUser = activeSession?.user ?? null;
-          let activeProfile = null;
           
-          if (activeUser) {
-            const { profile } = await authService.getUserWithProfile();
-            activeProfile = profile;
+          if (!activeSession || !activeSession.user) {
+            // Token inválido, limpar tudo
+            console.log('❌ AuthProvider - Token inválido, limpando dados');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userProfile');
+            updateUserState(null, null, null);
+          } else {
+            console.log('✅ AuthProvider - Sessão validada com sucesso');
+            // Atualizar com dados frescos do servidor se necessário
+            if (activeSession.user.id !== user?.id) {
+              const { profile } = await authService.getUserWithProfile();
+              updateUserState(activeSession, activeSession.user, profile);
+            }
           }
-          
-          // Atualizar com dados validados do servidor
-          console.log('✅ AuthProvider - Dados validados no servidor');
-          updateUserState(activeSession, activeUser, activeProfile);
         } catch (error) {
-          console.error("❌ AuthProvider - Erro ao validar sessão no servidor:", error);
-          // Se falhou a validação, limpar dados
+          console.error("❌ AuthProvider - Erro ao validar sessão:", error);
           localStorage.removeItem('authToken');
           localStorage.removeItem('userProfile');
           updateUserState(null, null, null);
         }
       } else {
-        console.log('❌ AuthProvider - Sem dados locais, tentando do servidor...');
-        // Se não tinha dados locais, tentar do servidor
+        // Sem dados locais, tentar obter do servidor
+        console.log('🔍 AuthProvider - Buscando dados do servidor...');
         try {
           const activeSession = await authService.getSession();
           const activeUser = activeSession?.user ?? null;
@@ -114,7 +120,10 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-    initializeAuth();
+    // Só validar se ainda não começamos o processo
+    if (!initialized || loading) {
+      validateAuth();
+    }
 
     // Configurar listener para mudanças de autenticação
     console.log('🔗 AuthProvider - Configurando listener de mudanças de auth');
@@ -131,7 +140,7 @@ export const AuthProvider = ({ children }) => {
         authListener.subscription.unsubscribe();
       }
     };
-  }, [updateUserState, restoreFromLocalStorage]);
+  }, []); // Removendo dependências para evitar re-execução
 
   // Log sempre que o estado mudar
   useEffect(() => {

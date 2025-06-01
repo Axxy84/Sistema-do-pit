@@ -146,15 +146,5 @@ export const orderService = {
       console.error('Error validating coupon:', error.message);
       throw error;
     }
-  },
-
-  async getCustomerPoints(customerId) {
-    try {
-      const data = await apiClient.get(`/clients/${customerId}/points`);
-      return data.points || 0;
-    } catch (error) {
-      console.error('Error fetching customer points:', error.message);
-      throw error;
-    }
   }
 };

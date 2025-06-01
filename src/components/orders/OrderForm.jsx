@@ -10,7 +10,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, UserPlus } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,7 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerId, setCustomerId] = useState(null);
   const [customerPoints, setCustomerPoints] = useState(0);
+  const [isNewCustomer, setIsNewCustomer] = useState(false);
   
   // Novos estados para tipo de pedido
   const [tipoPedido, setTipoPedido] = useState('delivery');
@@ -171,15 +172,23 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
 
   const fetchCustomerByPhone = async () => {
     if (!customerPhone) return;
+    
+    const cleanedPhone = customerPhone.replace(/\D/g, ''); // Remove todos não-dígitos
+    if (!cleanedPhone) {
+        toast({ title: 'Telefone Inválido', description: 'Por favor, insira um número de telefone válido.', variant: 'destructive' });
+        return;
+    }
+
     setIsCustomerLoading(true);
     try {
-      const cliente = await customerService.getByPhone(customerPhone);
+      const cliente = await customerService.getByPhone(cleanedPhone);
       
       if (cliente) {
         setCustomerName(cliente.nome);
         setCustomerAddress(cliente.endereco || '');
         setCustomerId(cliente.id);
         setCustomerPoints(cliente.pontos_atuais || 0);
+        setIsNewCustomer(false);
         toast({ title: 'Cliente Encontrado', description: `Dados de ${cliente.nome} carregados.` });
       }
     } catch (err) {
@@ -187,7 +196,12 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
         setCustomerAddress('');
         setCustomerId(null);
         setCustomerPoints(0);
-        toast({ title: 'Cliente Não Encontrado', description: 'Você pode preencher os dados para um novo cadastro.', variant: 'default' });
+        setIsNewCustomer(true);
+        toast({ 
+          title: 'Novo Cliente', 
+          description: 'Este é um novo cliente. Os dados serão cadastrados ao salvar o pedido.', 
+          variant: 'default' 
+        });
       } else {
         toast({ title: 'Erro ao buscar cliente', description: err.message, variant: 'destructive' });
       }
@@ -212,8 +226,10 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!customerName || !customerPhone) {
-      toast({ title: 'Erro de Validação', description: 'Nome e telefone do cliente são obrigatórios.', variant: 'destructive' });
+
+    const cleanedSubmitPhone = customerPhone.replace(/\D/g, '');
+    if (!customerName || !cleanedSubmitPhone) {
+      toast({ title: 'Erro de Validação', description: 'Nome e telefone do cliente (apenas números) são obrigatórios.', variant: 'destructive' });
       return;
     }
     
@@ -249,7 +265,7 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
 
       await onSubmit({ 
         customerName,
-        customerPhone,
+        customerPhone: cleanedSubmitPhone,
         customerAddress: tipoPedido === 'delivery' ? customerAddress : null,
         customerId, // This will be null if a new customer, or the ID if existing
         tipo_pedido: tipoPedido,
@@ -275,14 +291,26 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
   return (
     <Dialog open={isOpen} onOpenChange={(openState) => { 
         if (!isSubmittingOrder) { 
-            onOpenChange(openState); 
+            onOpenChange(openState);
+            if (!openState) {
+              setIsNewCustomer(false);
+            }
         }
     }}>
       <DialogContent className="max-w-3xl bg-card">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-primary">{initialOrderData ? 'Editar Pedido' : 'Registrar Novo Pedido'}</DialogTitle>
+          <DialogTitle className="text-2xl text-primary">
+            {initialOrderData ? 'Editar Pedido' : 'Registrar Novo Pedido'}
+            {isNewCustomer && (
+              <span className="ml-2 text-sm text-green-600 font-normal flex items-center inline-flex">
+                <UserPlus className="h-4 w-4 mr-1" />
+                Novo Cliente
+              </span>
+            )}
+          </DialogTitle>
           <DialogDescription>
-            Preencha os detalhes do pedido. Clique em salvar quando terminar.
+            Preencha os detalhes do pedido. 
+            {isNewCustomer && ' O cliente será cadastrado automaticamente ao salvar.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6 py-4 max-h-[80vh] overflow-y-auto pr-2">

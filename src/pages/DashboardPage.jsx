@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Loader2, AlertTriangle, RefreshCw, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import KpiCards from '@/components/dashboard/KpiCards';
@@ -11,8 +11,6 @@ import SalesOverTimeChart from '@/components/dashboard/SalesOverTimeChart';
 import { useDashboardData } from '@/hooks/useDashboardData';
 
 const DashboardPage = () => {
-  console.log('📊 DashboardPage - Iniciando renderização');
-
   const {
     kpiRawData,
     loadingKpis,
@@ -25,58 +23,23 @@ const DashboardPage = () => {
     fetchAllDashboardData
   } = useDashboardData();
 
-  console.log('📊 DashboardPage - Dados recebidos do hook:', {
-    kpiRawData: kpiRawData,
-    loadingKpis: loadingKpis,
-    recentOrdersCount: recentOrders?.length || 0,
-    isLoadingRecent: isLoadingRecent,
-    topPizzasCount: topPizzasData?.length || 0,
-    isLoadingTopPizzas: isLoadingTopPizzas,
-    salesOverTimeCount: salesOverTimeData?.length || 0,
-    isLoadingSalesOverTime: isLoadingSalesOverTime
-  });
-
-  // Verificar se há dados zerados que podem indicar problemas
-  if (!loadingKpis && kpiRawData.salesToday === 0 && kpiRawData.newCustomersToday === 0) {
-    console.warn('⚠️ DashboardPage - Todos os KPIs estão zerados, pode indicar problema na API ou dados vazios');
-  }
-
-  if (!isLoadingRecent && recentOrders.length === 0) {
-    console.warn('⚠️ DashboardPage - Nenhum pedido recente encontrado');
-  }
-
-  // Verificar se todos os dados estão carregando
+  // Verificar se todos os componentes estão carregando
   const isAllLoading = loadingKpis && isLoadingRecent && isLoadingTopPizzas && isLoadingSalesOverTime;
+  
+  // Verificar se há pelo menos alguns dados disponíveis
   const hasAnyData = !loadingKpis || !isLoadingRecent || !isLoadingTopPizzas || !isLoadingSalesOverTime;
-
-  console.log('📊 DashboardPage - Estados de carregamento:', {
-    isAllLoading,
-    hasAnyData,
-    loadingStates: {
-      kpis: loadingKpis,
-      recent: isLoadingRecent,
-      topPizzas: isLoadingTopPizzas,
-      salesOverTime: isLoadingSalesOverTime
-    }
-  });
 
   // Verificar se há dados vazios após carregamento
   const hasEmptyData = !loadingKpis && !isLoadingRecent && !isLoadingTopPizzas && !isLoadingSalesOverTime &&
     kpiRawData.salesToday === 0 && kpiRawData.newCustomersToday === 0 && 
     recentOrders.length === 0 && topPizzasData.length === 0;
 
-  if (hasEmptyData) {
-    console.warn('⚠️ DashboardPage - Todos os dados estão vazios após carregamento completo');
-  }
-
   const handleManualRefresh = () => {
-    console.log('🔄 DashboardPage - Refresh manual solicitado');
     fetchAllDashboardData(true);
   };
 
   // Tela de carregamento inicial completo
   if (isAllLoading) {
-    console.log('⏳ DashboardPage - Mostrando tela de carregamento completo');
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
@@ -90,49 +53,29 @@ const DashboardPage = () => {
 
   // Tela de dados vazios
   if (hasEmptyData) {
-    console.log('📭 DashboardPage - Mostrando tela de dados vazios');
     return (
-      <div className="space-y-8">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-red-400">
-            Dashboard da Pizzaria
-          </h1>
-          <p className="text-muted-foreground mt-2 text-lg">
-            Bem-vindo ao seu painel de controle. Aqui você encontra um resumo das atividades.
-          </p>
-        </motion.div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              Nenhum Dado Encontrado
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-muted-foreground">
-              Não foram encontrados dados para exibir no dashboard. Isso pode acontecer se:
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4 max-w-md">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <TrendingUp className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-foreground">Nenhum Dado Encontrado</h2>
+            <p className="text-muted-foreground mb-6">
+              Parece que ainda não há dados suficientes para exibir o dashboard. 
+              Isso pode acontecer se você acabou de configurar o sistema ou se não há pedidos hoje.
             </p>
-            <ul className="text-sm text-muted-foreground space-y-1 text-left max-w-md mx-auto">
-              <li>• Não há pedidos registrados ainda</li>
-              <li>• Há um problema de conexão com o servidor</li>
-              <li>• O banco de dados está vazio</li>
-            </ul>
-            <Button onClick={handleManualRefresh} className="mt-4">
-              <RefreshCw className="h-4 w-4 mr-2" />
+            <Button onClick={handleManualRefresh} variant="outline" size="lg">
+              <RefreshCw className="h-5 w-5 mr-2" />
               Tentar Novamente
             </Button>
-          </CardContent>
-        </Card>
+          </motion.div>
+        </div>
       </div>
     );
   }
-
-  console.log('✅ DashboardPage - Renderizando dashboard com dados');
 
   return (
     <div className="space-y-8">
@@ -156,21 +99,6 @@ const DashboardPage = () => {
           </Button>
         </div>
       </motion.div>
-
-      {/* Debug Info Card - Remover em produção */}
-      <Card className="border-dashed border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20">
-        <CardHeader>
-          <CardTitle className="text-sm text-yellow-700 dark:text-yellow-300">
-            🔍 Debug Info (Remover em produção)
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-xs space-y-2">
-          <div>KPIs: {loadingKpis ? 'Carregando...' : `Vendas: R$ ${kpiRawData.salesToday}, Clientes: ${kpiRawData.newCustomersToday}`}</div>
-          <div>Pedidos Recentes: {isLoadingRecent ? 'Carregando...' : `${recentOrders.length} pedidos`}</div>
-          <div>Top Pizzas: {isLoadingTopPizzas ? 'Carregando...' : `${topPizzasData.length} pizzas`}</div>
-          <div>Vendas no Tempo: {isLoadingSalesOverTime ? 'Carregando...' : `${salesOverTimeData.length} pontos`}</div>
-        </CardContent>
-      </Card>
 
       <KpiCards kpiData={kpiRawData} isLoading={loadingKpis} />
 

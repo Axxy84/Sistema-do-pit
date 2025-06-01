@@ -15,79 +15,83 @@ import { formatCurrency } from '@/lib/utils';
 import { PAYMENT_METHODS } from '@/lib/constants';
 import { cashClosingService } from '@/services/cashClosingService';
 import { expenseService } from '@/services/expenseService';
+import { orderService } from '@/services/orderService';
 
 const fetchDailyOrdersAndTransactions = async (dateString) => {
-  const targetDate = new Date(dateString + 'T00:00:00.000Z');
-  const nextDayDate = new Date(targetDate);
-  nextDayDate.setDate(targetDate.getDate() + 1);
+  try {
+    // Buscar pedidos do dia com status 'entregue'
+    const ordersData = await orderService.getAllOrders({
+      data_inicio: dateString,
+      data_fim: dateString,
+      status: 'entregue'
+    });
 
-  // const { data: dailyOrdersData, error: ordersError } = await cashClosingService.fetchDailyOrders(targetDate, nextDayDate);
-  // if (ordersError) throw ordersError;
-  const dailyOrdersData = []; // Retornar vazio por enquanto
+    // Buscar transações do dia
+    const { data: dailyTransactionsData, error: transactionsError } = await expenseService.fetchDailyTransactions(dateString);
+    
+    if (transactionsError) throw transactionsError;
 
-  const { data: dailyTransactionsData, error: transactionsError } = await expenseService.fetchDailyTransactions(dateString);
-  
-  if (transactionsError) throw transactionsError;
-
-  return { orders: dailyOrdersData || [], transactions: dailyTransactionsData || [] };
+    return { orders: ordersData || [], transactions: dailyTransactionsData || [] };
+  } catch (error) {
+    console.error('[CashClosing] Erro ao buscar dados do dia:', error);
+    throw error;
+  }
 };
 
 const calculateDailySummary = (orders, transactions) => {
-  const totalSales = orders.reduce((sum, order) => sum + order.total, 0);
+  const totalSales = orders.reduce((sum, order) => sum + (parseFloat(order.total) || 0), 0);
+  const totalOrdersCount = orders.length;
   
   const totalExpenses = transactions
     .filter(t => t.tipo === 'despesa')
-    .reduce((sum, t) => sum + t.valor, 0);
+    .reduce((sum, t) => sum + (parseFloat(t.valor) || 0), 0);
   const totalExtraRevenues = transactions
     .filter(t => t.tipo === 'receita')
-    .reduce((sum, t) => sum + t.valor, 0);
+    .reduce((sum, t) => sum + (parseFloat(t.valor) || 0), 0);
   
-  const totalCouponDiscounts = orders.reduce((sum, order) => sum + (order.desconto_aplicado || 0), 0);
-  const totalPointsDiscounts = orders.reduce((sum, order) => sum + (order.pontos_resgatados ? (order.pontos_resgatados * 0.5) : 0), 0); // Assuming 1 point = R$0.50
+  const totalCouponDiscounts = orders.reduce((sum, order) => sum + (parseFloat(order.desconto_aplicado) || 0), 0);
+  const totalPointsDiscounts = orders.reduce((sum, order) => sum + ((order.pontos_resgatados || 0) * 0.5), 0);
   const totalDiscounts = totalCouponDiscounts + totalPointsDiscounts;
-
 
   const totalTaxes = 0; // Placeholder, not implemented
   const totalDeliveryFees = 0; // Placeholder, depends on how delivery fees are stored/calculated
 
-  const netRevenue = totalSales + totalExtraRevenues - totalExpenses; // Note: totalSales is already after discounts
+  const netRevenue = totalSales + totalExtraRevenues - totalExpenses;
 
+  // Inicializar contadores para métodos de pagamento
   const salesByPaymentMethod = PAYMENT_METHODS.reduce((acc, pm) => {
       acc[pm.id] = { name: pm.name, total: 0, count: 0 };
       return acc;
   }, {});
 
+  // Processar pedidos para agrupar por forma de pagamento
   orders.forEach(order => {
-      if (salesByPaymentMethod[order.forma_pagamento]) {
-          salesByPaymentMethod[order.forma_pagamento].total += order.total;
-          salesByPaymentMethod[order.forma_pagamento].count += 1;
-      } else if(order.forma_pagamento) { 
-           if (!salesByPaymentMethod['outros']) {
-              salesByPaymentMethod['outros'] = { name: 'Outros (' + order.forma_pagamento + ')', total: 0, count: 0 };
-          }
-          salesByPaymentMethod['outros'].total += order.total;
-          salesByPaymentMethod['outros'].count += 1;
-      } else {
-          if (!salesByPaymentMethod['nao_informado']) {
-              salesByPaymentMethod['nao_informado'] = { name: 'Não Informado', total: 0, count: 0 };
-          }
-          salesByPaymentMethod['nao_informado'].total += order.total;
-          salesByPaymentMethod['nao_informado'].count += 1;
-      }
+    const paymentMethod = order.forma_pagamento;
+    const orderTotal = parseFloat(order.total) || 0;
+    
+    if (salesByPaymentMethod[paymentMethod]) {
+      salesByPaymentMethod[paymentMethod].total += orderTotal;
+      salesByPaymentMethod[paymentMethod].count += 1;
+    } else {
+      // Se o método de pagamento não existe na lista, criar
+      salesByPaymentMethod[paymentMethod] = {
+        name: paymentMethod,
+        total: orderTotal,
+        count: 1
+      };
+    }
   });
-  
-  const totalOrdersCount = orders.length;
 
   return {
     totalSales,
+    totalOrdersCount,
+    totalExpenses,
+    totalExtraRevenues,
     totalDiscounts,
     totalTaxes,
     totalDeliveryFees,
-    totalExpenses,
-    totalExtraRevenues,
     netRevenue,
-    salesByPaymentMethod,
-    totalOrdersCount,
+    salesByPaymentMethod
   };
 };
 
@@ -121,9 +125,7 @@ const CashClosingPage = () => {
     if (!showHistory) return;
     setIsLoadingHistory(true);
     try {
-        // const { data, error } = await cashClosingService.fetchClosingsHistory();
-        // if (error) throw error;
-        const data = []; // Retornar vazio por enquanto
+        const data = await cashClosingService.getAllCashClosings();
         
         const formattedClosings = data.map(d => ({
             id: d.id,
@@ -165,50 +167,44 @@ const CashClosingPage = () => {
   
   const handleCloseCash = async () => {
     setIsClosingCash(true);
-    // const { data: existingClosings, error: fetchError } = await cashClosingService.fetchExistingClosings(filterDate);
-    const existingClosings = []; // Retornar vazio por enquanto
-    const fetchError = null; // Simular sucesso
+    try {
+        // Verificar se já foi fechado
+        const existingClosings = await cashClosingService.getAllCashClosings();
+        const closingForDate = existingClosings.find(c => c.data_fechamento === filterDate);
+        
+        if (closingForDate) {
+            toast({ title: 'Atenção', description: `O caixa para o dia ${new Date(filterDate+'T00:00:00').toLocaleDateString()} já foi fechado.`, variant: 'destructive' });
+            setIsClosingCash(false);
+            return;
+        }
+        
+        const closingData = {
+            data_fechamento: filterDate,
+            total_vendas: dailySummary.totalSales,
+            total_descontos: dailySummary.totalDiscounts,
+            total_impostos: dailySummary.totalTaxes,
+            total_taxas_entrega: dailySummary.totalDeliveryFees,
+            total_despesas_extras: dailySummary.totalExpenses,
+            total_receitas_extras: dailySummary.totalExtraRevenues,
+            saldo_final: dailySummary.netRevenue,
+            observacoes: `Fechamento do dia ${new Date(filterDate+'T00:00:00').toLocaleDateString()}`,
+            total_pedidos_dia: dailySummary.totalOrdersCount,
+            vendas_por_metodo: dailySummary.salesByPaymentMethod,
+        };
 
-    if (fetchError) {
-        toast({ title: 'Erro ao verificar fechamento', description: fetchError.message, variant: 'destructive' });
+        const newClosing = await cashClosingService.createCashClosing(closingData);
+        
+        toast({ title: 'Caixa Fechado!', description: `Fechamento do dia ${new Date(filterDate+'T00:00:00').toLocaleDateString()} realizado e salvo.` });
+        if (showHistory) fetchClosingsHistory(); 
+        
+        // Dispatch custom event to notify other components (like Dashboard)
+        const event = new CustomEvent('cashClosed', { detail: newClosing });
+        window.dispatchEvent(event);
+    } catch (error) {
+        toast({ title: 'Erro ao fechar caixa', description: error.message, variant: 'destructive' });
+    } finally {
         setIsClosingCash(false);
-        return;
     }
-    if (existingClosings.length > 0) {
-        toast({ title: 'Atenção', description: `O caixa para o dia ${new Date(filterDate+'T00:00:00').toLocaleDateString()} já foi fechado.`, variant: 'destructive' });
-        setIsClosingCash(false);
-        return;
-    }
-    
-    const closingData = {
-        data_fechamento: filterDate,
-        total_vendas: dailySummary.totalSales,
-        total_descontos: dailySummary.totalDiscounts,
-        total_impostos: dailySummary.totalTaxes,
-        total_taxas_entrega: dailySummary.totalDeliveryFees,
-        total_despesas_extras: dailySummary.totalExpenses,
-        total_receitas_extras: dailySummary.totalExtraRevenues,
-        saldo_final: dailySummary.netRevenue,
-        observacoes: `Fechamento do dia ${new Date(filterDate+'T00:00:00').toLocaleDateString()}`,
-        total_pedidos_dia: dailySummary.totalOrdersCount,
-        vendas_por_metodo: dailySummary.salesByPaymentMethod,
-    };
-
-    // const { data: newClosing, error: closingError } = await cashClosingService.closeCash(closingData);
-    const newClosing = { id: 'temp-id' }; // Simular sucesso
-    const closingError = null; // Simular sucesso
-
-    if (closingError) {
-        toast({ title: 'Erro ao fechar caixa', description: closingError.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Caixa Fechado!', description: `Fechamento do dia ${new Date(filterDate+'T00:00:00').toLocaleDateString()} realizado e salvo.` });
-      if (showHistory) fetchClosingsHistory(); 
-      
-      // Dispatch custom event to notify other components (like Dashboard)
-      const event = new CustomEvent('cashClosed', { detail: newClosing });
-      window.dispatchEvent(event);
-    }
-    setIsClosingCash(false);
   };
 
   const handlePrintReport = (closingDataInput) => {

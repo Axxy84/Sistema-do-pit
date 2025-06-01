@@ -31,6 +31,7 @@ router.get('/', authenticateToken, async (req, res) => {
 
 // GET /api/customers/phone/:phone - Buscar cliente por telefone
 router.get('/phone/:phone', authenticateToken, async (req, res) => {
+  console.log('[DEBUG] Rota /api/customers/phone/:phone alcançada. Telefone:', req.params.phone, 'Decodificado:', decodeURIComponent(req.params.phone)); // Log de depuração
   try {
     const { phone } = req.params;
     
@@ -117,11 +118,13 @@ router.get('/:id/points', authenticateToken, async (req, res) => {
 
 // POST /api/customers - Criar novo cliente
 router.post('/', authenticateToken, async (req, res) => {
+  console.log('[Backend] POST /api/customers - Tentando criar cliente:', req.body);
   try {
     const { nome, telefone, endereco } = req.body;
 
     // Validações básicas
     if (!nome || !telefone) {
+      console.log('[Backend] Erro: Nome e telefone são obrigatórios');
       return res.status(400).json({ 
         error: 'Nome e telefone são obrigatórios' 
       });
@@ -134,6 +137,7 @@ router.post('/', authenticateToken, async (req, res) => {
     );
 
     if (existing.rows.length > 0) {
+      console.log('[Backend] Erro: Cliente já existe com telefone:', telefone);
       return res.status(409).json({ 
         error: 'Cliente já existe com esse telefone' 
       });
@@ -145,9 +149,10 @@ router.post('/', authenticateToken, async (req, res) => {
       RETURNING *
     `, [nome, telefone, endereco]);
 
+    console.log('[Backend] Cliente criado com sucesso:', result.rows[0]);
     res.status(201).json({ customer: result.rows[0] });
   } catch (error) {
-    console.error('Erro ao criar cliente:', error);
+    console.error('[Backend] Erro ao criar cliente:', error);
     res.status(500).json({ 
       error: 'Erro interno do servidor',
       message: error.message 
