@@ -19,12 +19,17 @@ import { orderService } from '@/services/orderService';
 
 const fetchDailyOrdersAndTransactions = async (dateString) => {
   try {
+    console.log('[DEBUG] Buscando pedidos para data:', dateString);
+    
     // Buscar pedidos do dia com status 'entregue'
     const ordersData = await orderService.getAllOrders({
       data_inicio: dateString,
       data_fim: dateString,
       status: 'entregue'
     });
+    
+    console.log('[DEBUG] Pedidos encontrados:', ordersData?.length || 0);
+    console.log('[DEBUG] Pedidos:', ordersData);
 
     // Buscar transações do dia
     const { data: dailyTransactionsData, error: transactionsError } = await expenseService.fetchDailyTransactions(dateString);
