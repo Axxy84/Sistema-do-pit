@@ -11,13 +11,15 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { ORDER_STATUSES_GENERAL, PAYMENT_METHODS } from '@/lib/constants'; 
 import { formatCurrency } from '@/lib/utils';
-import { Truck, Coffee, CreditCard, DollarSign, Smartphone, Layers } from 'lucide-react';
+import { Truck, Coffee, CreditCard, DollarSign, Smartphone, Layers, Edit, Printer, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const OrdersTable = ({ 
   orders = [], 
   onEdit = () => {}, 
   onDelete = () => {}, 
   onPrint = () => {}, 
+  onPrintDelivery = () => {},
   actionsComponent: ActionsComponent = null 
 }) => {
 
@@ -124,7 +126,42 @@ const OrdersTable = ({
                 <TableCell className="text-right">
                   {/* Render actions passed from OrdersList or default actions */}
                   {order.actions ? order.actions : (
-                    ActionsComponent && <ActionsComponent order={order} onEdit={onEdit} onDelete={onDelete} onPrint={onPrint} />
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={() => onEdit(order)}
+                        size="sm"
+                        variant="outline"
+                        className="h-8"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={() => onPrint(order)}
+                        size="sm"
+                        variant="outline"
+                        className="h-8"
+                      >
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                      {/* Novo botão: Imprimir para entregador */}
+                      <Button
+                        onClick={() => onPrintDelivery(order)}
+                        size="sm"
+                        variant="outline"
+                        className="h-8 bg-blue-50 hover:bg-blue-100 border-blue-200 text-blue-700"
+                        title="Imprimir para entregador"
+                      >
+                        <Truck className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        onClick={() => onDelete(order.id)}
+                        size="sm"
+                        variant="outline"
+                        className="h-8 border-red-200 text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   )}
                 </TableCell>
               </motion.tr>

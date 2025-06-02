@@ -1,6 +1,8 @@
 const express = require('express');
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const cache = require('../cache/cache-manager');
+const { CacheKeys, getPeriodKey } = require('../cache/cache-keys');
 
 const router = express.Router();
 
@@ -8,104 +10,113 @@ const router = express.Router();
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { status, data_inicio, data_fim, cliente_id } = req.query;
+    const cacheKey = CacheKeys.ORDERS_LIST(status, data_inicio, data_fim, cliente_id);
     
-    let query = `
-      SELECT 
-        p.*,
-        c.nome as cliente_nome,
-        c.telefone as cliente_telefone,
-        c.endereco as cliente_endereco,
-        cp.codigo as cupom_codigo,
-        cp.tipo_desconto as cupom_tipo,
-        cp.valor_desconto as cupom_valor,
-        p.tipo_pedido,
-        p.numero_mesa,
-        p.endereco_entrega,
-        p.taxa_entrega,
-        p.entregador_nome,
-        p.multiplos_pagamentos
-      FROM pedidos p
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      LEFT JOIN cupons cp ON p.cupom_id = cp.id
-      WHERE 1=1
-    `;
-    
-    const params = [];
-    let paramIndex = 1;
+    // Implementação Cache-Aside para listagem de pedidos
+    const orders = await cache.getOrFetch(cacheKey, async () => {
+      let query = `
+        SELECT 
+          p.*,
+          c.nome as cliente_nome,
+          c.telefone as cliente_telefone,
+          c.endereco as cliente_endereco,
+          cp.codigo as cupom_codigo,
+          cp.tipo_desconto as cupom_tipo,
+          cp.valor_desconto as cupom_valor,
+          p.tipo_pedido,
+          p.numero_mesa,
+          p.endereco_entrega,
+          p.taxa_entrega,
+          p.entregador_nome,
+          p.multiplos_pagamentos
+        FROM pedidos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        LEFT JOIN cupons cp ON p.cupom_id = cp.id
+        WHERE 1=1
+      `;
+      
+      const params = [];
+      let paramIndex = 1;
 
-    if (status) {
-      query += ` AND LOWER(p.status_pedido) = LOWER($${paramIndex++})`;
-      params.push(status);
-    }
+      if (status) {
+        query += ` AND LOWER(p.status_pedido) = LOWER($${paramIndex++})`;
+        params.push(status);
+      }
 
-    if (data_inicio) {
-      query += ` AND DATE(COALESCE(p.data_pedido, p.created_at)) >= DATE($${paramIndex++})`;
-      params.push(data_inicio);
-    }
+      if (data_inicio) {
+        query += ` AND DATE(COALESCE(p.data_pedido, p.created_at)) >= DATE($${paramIndex++})`;
+        params.push(data_inicio);
+      }
 
-    if (data_fim) {
-      query += ` AND DATE(COALESCE(p.data_pedido, p.created_at)) <= DATE($${paramIndex++})`;
-      params.push(data_fim);
-    }
+      if (data_fim) {
+        query += ` AND DATE(COALESCE(p.data_pedido, p.created_at)) <= DATE($${paramIndex++})`;
+        params.push(data_fim);
+      }
 
-    if (cliente_id) {
-      query += ` AND p.cliente_id = $${paramIndex++}`;
-      params.push(cliente_id);
-    }
+      if (cliente_id) {
+        query += ` AND p.cliente_id = $${paramIndex++}`;
+        params.push(cliente_id);
+      }
 
-    query += ' ORDER BY p.data_pedido DESC, p.created_at DESC';
+      query += ' ORDER BY p.data_pedido DESC, p.created_at DESC';
 
-    const ordersResult = await db.query(query, params);
-    
-    // Buscar itens e pagamentos de cada pedido
-    const ordersWithItems = await Promise.all(
-      ordersResult.rows.map(async (order) => {
-        // Buscar itens do pedido
-        const itemsResult = await db.query(`
-          SELECT 
-            ip.*,
-            pr.nome as produto_nome,
-            pr.tipo_produto,
-            pr.categoria
-          FROM itens_pedido ip
-          LEFT JOIN produtos pr ON ip.produto_id_ref = pr.id
-          WHERE ip.pedido_id = $1
-          ORDER BY ip.created_at
-        `, [order.id]);
-
-        // Buscar múltiplos pagamentos se habilitado
-        let pagamentos = [];
-        if (order.multiplos_pagamentos) {
-          const pagamentosResult = await db.query(`
-            SELECT * FROM pagamentos_pedido 
-            WHERE pedido_id = $1 
-            ORDER BY created_at
+      const ordersResult = await db.query(query, params);
+      
+      // Buscar itens e pagamentos de cada pedido
+      const ordersWithItems = await Promise.all(
+        ordersResult.rows.map(async (order) => {
+          // Buscar itens do pedido
+          const itemsResult = await db.query(`
+            SELECT 
+              ip.*,
+              pr.nome as produto_nome,
+              pr.tipo_produto,
+              pr.categoria
+            FROM itens_pedido ip
+            LEFT JOIN produtos pr ON ip.produto_id_ref = pr.id
+            WHERE ip.pedido_id = $1
+            ORDER BY ip.created_at
           `, [order.id]);
-          pagamentos = pagamentosResult.rows;
-        }
 
-        return {
-          ...order,
-          itens_pedido: itemsResult.rows,
-          pagamentos: pagamentos,
-          cliente_id: order.cliente_id ? {
-            id: order.cliente_id,
-            nome: order.cliente_nome,
-            telefone: order.cliente_telefone,
-            endereco: order.cliente_endereco
-          } : null,
-          entregador_nome: order.entregador_nome,
-          cupom_id_data: order.cupom_id ? {
-            id: order.cupom_id,
-            codigo: order.cupom_codigo,
-            tipo_desconto: order.cupom_tipo,
-            valor_desconto: order.cupom_valor
-          } : null
-        };
-      })
+          // Buscar múltiplos pagamentos se habilitado
+          let pagamentos = [];
+          if (order.multiplos_pagamentos) {
+            const pagamentosResult = await db.query(`
+              SELECT * FROM pagamentos_pedido 
+              WHERE pedido_id = $1 
+              ORDER BY created_at
+            `, [order.id]);
+            pagamentos = pagamentosResult.rows;
+          }
+
+          return {
+            ...order,
+            itens_pedido: itemsResult.rows,
+            pagamentos: pagamentos,
+            cliente_id: order.cliente_id ? {
+              id: order.cliente_id,
+              nome: order.cliente_nome,
+              telefone: order.cliente_telefone,
+              endereco: order.cliente_endereco
+            } : null,
+            entregador_nome: order.entregador_nome,
+            cupom_id_data: order.cupom_id ? {
+              id: order.cupom_id,
+              codigo: order.cupom_codigo,
+              tipo_desconto: order.cupom_tipo,
+              valor_desconto: order.cupom_valor
+            } : null
+          };
+        })
+      );
+
+      return ordersWithItems;
+    }, 
+    // TTL baseado no filtro - dados mais específicos cache por mais tempo
+    status === 'entregue' || status === 'cancelado' ? 900 : 180 // 15 min para finalizados, 3 min para outros
     );
 
-    res.json({ orders: ordersWithItems });
+    res.json({ orders });
   } catch (error) {
     console.error('Erro ao buscar pedidos:', error);
     res.status(500).json({ 
@@ -119,79 +130,90 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const cacheKey = CacheKeys.ORDERS_BY_ID(id);
     
-    const orderResult = await db.query(`
-      SELECT 
-        p.*,
-        c.nome as cliente_nome,
-        c.telefone as cliente_telefone,
-        c.endereco as cliente_endereco,
-        cp.codigo as cupom_codigo,
-        cp.tipo_desconto as cupom_tipo,
-        cp.valor_desconto as cupom_valor,
-        p.tipo_pedido,
-        p.numero_mesa,
-        p.endereco_entrega,
-        p.taxa_entrega,
-        p.entregador_nome,
-        p.multiplos_pagamentos
-      FROM pedidos p
-      LEFT JOIN clientes c ON p.cliente_id = c.id
-      LEFT JOIN cupons cp ON p.cupom_id = cp.id
-      WHERE p.id = $1
-    `, [id]);
-    
-    if (orderResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Pedido não encontrado' });
-    }
-
-    const order = orderResult.rows[0];
-
-    // Buscar itens do pedido
-    const itemsResult = await db.query(`
-      SELECT 
-        ip.*,
-        pr.nome as produto_nome,
-        pr.tipo_produto,
-        pr.categoria
-      FROM itens_pedido ip
-      LEFT JOIN produtos pr ON ip.produto_id_ref = pr.id
-      WHERE ip.pedido_id = $1
-      ORDER BY ip.created_at
-    `, [id]);
-
-    // Buscar múltiplos pagamentos se habilitado
-    let pagamentos = [];
-    if (order.multiplos_pagamentos) {
-      const pagamentosResult = await db.query(`
-        SELECT * FROM pagamentos_pedido 
-        WHERE pedido_id = $1 
-        ORDER BY created_at
+    // Implementação Cache-Aside para pedido específico
+    const orderWithItems = await cache.getOrFetch(cacheKey, async () => {
+      const orderResult = await db.query(`
+        SELECT 
+          p.*,
+          c.nome as cliente_nome,
+          c.telefone as cliente_telefone,
+          c.endereco as cliente_endereco,
+          cp.codigo as cupom_codigo,
+          cp.tipo_desconto as cupom_tipo,
+          cp.valor_desconto as cupom_valor,
+          p.tipo_pedido,
+          p.numero_mesa,
+          p.endereco_entrega,
+          p.taxa_entrega,
+          p.entregador_nome,
+          p.multiplos_pagamentos
+        FROM pedidos p
+        LEFT JOIN clientes c ON p.cliente_id = c.id
+        LEFT JOIN cupons cp ON p.cupom_id = cp.id
+        WHERE p.id = $1
       `, [id]);
-      pagamentos = pagamentosResult.rows;
-    }
+      
+      if (orderResult.rows.length === 0) {
+        throw new Error('Pedido não encontrado');
+      }
 
-    const orderWithItems = {
-      ...order,
-      itens_pedido: itemsResult.rows,
-      pagamentos: pagamentos,
-      cliente_id: order.cliente_id ? {
-        id: order.cliente_id,
-        nome: order.cliente_nome,
-        telefone: order.cliente_telefone,
-        endereco: order.cliente_endereco
-      } : null,
-      entregador_nome: order.entregador_nome,
-      cupom_id_data: order.cupom_id ? {
-        id: order.cupom_id,
-        codigo: order.cupom_codigo,
-        tipo_desconto: order.cupom_tipo,
-        valor_desconto: order.cupom_valor
-      } : null
-    };
+      const order = orderResult.rows[0];
+
+      // Buscar itens do pedido
+      const itemsResult = await db.query(`
+        SELECT 
+          ip.*,
+          pr.nome as produto_nome,
+          pr.tipo_produto,
+          pr.categoria
+        FROM itens_pedido ip
+        LEFT JOIN produtos pr ON ip.produto_id_ref = pr.id
+        WHERE ip.pedido_id = $1
+        ORDER BY ip.created_at
+      `, [id]);
+
+      // Buscar múltiplos pagamentos se habilitado
+      let pagamentos = [];
+      if (order.multiplos_pagamentos) {
+        const pagamentosResult = await db.query(`
+          SELECT * FROM pagamentos_pedido 
+          WHERE pedido_id = $1 
+          ORDER BY created_at
+        `, [id]);
+        pagamentos = pagamentosResult.rows;
+      }
+
+      return {
+        ...order,
+        itens_pedido: itemsResult.rows,
+        pagamentos: pagamentos,
+        cliente_id: order.cliente_id ? {
+          id: order.cliente_id,
+          nome: order.cliente_nome,
+          telefone: order.cliente_telefone,
+          endereco: order.cliente_endereco
+        } : null,
+        entregador_nome: order.entregador_nome,
+        cupom_id_data: order.cupom_id ? {
+          id: order.cupom_id,
+          codigo: order.cupom_codigo,
+          tipo_desconto: order.cupom_tipo,
+          valor_desconto: order.cupom_valor
+        } : null
+      };
+    }, 
+    // TTL baseado no status do pedido
+    getOrderCacheTTL(orderWithItems?.status_pedido)
+    );
     
     res.json({ order: orderWithItems });
   } catch (error) {
+    if (error.message === 'Pedido não encontrado') {
+      return res.status(404).json({ error: 'Pedido não encontrado' });
+    }
+    
     console.error('Erro ao buscar pedido:', error);
     res.status(500).json({ 
       error: 'Erro interno do servidor',
@@ -199,6 +221,45 @@ router.get('/:id', authenticateToken, async (req, res) => {
     });
   }
 });
+
+/**
+ * Determina o TTL do cache baseado no status do pedido
+ * Pedidos finalizados podem ter cache mais longo
+ */
+function getOrderCacheTTL(status) {
+  if (!status) return 300; // padrão 5 minutos
+  
+  switch(status.toLowerCase()) {
+    case 'entregue':
+    case 'cancelado':
+      return 1800; // 30 minutos - dados não mudam mais
+    case 'preparando':
+    case 'pronto':
+      return 120; // 2 minutos - mudanças frequentes
+    default:
+      return 300; // 5 minutos - padrão
+  }
+}
+
+/**
+ * Função para invalidar caches de pedidos
+ * Chamada quando um pedido é criado, atualizado ou deletado
+ */
+function invalidateOrderCaches(orderId, clienteId) {
+  // Invalidar cache do pedido específico
+  if (orderId) {
+    cache.delete(CacheKeys.ORDERS_BY_ID(orderId));
+  }
+  
+  // Invalidar todas as listagens de pedidos (diferentes filtros)
+  cache.deletePattern(CacheKeys.PATTERNS.ORDERS);
+  
+  // Invalidar caches relacionados (dashboard, relatórios)
+  cache.deletePattern(CacheKeys.PATTERNS.DASHBOARD);
+  cache.deletePattern(CacheKeys.PATTERNS.REPORTS);
+  
+  console.log(`🧹 Invalidated order caches for order: ${orderId}, client: ${clienteId}`);
+}
 
 // POST /api/orders - Criar novo pedido
 router.post('/', authenticateToken, async (req, res) => {
@@ -340,6 +401,9 @@ router.post('/', authenticateToken, async (req, res) => {
 
     await client.query('COMMIT');
     
+    // Invalidar caches relacionados após criar pedido
+    invalidateOrderCaches(savedOrder.id, cliente_id);
+    
     // Buscar pedido completo para retornar
     const completeOrderResult = await db.query(`
       SELECT 
@@ -475,6 +539,9 @@ router.patch('/:id', authenticateToken, async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Invalidar caches relacionados após atualizar pedido
+    invalidateOrderCaches(id, cliente_id);
+
     // Buscar pedido atualizado com joins
     const completeOrderResult = await db.query(`
       SELECT 
@@ -524,6 +591,9 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Pedido não encontrado' });
     }
 
+    // Invalidar caches após atualizar status
+    invalidateOrderCaches(id, result.rows[0].cliente_id);
+
     res.json({ order: result.rows[0] });
 
   } catch (error) {
@@ -544,31 +614,30 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     
     const { id } = req.params;
 
-    // Verificar se pedido existe
-    const existingOrder = await client.query('SELECT * FROM pedidos WHERE id = $1', [id]);
-    if (existingOrder.rows.length === 0) {
+    // Buscar dados do pedido antes de deletar para invalidação de cache
+    const orderResult = await client.query('SELECT cliente_id FROM pedidos WHERE id = $1', [id]);
+    
+    if (orderResult.rows.length === 0) {
       return res.status(404).json({ error: 'Pedido não encontrado' });
     }
 
-    const order = existingOrder.rows[0];
+    const clienteId = orderResult.rows[0].cliente_id;
 
-    // Deletar itens do pedido primeiro
+    // Deletar itens do pedido
     await client.query('DELETE FROM itens_pedido WHERE pedido_id = $1', [id]);
-
-    // Reverter uso do cupom se aplicável
-    if (order.cupom_id) {
-      await client.query(`
-        UPDATE cupons 
-        SET usos_atuais = GREATEST(0, usos_atuais - 1), updated_at = NOW()
-        WHERE id = $1
-      `, [order.cupom_id]);
-    }
-
+    
+    // Deletar pagamentos múltiplos se existirem
+    await client.query('DELETE FROM pagamentos_pedido WHERE pedido_id = $1', [id]);
+    
     // Deletar o pedido
     await client.query('DELETE FROM pedidos WHERE id = $1', [id]);
 
     await client.query('COMMIT');
-    res.json({ message: 'Pedido removido com sucesso' });
+
+    // Invalidar caches após deletar pedido
+    invalidateOrderCaches(id, clienteId);
+
+    res.json({ message: 'Pedido deletado com sucesso' });
 
   } catch (error) {
     await client.query('ROLLBACK');

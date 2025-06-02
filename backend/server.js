@@ -94,6 +94,7 @@ const cashClosingRoutes = require('./routes/cash-closing');
 const dashboardRoutes = require('./routes/dashboard');
 const reportRoutes = require('./routes/reports');
 const migrateRoutes = require('./routes/migrate');
+const cacheAdminRoutes = require('./routes/cache-admin');
 
 // Usar rotas
 app.use('/api/auth', authRoutes);
@@ -109,6 +110,18 @@ app.use('/api/cash-closing', cashClosingRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/migrate', migrateRoutes);
+app.use('/api/cache-admin', cacheAdminRoutes);
+
+// Rotas
+app.use('/api/orders', require('./routes/orders'));
+app.use('/api/customers', require('./routes/customers'));
+app.use('/api/products', require('./routes/products'));
+app.use('/api/expenses', require('./routes/expenses'));
+app.use('/api/coupons', require('./routes/coupons'));
+app.use('/api/cash-closing', require('./routes/cash-closing'));
+app.use('/api/separate-cash-closing', require('./routes/separate-cash-closing'));
+app.use('/api/reports', require('./routes/reports'));
+app.use('/api/dashboard', require('./routes/dashboard'));
 
 // Ignorar requisições para favicon.ico
 app.get('/favicon.ico', (req, res) => res.status(204).end());

@@ -216,3 +216,187 @@ export const testSimplePrint = () => {
     console.error('[TEST-PRINT] Não foi possível abrir janela de teste');
   }
 };
+
+export const formatDeliveryTicketForPrint = (order, allProductsData) => {
+  try {
+    const formatCurrency = (value) => {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(value || 0);
+    };
+
+    const formatDateTime = (dateString) => {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      return date.toLocaleString('pt-BR');
+    };
+
+    let ticketContent = `
+PIT STOP PIZZARIA
+CUPOM PARA ENTREGADOR
+==============================
+PEDIDO: #${order.id?.slice(-5).toUpperCase() || 'N/A'}
+DATA: ${formatDateTime(order.orderDate || order.createdAt)}
+==============================
+
+📋 DADOS DO CLIENTE:
+Nome: ${order.customerName || 'N/A'}
+Telefone: ${order.customerPhone || 'N/A'}
+
+🏠 ENDEREÇO DE ENTREGA:
+${order.customerAddress || 'N/A'}
+
+==============================
+📦 ITENS PARA ENTREGA:
+
+`;
+
+    // Separar itens por categoria
+    const pizzas = [];
+    const bordas = [];
+    const bebidas = [];
+    const outros = [];
+
+    // Processar itens do pedido
+    if (order.items && order.items.length > 0) {
+      order.items.forEach((item) => {
+        if (item.itemType === 'pizza') {
+          pizzas.push(item);
+          
+          // Se a pizza tem borda, adicionar à lista de bordas
+          if (item.border && item.border !== 'none' && item.borderPrice > 0) {
+            bordas.push({
+              ...item,
+              borderName: item.border === 'salgada' ? 'Borda Salgada' : 
+                         item.border === 'doce' ? 'Borda Doce' : item.border,
+              borderPrice: item.borderPrice
+            });
+          }
+        } else if (item.category === 'bebida' || item.productName?.toLowerCase().includes('refrigerante') || item.productName?.toLowerCase().includes('coca')) {
+          bebidas.push(item);
+        } else {
+          outros.push(item);
+        }
+      });
+
+      // Imprimir Pizzas
+      if (pizzas.length > 0) {
+        ticketContent += `🍕 PIZZAS:\n`;
+        pizzas.forEach((item) => {
+          const itemName = `${item.flavor} (${item.sizeName || item.size})`;
+          ticketContent += `• ${item.quantity}x ${itemName}\n`;
+        });
+        ticketContent += `\n`;
+      }
+
+      // Imprimir Bordas separadamente
+      if (bordas.length > 0) {
+        ticketContent += `🧀 BORDAS RECHEADAS:\n`;
+        bordas.forEach((item) => {
+          ticketContent += `• ${item.quantity}x ${item.borderName}\n`;
+        });
+        ticketContent += `\n`;
+      }
+
+      // Imprimir Bebidas
+      if (bebidas.length > 0) {
+        ticketContent += `🥤 BEBIDAS:\n`;
+        bebidas.forEach((item) => {
+          ticketContent += `• ${item.quantity}x ${item.productName}\n`;
+        });
+        ticketContent += `\n`;
+      }
+
+      // Imprimir Outros itens
+      if (outros.length > 0) {
+        ticketContent += `📦 OUTROS ITENS:\n`;
+        outros.forEach((item) => {
+          ticketContent += `• ${item.quantity}x ${item.productName}\n`;
+        });
+        ticketContent += `\n`;
+      }
+    } else {
+      ticketContent += 'Nenhum item no pedido\n\n';
+    }
+
+    ticketContent += `==============================
+💰 INFORMAÇÕES DE PAGAMENTO:
+
+TOTAL A COBRAR: ${formatCurrency(order.totalValue || order.total)}
+`;
+
+    // Taxa de entrega
+    if (order.taxa_entrega > 0) {
+      ticketContent += `(Inclui taxa de entrega: ${formatCurrency(order.taxa_entrega)})\n`;
+    }
+
+    // Informações de pagamento
+    if (order.multiplos_pagamentos && order.pagamentos && order.pagamentos.length > 0) {
+      ticketContent += `\nFORMAS DE PAGAMENTO:\n`;
+      
+      order.pagamentos.forEach((pagamento, index) => {
+        const valor = parseFloat(pagamento.valor || 0);
+        if (valor > 0) {
+          const metodoPagamento = pagamento.forma_pagamento === 'dinheiro' ? 'DINHEIRO' :
+                                 pagamento.forma_pagamento === 'cartao' ? 'CARTÃO' :
+                                 pagamento.forma_pagamento === 'pix' ? 'PIX' :
+                                 pagamento.forma_pagamento.toUpperCase();
+          
+          ticketContent += `${index + 1}. ${metodoPagamento}: ${formatCurrency(valor)}\n`;
+        }
+      });
+      
+      // Verificar se há troco (apenas se houver pagamento em dinheiro)
+      const pagamentoDinheiro = order.pagamentos.find(p => p.forma_pagamento === 'dinheiro');
+      const totalPago = order.pagamentos.reduce((sum, p) => sum + parseFloat(p.valor || 0), 0);
+      
+      if (pagamentoDinheiro && totalPago > (order.totalValue || order.total)) {
+        const troco = totalPago - (order.totalValue || order.total);
+        ticketContent += `\n💸 TROCO A DAR: ${formatCurrency(troco)}\n`;
+        ticketContent += `💵 Cliente pagou: ${formatCurrency(totalPago)}\n`;
+      } else if (pagamentoDinheiro) {
+        ticketContent += `\n✅ NÃO PRECISA DE TROCO\n`;
+      }
+    } else {
+      // Pagamento único
+      const metodoPagamento = order.paymentMethodName?.toUpperCase() || 'N/A';
+      ticketContent += `FORMA DE PAGAMENTO: ${metodoPagamento}\n`;
+      
+      if (order.paymentMethod === 'dinheiro' || metodoPagamento.includes('DINHEIRO')) {
+        if (order.amountPaid > 0) {
+          ticketContent += `💵 Cliente pagou: ${formatCurrency(order.amountPaid)}\n`;
+          if (order.calculatedChange > 0) {
+            ticketContent += `💸 TROCO A DAR: ${formatCurrency(order.calculatedChange)}\n`;
+          } else {
+            ticketContent += `✅ NÃO PRECISA DE TROCO\n`;
+          }
+        } else {
+          ticketContent += `⚠️  CONFIRMAR VALOR PAGO\n`;
+        }
+      } else {
+        ticketContent += `✅ PAGAMENTO JÁ REALIZADO\n`;
+      }
+    }
+
+    // Observações importantes
+    if (order.observacoes) {
+      ticketContent += `\n📝 OBSERVAÇÕES:\n${order.observacoes}\n`;
+    }
+
+    ticketContent += `
+==============================
+⏰ ENTREGUE COM CUIDADO!
+
+Status: SAIU PARA ENTREGA
+Entregador: ${order.delivererName || order.entregador_nome || 'N/A'}
+==============================
+`;
+
+    return ticketContent;
+    
+  } catch (error) {
+    console.error('[DELIVERY-PRINT-FORMAT] Erro na formatação:', error);
+    throw error;
+  }
+};

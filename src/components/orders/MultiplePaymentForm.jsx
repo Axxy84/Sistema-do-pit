@@ -26,50 +26,67 @@ const MultiplePaymentForm = ({
 }) => {
   const [payments, setPayments] = useState([]);
   const [isMultiple, setIsMultiple] = useState(isMultipleEnabled);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Inicializar com pagamentos existentes ou um pagamento padrão
   useEffect(() => {
-    if (initialPayments.length > 0) {
-      setPayments(initialPayments);
-      setIsMultiple(initialPayments.length > 1);
-    } else if (isMultiple) {
-      setPayments([
-        { id: 1, forma_pagamento: 'dinheiro', valor: '', observacoes: '' }
-      ]);
-    } else {
-      setPayments([
-        { id: 1, forma_pagamento: 'dinheiro', valor: totalValue, observacoes: '' }
-      ]);
+    if (!isInitialized) {
+      if (initialPayments.length > 0) {
+        setPayments(initialPayments);
+        setIsMultiple(initialPayments.length > 1 || isMultipleEnabled);
+      } else {
+        // Sempre começar com pelo menos um pagamento
+        const defaultPayment = {
+          id: 1,
+          forma_pagamento: 'dinheiro',
+          valor: isMultipleEnabled ? '' : (totalValue || ''),
+          observacoes: ''
+        };
+        setPayments([defaultPayment]);
+        setIsMultiple(isMultipleEnabled);
+      }
+      setIsInitialized(true);
     }
-  }, [initialPayments, totalValue, isMultiple]);
+  }, [initialPayments, isMultipleEnabled, totalValue, isInitialized]);
 
-  // Atualizar quando totalValue mudar
+  // Sincronizar valor para pagamento único quando totalValue mudar
   useEffect(() => {
-    if (!isMultiple && payments.length === 1) {
-      const updatedPayments = [{
-        ...payments[0],
-        valor: totalValue
-      }];
-      setPayments(updatedPayments);
-      onPaymentsChange(updatedPayments);
+    if (isInitialized && !isMultiple && payments.length === 1) {
+      const currentValue = parseFloat(payments[0]?.valor || 0);
+      const newValue = parseFloat(totalValue || 0);
+      
+      if (Math.abs(currentValue - newValue) > 0.01) {
+        const updatedPayments = [{
+          ...payments[0],
+          valor: totalValue || ''
+        }];
+        setPayments(updatedPayments);
+        onPaymentsChange(updatedPayments);
+      }
     }
-  }, [totalValue, isMultiple, payments.length]);
+  }, [totalValue, isMultiple, isInitialized]);
 
   const handleMultipleToggle = useCallback((enabled) => {
     setIsMultiple(enabled);
-    if (enabled) {
-      // Mudando para múltiplos pagamentos
-      setPayments([
-        { id: 1, forma_pagamento: 'dinheiro', valor: '', observacoes: '' }
-      ]);
-    } else {
-      // Mudando para pagamento único
-      setPayments([
-        { id: 1, forma_pagamento: 'dinheiro', valor: totalValue, observacoes: '' }
-      ]);
+    
+    if (!enabled && payments.length > 0) {
+      // Se desabilitar múltiplos pagamentos, manter apenas o primeiro
+      const singlePayment = {
+        ...payments[0],
+        valor: totalValue || ''
+      };
+      const updatedPayments = [singlePayment];
+      setPayments(updatedPayments);
+      onPaymentsChange(updatedPayments);
     }
     onMultipleToggle(enabled);
-  }, [totalValue, onMultipleToggle]);
+  }, [payments, totalValue, onPaymentsChange, onMultipleToggle]);
+
+  // Função para lidar com mudanças nos pagamentos
+  const handlePaymentsChange = useCallback((newPayments) => {
+    setPayments(newPayments);
+    onPaymentsChange(newPayments);
+  }, [onPaymentsChange]);
 
   const addPayment = useCallback(() => {
     const newPayment = {

@@ -158,7 +158,7 @@ const CashClosingPage = () => {
             totalDiscounts: d.total_descontos,
             totalTaxes: d.total_impostos, 
             totalDeliveryFees: d.total_taxas_entrega, 
-            totalOrdersCount: d.total_pedidos || 0, 
+            totalOrdersCount: d.total_pedidos_dia || d.total_pedidos || 0, 
             salesByPaymentMethod: d.vendas_por_metodo || {} 
         }));
         setCashClosings(formattedClosings);

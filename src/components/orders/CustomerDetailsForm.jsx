@@ -33,7 +33,7 @@ const CustomerDetailsForm = ({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="customerPhone">Telefone</Label>
+          <Label htmlFor="customerPhone">Telefone (opcional)</Label>
           <div className="flex items-center gap-2">
             <Input 
               id="customerPhone" 
@@ -41,7 +41,6 @@ const CustomerDetailsForm = ({
               onChange={(e) => setCustomerPhone(e.target.value)} 
               placeholder="(XX) XXXXX-XXXX" 
               type="tel" 
-              required 
               disabled={isLoading}
               onBlur={onPhoneBlur}
               className="flex-grow"

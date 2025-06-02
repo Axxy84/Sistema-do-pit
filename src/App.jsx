@@ -9,6 +9,7 @@ import OrdersPage from '@/pages/OrdersPage';
 import DeliveriesPage from '@/pages/DeliveriesPage';
 import ReportsPage from '@/pages/ReportsPage';
 import CashClosingPage from '@/pages/CashClosingPage';
+import SeparateCashClosingPage from '@/pages/SeparateCashClosingPage';
 import AuthPage from '@/pages/AuthPage';
 import TonyPage from '@/pages/TonyPage'; 
 import CouponsPage from '@/pages/CouponsPage.jsx';
@@ -73,6 +74,13 @@ function App() {
                       <ErrorBoundary>
                         <ProtectedRoute allowedRoles={['admin', 'atendente']}>
                           <CashClosingPage />
+                        </ProtectedRoute>
+                      </ErrorBoundary>
+                    } />
+                    <Route path="/fechamento-separado" element={
+                      <ErrorBoundary>
+                        <ProtectedRoute allowedRoles={['admin', 'atendente']}>
+                          <SeparateCashClosingPage />
                         </ProtectedRoute>
                       </ErrorBoundary>
                     } />

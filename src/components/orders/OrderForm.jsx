@@ -162,7 +162,12 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
     setPointsToRedeem('');
     setAmountPaid('');
     setUseMultiplePayments(false);
-    setPayments([]);
+    setPayments([{
+      id: 1,
+      forma_pagamento: PAYMENT_METHODS[0]?.id || 'dinheiro',
+      valor: '',
+      observacoes: ''
+    }]);
     setIsCustomerLoading(false);
   }, []);
 
@@ -178,6 +183,27 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
             // Inicializar tipo de pedido e número da mesa
             setTipoPedido(initialOrderData.tipo_pedido || 'delivery');
             setNumeroMesa(initialOrderData.numero_mesa ? initialOrderData.numero_mesa.toString() : '');
+            
+            // Inicializar múltiplos pagamentos
+            const hasMultiplePayments = initialOrderData.multiplos_pagamentos || false;
+            setUseMultiplePayments(hasMultiplePayments);
+            
+            if (hasMultiplePayments && initialOrderData.pagamentos && initialOrderData.pagamentos.length > 0) {
+                const formattedPayments = initialOrderData.pagamentos.map((payment, index) => ({
+                    id: payment.id || Date.now() + index,
+                    forma_pagamento: payment.forma_pagamento || 'dinheiro',
+                    valor: payment.valor?.toString() || '',
+                    observacoes: payment.observacoes || ''
+                }));
+                setPayments(formattedPayments);
+            } else {
+                setPayments([{
+                    id: 1,
+                    forma_pagamento: initialOrderData.forma_pagamento || 'dinheiro',
+                    valor: initialOrderData.valor_pago?.toString() || '',
+                    observacoes: ''
+                }]);
+            }
             
             if (initialOrderData.customerId) {
                 fetchCustomerPoints(initialOrderData.customerId);
@@ -215,6 +241,9 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
             } else {
                 setPointsToRedeem('');
             }
+            
+            // Definir taxa de entrega
+            setDeliveryFee(initialOrderData.taxa_entrega || 0);
         } else {
             resetFormFields();
             setTimeout(() => customerNameInputRef.current?.focus(), 100);
@@ -226,8 +255,8 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
     if (!customerPhone) return;
     
     const cleanedPhone = customerPhone.replace(/\D/g, ''); // Remove todos não-dígitos
-    if (!cleanedPhone) {
-        toast({ title: 'Telefone Inválido', description: 'Por favor, insira um número de telefone válido.', variant: 'destructive' });
+    if (!cleanedPhone || cleanedPhone.length < 8) {
+        // Não mostrar erro, apenas não buscar se telefone for muito curto
         return;
     }
 
@@ -244,19 +273,13 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
         toast({ title: 'Cliente Encontrado', description: `Dados de ${cliente.nome} carregados.` });
       }
     } catch (err) {
-      if (err.message.includes('404') || err.message.includes('não encontrado')) {
-        setCustomerAddress('');
-        setCustomerId(null);
-        setCustomerPoints(0);
-        setIsNewCustomer(true);
-        toast({ 
-          title: 'Novo Cliente', 
-          description: 'Este é um novo cliente. Os dados serão cadastrados ao salvar o pedido.', 
-          variant: 'default' 
-        });
-      } else {
-        toast({ title: 'Erro ao buscar cliente', description: err.message, variant: 'destructive' });
-      }
+      console.log('[CustomerService] Cliente não encontrado, será cadastrado como novo');
+      // Cliente não encontrado é normal para novos clientes
+      setCustomerAddress('');
+      setCustomerId(null);
+      setCustomerPoints(0);
+      setIsNewCustomer(true);
+      // Não mostrar toast de erro para cliente não encontrado, é comportamento normal
     } finally {
       setIsCustomerLoading(false);
     }
@@ -279,11 +302,14 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    const cleanedSubmitPhone = customerPhone.replace(/\D/g, '');
-    if (!customerName || !cleanedSubmitPhone) {
-      toast({ title: 'Erro de Validação', description: 'Nome e telefone do cliente (apenas números) são obrigatórios.', variant: 'destructive' });
+    // Validação apenas do nome como obrigatório
+    if (!customerName) {
+      toast({ title: 'Erro de Validação', description: 'Nome do cliente é obrigatório.', variant: 'destructive' });
       return;
     }
+    
+    // Validar telefone apenas se fornecido
+    const cleanedSubmitPhone = customerPhone ? customerPhone.replace(/\D/g, '') : '';
     
     // Validações baseadas no tipo de pedido
     if (tipoPedido === 'delivery' && !customerAddress) {
@@ -416,12 +442,15 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
             onItemsChange={calculateTotals}
           />
           
-          <DeliveryStatusForm
-            paymentMethod={paymentMethod}
-            setPaymentMethod={setPaymentMethod}
-            delivererName={delivererName}
-            setDelivererName={setDelivererName}
-          />
+          {/* Seção de entrega apenas para delivery */}
+          {tipoPedido === 'delivery' && (
+            <DeliveryStatusForm
+              paymentMethod={paymentMethod}
+              setPaymentMethod={setPaymentMethod}
+              delivererName={delivererName}
+              setDelivererName={setDelivererName}
+            />
+          )}
 
           {tipoPedido === 'delivery' && (
             <DeliveryFeeInput

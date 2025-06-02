@@ -108,14 +108,27 @@ const ReportsPage = () => {
         .join('\n');
     
     const reportDate = closingData.data_fechamento;
+    const formatSafeDate = (dateStr) => {
+      if (!dateStr) return 'Data inválida';
+      try {
+        if (closingData.data_fechamento_formatted) {
+          const date = new Date(closingData.data_fechamento_formatted + 'T00:00:00');
+          return date.toLocaleDateString('pt-BR');
+        }
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('pt-BR');
+      } catch (error) {
+        return 'Data inválida';
+      }
+    };
 
     const reportContent = `
       PIT STOP PIZZARIA - RELATÓRIO DE FECHAMENTO DE CAIXA
       ------------------------------------------
-      Data do Fechamento: ${new Date(reportDate+'T00:00:00').toLocaleDateString()}
-      Fechado em (Sistema): ${new Date(closingData.created_at).toLocaleString()}
+      Data do Fechamento: ${formatSafeDate(reportDate)}
+      Fechado em (Sistema): ${new Date(closingData.created_at).toLocaleString('pt-BR')}
       ------------------------------------------
-      TOTAL DE PEDIDOS (Dia do Fechamento): ${closingData.total_pedidos_dia}
+      TOTAL DE PEDIDOS (Dia do Fechamento): ${closingData.total_pedidos_dia || closingData.total_pedidos || 0}
       ------------------------------------------
       VENDAS POR FORMA DE PAGAMENTO (Dia do Fechamento):
 ${paymentMethodsSummaryText || '  Nenhuma venda registrada por forma de pag.'}
@@ -146,7 +159,7 @@ ${paymentMethodsSummaryText || '  Nenhuma venda registrada por forma de pag.'}
 
   const totalPeriodSales = cashClosings.reduce((sum, closing) => sum + (closing.total_vendas || 0), 0);
   const totalPeriodNetRevenue = cashClosings.reduce((sum, closing) => sum + (closing.saldo_final || 0), 0);
-  const totalPeriodOrders = cashClosings.reduce((sum, closing) => sum + (closing.total_pedidos_dia || 0), 0);
+  const totalPeriodOrders = cashClosings.reduce((sum, closing) => sum + (closing.total_pedidos_dia || closing.total_pedidos || 0), 0);
 
   return (
     <motion.div 
@@ -225,20 +238,36 @@ ${paymentMethodsSummaryText || '  Nenhuma venda registrada por forma de pag.'}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cashClosings.map((closing) => (
-                  <TableRow key={closing.id}>
-                    <TableCell>{new Date(closing.data_fechamento + 'T00:00:00').toLocaleDateString()}</TableCell>
-                    <TableCell>{formatCurrency(closing.total_vendas)}</TableCell>
-                    <TableCell>{formatCurrency(closing.total_despesas_extras)}</TableCell>
-                    <TableCell>{formatCurrency(closing.total_receitas_extras)}</TableCell>
-                    <TableCell className="font-semibold">{formatCurrency(closing.saldo_final)}</TableCell>
-                    <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handlePrintReport(closing)} className="text-sky-500 hover:text-sky-700">
-                            <Printer className="h-4 w-4"/>
-                        </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {cashClosings.map((closing) => {
+                  const formatSafeDate = (dateStr) => {
+                    if (!dateStr) return 'Data inválida';
+                    try {
+                      if (closing.data_fechamento_formatted) {
+                        const date = new Date(closing.data_fechamento_formatted + 'T00:00:00');
+                        return date.toLocaleDateString('pt-BR');
+                      }
+                      const date = new Date(dateStr);
+                      return date.toLocaleDateString('pt-BR');
+                    } catch (error) {
+                      return 'Data inválida';
+                    }
+                  };
+                  
+                  return (
+                    <TableRow key={closing.id}>
+                      <TableCell>{formatSafeDate(closing.data_fechamento)}</TableCell>
+                      <TableCell>{formatCurrency(closing.total_vendas)}</TableCell>
+                      <TableCell>{formatCurrency(closing.total_despesas_extras)}</TableCell>
+                      <TableCell>{formatCurrency(closing.total_receitas_extras)}</TableCell>
+                      <TableCell className="font-semibold">{formatCurrency(closing.saldo_final)}</TableCell>
+                      <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => handlePrintReport(closing)} className="text-sky-500 hover:text-sky-700">
+                              <Printer className="h-4 w-4"/>
+                          </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

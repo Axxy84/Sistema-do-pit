@@ -9,7 +9,12 @@ const customerService = {
       console.log('[CustomerService] Cliente encontrado:', response.customer);
       return response.customer;
     } catch (error) {
-      console.error('[CustomerService] Erro ao buscar cliente:', error.message);
+      // Não fazer log de erro para cliente não encontrado (comportamento normal)
+      if (error.message.includes('404') || error.message.includes('não encontrado')) {
+        console.log('[CustomerService] Cliente não encontrado (normal para novos clientes)');
+      } else {
+        console.error('[CustomerService] Erro ao buscar cliente:', error.message);
+      }
       throw error;
     }
   },
@@ -63,56 +68,62 @@ const customerService = {
     console.log('[CustomerService] manageCustomer chamado com:', customerData);
     try {
       let customer;
-      const cleanedPhone = customerData.customerPhone.replace(/\D/g, '');
+      const cleanedPhone = customerData.customerPhone ? customerData.customerPhone.replace(/\D/g, '') : '';
       console.log('[CustomerService] Telefone limpo:', cleanedPhone);
-      
-      if (!cleanedPhone) {
-        throw new Error('Número de telefone inválido após limpeza.');
-      }
 
       if (customerData.customerId) {
         // Tentar atualizar se já existe um ID
         console.log('[CustomerService] Atualizando cliente existente ID:', customerData.customerId);
         customer = await this.updateCustomer(customerData.customerId, {
           nome: customerData.customerName,
-          telefone: cleanedPhone, // Salvar telefone limpo
+          telefone: cleanedPhone, // Pode estar vazio
           endereco: customerData.customerAddress,
         });
       } else {
-        // Tentar buscar por telefone para evitar duplicados antes de criar
-        console.log('[CustomerService] Tentando buscar cliente por telefone:', cleanedPhone);
-        try {
-          const existingCustomer = await this.getByPhone(cleanedPhone); // Buscar com telefone limpo
-          if (existingCustomer) {
-            // Atualizar cliente existente encontrado pelo telefone
-            console.log('[CustomerService] Cliente encontrado, atualizando:', existingCustomer.id);
-            customer = await this.updateCustomer(existingCustomer.id, {
-              nome: customerData.customerName,
-              endereco: customerData.customerAddress,
-              telefone: cleanedPhone, // Garantir que o telefone limpo seja salvo/atualizado
-            });
-          } else {
-            // Criar novo se não encontrado pelo telefone
-            console.log('[CustomerService] Cliente não encontrado, criando novo');
-            customer = await this.createCustomer({
-              nome: customerData.customerName,
-              telefone: cleanedPhone, // Salvar telefone limpo
-              endereco: customerData.customerAddress,
-            });
+        // Se tem telefone, tentar buscar por telefone para evitar duplicados
+        if (cleanedPhone && cleanedPhone.length >= 8) {
+          console.log('[CustomerService] Tentando buscar cliente por telefone:', cleanedPhone);
+          try {
+            const existingCustomer = await this.getByPhone(cleanedPhone);
+            if (existingCustomer) {
+              // Atualizar cliente existente encontrado pelo telefone
+              console.log('[CustomerService] Cliente encontrado, atualizando:', existingCustomer.id);
+              customer = await this.updateCustomer(existingCustomer.id, {
+                nome: customerData.customerName,
+                endereco: customerData.customerAddress,
+                telefone: cleanedPhone,
+              });
+            } else {
+              // Criar novo se não encontrado pelo telefone
+              console.log('[CustomerService] Cliente não encontrado, criando novo');
+              customer = await this.createCustomer({
+                nome: customerData.customerName,
+                telefone: cleanedPhone,
+                endereco: customerData.customerAddress,
+              });
+            }
+          } catch (error) {
+            // Se getByPhone der erro (ex: 404), significa que não existe, então criar.
+            if (error.message.includes('404') || error.message.toLowerCase().includes('não encontrado')) {
+              console.log('[CustomerService] Cliente não existe (404), criando novo');
+              customer = await this.createCustomer({
+                nome: customerData.customerName,
+                telefone: cleanedPhone,
+                endereco: customerData.customerAddress,
+              });
+            } else {
+              console.error('[CustomerService] Erro inesperado:', error);
+              throw error; // Propagar outros erros de getByPhone
+            }
           }
-        } catch (error) {
-          // Se getByPhone der erro (ex: 404), significa que não existe, então criar.
-          if (error.message.includes('404') || error.message.toLowerCase().includes('não encontrado')) {
-            console.log('[CustomerService] Cliente não existe (404), criando novo');
-            customer = await this.createCustomer({
-              nome: customerData.customerName,
-              telefone: cleanedPhone, // Salvar telefone limpo
-              endereco: customerData.customerAddress,
-            });
-          } else {
-            console.error('[CustomerService] Erro inesperado:', error);
-            throw error; // Propagar outros erros de getByPhone
-          }
+        } else {
+          // Sem telefone ou telefone muito curto, apenas criar novo cliente
+          console.log('[CustomerService] Sem telefone válido, criando cliente sem buscar duplicados');
+          customer = await this.createCustomer({
+            nome: customerData.customerName,
+            telefone: cleanedPhone || null, // Pode ser null/vazio
+            endereco: customerData.customerAddress,
+          });
         }
       }
       console.log('[CustomerService] Cliente gerenciado com sucesso:', customer);

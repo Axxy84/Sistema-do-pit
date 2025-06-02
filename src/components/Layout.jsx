@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Pizza, ShoppingCart, Users, Truck, BarChart2, DollarSign, LogIn, LogOut, Sun, Moon, Package, Settings, ShieldCheck, Loader2, BadgePercent as TicketPercent } from 'lucide-react';
+import { Home, Pizza, ShoppingCart, Users, Truck, BarChart2, DollarSign, LogIn, LogOut, Sun, Moon, Package, Settings, ShieldCheck, Loader2, BadgePercent as TicketPercent, Split } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useTheme } from '@/contexts/ThemeProvider.jsx'; 
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/clientes', icon: Users, label: 'Clientes', adminOnly: false, allowedRoles: ['admin', 'atendente'] },
   { href: '/entregas', icon: Truck, label: 'Entregas', adminOnly: false, allowedRoles: ['admin', 'atendente', 'entregador'] },
   { href: '/fechamento-caixa', icon: DollarSign, label: 'Fechamento de Caixa', adminOnly: false, allowedRoles: ['admin', 'atendente'] },
+  { href: '/fechamento-separado', icon: Split, label: 'Fechamento Separado', adminOnly: false, allowedRoles: ['admin', 'atendente'] },
   { href: '/relatorios', icon: BarChart2, label: 'Relatórios', adminOnly: true, allowedRoles: ['admin'] },
   { href: '/cupons', icon: TicketPercent, label: 'Cupons', adminOnly: true, allowedRoles: ['admin'] },
   { href: '/tony', icon: ShieldCheck, label: 'Área do Dono', adminOnly: true, allowedRoles: ['admin'] },

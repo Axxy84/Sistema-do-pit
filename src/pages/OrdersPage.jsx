@@ -7,7 +7,7 @@ import OrderForm from '@/components/orders/OrderForm';
 import OrdersList from '@/components/orders/layout/OrdersList';
 import OrdersHeader from '@/components/orders/layout/OrdersHeader';
 import { PAYMENT_METHODS, PIZZA_SIZES } from '@/lib/constants';
-import { formatOrderTicketForPrint, testSimplePrint } from '@/lib/printerUtils';
+import { formatOrderTicketForPrint, formatDeliveryTicketForPrint, testSimplePrint } from '@/lib/printerUtils';
 
 import { orderService } from '@/services/orderService';
 import { productService } from '@/services/productService';
@@ -155,13 +155,13 @@ const OrdersPage = () => {
     let finalToastMessage = '';
 
     try {
-      if (!orderFormData.customerPhone || !orderFormData.customerName) {
-        throw new Error("Nome e telefone do cliente são obrigatórios.");
+      if (!orderFormData.customerName) {
+        throw new Error("Nome do cliente é obrigatório.");
       }
 
       console.log('[OrdersPage] Iniciando processo de salvar pedido:', orderFormData);
       
-      // Mostrar toast informativo
+      // Mostrar toast informativo apenas se não houver customerId
       if (!orderFormData.customerId) {
         toast({ 
           title: 'Processando...', 
@@ -172,7 +172,7 @@ const OrdersPage = () => {
       const clienteId = await customerService.manageCustomer({
         customerId: orderFormData.customerId,
         customerName: orderFormData.customerName,
-        customerPhone: orderFormData.customerPhone,
+        customerPhone: orderFormData.customerPhone || '', // Telefone pode estar vazio
         customerAddress: orderFormData.customerAddress,
       });
       
@@ -351,7 +351,7 @@ const OrdersPage = () => {
       
       const completeOrderDataForPrint = {
         ...orderToPrint,
-        delivererName: orderToPrint.delivererName || 'Não atribuído',
+        delivererName: orderToPrint.delivererName || orderToPrint.entregador_nome || 'Não atribuído',
         paymentMethodName: orderToPrint.paymentMethodName || PAYMENT_METHODS.find(pm => pm.id === orderToPrint.forma_pagamento)?.name || 'Não informado',
       };
 
@@ -412,6 +412,71 @@ const OrdersPage = () => {
     }
   }, [allProductsData, toast]);
 
+  const handlePrintDelivery = useCallback((orderToPrint) => {
+    try {
+      // Verificar se os dados do pedido são válidos
+      if (!orderToPrint) {
+        console.error('[DELIVERY-PRINT] Dados do pedido inválidos para impressão');
+        toast({ title: 'Erro', description: 'Dados do pedido inválidos para impressão de entregador', variant: 'destructive' });
+        return;
+      }
+      
+      const completeOrderDataForPrint = {
+        ...orderToPrint,
+        delivererName: orderToPrint.delivererName || orderToPrint.entregador_nome || 'Não atribuído',
+        paymentMethodName: orderToPrint.paymentMethodName || PAYMENT_METHODS.find(pm => pm.id === orderToPrint.forma_pagamento)?.name || 'Não informado',
+      };
+
+      let ticketContent;
+      try {
+        ticketContent = formatDeliveryTicketForPrint(completeOrderDataForPrint, allProductsData);
+      } catch (formatError) {
+        console.error('[DELIVERY-PRINT] Erro ao formatar cupom do entregador:', formatError);
+        toast({ title: 'Erro', description: 'Erro ao formatar cupom do entregador', variant: 'destructive' });
+        return;
+      }
+      
+      // Usar setTimeout para garantir que não bloqueie o thread principal
+      setTimeout(() => {
+        try {
+          const printWindow = window.open('', '_blank', 'width=300,height=500');
+          
+          if (!printWindow) {
+            console.error('[DELIVERY-PRINT] Não foi possível abrir janela de impressão');
+            toast({ title: 'Erro de Impressão', description: 'Não foi possível abrir a janela de impressão. Verifique se pop-ups estão bloqueados.', variant: 'destructive'});
+            return;
+          }
+          
+          printWindow.document.write('<html><head><title>Cupom Entregador</title>');
+          printWindow.document.write('<style>body { font-family: monospace; font-size: 10pt; margin: 5px; } pre { white-space: pre-wrap; word-wrap: break-word; } </style>');
+          printWindow.document.write('</head><body>');
+          printWindow.document.write('<pre>' + ticketContent + '</pre>');
+          printWindow.document.write('</body></html>');
+          printWindow.document.close();
+          
+          printWindow.onload = function() {
+            try {
+              printWindow.focus();
+              printWindow.print();
+            } catch (printError) {
+              console.error('[DELIVERY-PRINT] Erro ao chamar print():', printError);
+            }
+          };
+          
+          toast({ title: 'Impressão Entregador', description: `Cupom para entregador #${orderToPrint.id?.slice(-5).toUpperCase() || 'N/A'} preparado.` });
+          
+        } catch (error) {
+          console.error('[DELIVERY-PRINT] Erro geral:', error);
+          toast({ title: 'Erro de Impressão', description: 'Erro inesperado durante a impressão para entregador', variant: 'destructive' });
+        }
+      }, 100);
+      
+    } catch (error) {
+      console.error('[DELIVERY-PRINT] Erro crítico:', error);
+      toast({ title: 'Erro Crítico', description: 'Falha crítica no sistema de impressão para entregador', variant: 'destructive' });
+    }
+  }, [allProductsData, toast]);
+
   const filteredOrders = useMemo(() => orders.filter(order => 
     (order.customerName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (order.id?.toLowerCase() || '').includes(searchTerm.toLowerCase())
@@ -449,6 +514,7 @@ const OrdersPage = () => {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onPrint={(order) => handlePrint(order, false)} 
+        onPrintDelivery={handlePrintDelivery}
         isLoading={isLoadingOrders}
         fetchOrders={fetchOrders}
       />

@@ -1,20 +1,78 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../config/database');
+const cache = require('../cache/cache-manager');
+const { CacheKeys, getDateKey } = require('../cache/cache-keys');
 
 // GET /api/dashboard - Buscar todos os dados do dashboard
 router.get('/', async (req, res) => {
   try {
-    // Data de hoje
     const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+    const todayKey = getDateKey(today);
     
-    // Data de 30 dias atrás
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 30);
+    // Chave única para todo o dashboard
+    const dashboardCacheKey = CacheKeys.DASHBOARD_DATA;
+    
+    // Implementação Cache-Aside - busca no cache primeiro
+    const cachedDashboard = cache.get(dashboardCacheKey);
+    if (cachedDashboard) {
+      return res.json(cachedDashboard);
+    }
 
-    // KPIs de hoje
+    // Cache miss - busca dados do banco
+    const dashboardData = await fetchDashboardData(today, todayKey);
+    
+    // Armazena no cache por 2 minutos (dados do dashboard mudam frequentemente)
+    cache.set(dashboardCacheKey, dashboardData, 120);
+    
+    res.json(dashboardData);
+
+  } catch (error) {
+    console.error('Erro ao buscar dados do dashboard:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * Função para buscar todos os dados do dashboard
+ * Separada para facilitar o cache e testes
+ */
+async function fetchDashboardData(today, todayKey) {
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(today.getDate() - 30);
+
+  // Busca KPIs com cache individual (mais granular)
+  const kpis = await fetchKPIs(todayStart, todayEnd, todayKey);
+  
+  // Busca pedidos recentes com cache
+  const recentOrders = await fetchRecentOrders();
+  
+  // Busca top pizzas com cache
+  const topPizzas = await fetchTopPizzas(thirtyDaysAgo);
+  
+  // Busca vendas ao longo do tempo com cache
+  const salesOverTime = await fetchSalesOverTime(thirtyDaysAgo);
+
+  return {
+    kpis,
+    recentOrders,
+    topPizzas,
+    salesOverTime
+  };
+}
+
+/**
+ * Busca KPIs do dia com cache individual
+ */
+async function fetchKPIs(todayStart, todayEnd, todayKey) {
+  const kpisCacheKey = CacheKeys.DASHBOARD_KPIS(todayKey);
+  
+  return await cache.getOrFetch(kpisCacheKey, async () => {
     const kpisPromises = [
       // Vendas do dia
       db.query(`
@@ -52,14 +110,22 @@ router.get('/', async (req, res) => {
 
     const [salesResult, customersResult, pizzasResult, pendingResult] = await Promise.all(kpisPromises);
 
-    const kpis = {
+    return {
       salesToday: parseFloat(salesResult.rows[0]?.total_sales || 0),
       newCustomersToday: parseInt(customersResult.rows[0]?.new_customers || 0),
       pizzasSoldToday: parseInt(pizzasResult.rows[0]?.pizzas_sold || 0),
       pendingOrders: parseInt(pendingResult.rows[0]?.pending_orders || 0)
     };
+  }, 180); // Cache por 3 minutos
+}
 
-    // Pedidos recentes (últimos 5)
+/**
+ * Busca pedidos recentes com cache
+ */
+async function fetchRecentOrders() {
+  const recentOrdersCacheKey = CacheKeys.DASHBOARD_RECENT_ORDERS;
+  
+  return await cache.getOrFetch(recentOrdersCacheKey, async () => {
     const recentOrdersResult = await db.query(`
       SELECT p.id, p.total, p.status_pedido, c.nome as cliente_nome
       FROM pedidos p
@@ -68,7 +134,7 @@ router.get('/', async (req, res) => {
       LIMIT 5
     `);
 
-    const recentOrders = recentOrdersResult.rows.map(order => ({
+    return recentOrdersResult.rows.map(order => ({
       id: order.id,
       total: parseFloat(order.total),
       status_pedido: order.status_pedido,
@@ -76,8 +142,16 @@ router.get('/', async (req, res) => {
         nome: order.cliente_nome
       }
     }));
+  }, 60); // Cache por 1 minuto (dados mais dinâmicos)
+}
 
-    // Top pizzas mais vendidas (últimos 30 dias)
+/**
+ * Busca top pizzas mais vendidas com cache
+ */
+async function fetchTopPizzas(thirtyDaysAgo) {
+  const topPizzasCacheKey = CacheKeys.DASHBOARD_TOP_PIZZAS(30);
+  
+  return await cache.getOrFetch(topPizzasCacheKey, async () => {
     const topPizzasResult = await db.query(`
       SELECT 
         COALESCE(ip.sabor_registrado, pr.nome) as nome,
@@ -93,12 +167,20 @@ router.get('/', async (req, res) => {
       LIMIT 7
     `, [thirtyDaysAgo]);
 
-    const topPizzas = topPizzasResult.rows.map(pizza => ({
+    return topPizzasResult.rows.map(pizza => ({
       nome: pizza.nome,
       total_vendido: parseInt(pizza.total_vendido)
     }));
+  }, 600); // Cache por 10 minutos (dados menos voláteis)
+}
 
-    // Vendas ao longo do tempo (últimos 30 dias)
+/**
+ * Busca vendas ao longo do tempo com cache
+ */
+async function fetchSalesOverTime(thirtyDaysAgo) {
+  const salesOvertimeCacheKey = CacheKeys.DASHBOARD_SALES_OVERTIME(30);
+  
+  return await cache.getOrFetch(salesOvertimeCacheKey, async () => {
     const salesOverTimeResult = await db.query(`
       SELECT 
         DATE(data_pedido) as data,
@@ -110,25 +192,11 @@ router.get('/', async (req, res) => {
       ORDER BY DATE(data_pedido)
     `, [thirtyDaysAgo]);
 
-    const salesOverTime = salesOverTimeResult.rows.map(sale => ({
+    return salesOverTimeResult.rows.map(sale => ({
       data: sale.data,
       total_vendas: parseFloat(sale.total_vendas)
     }));
-
-    res.json({
-      kpis,
-      recentOrders,
-      topPizzas,
-      salesOverTime
-    });
-
-  } catch (error) {
-    console.error('Erro ao buscar dados do dashboard:', error);
-    res.status(500).json({ 
-      error: 'Erro interno do servidor',
-      message: error.message 
-    });
-  }
-});
+  }, 600); // Cache por 10 minutos
+}
 
 module.exports = router; 
