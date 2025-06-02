@@ -188,7 +188,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     const result = await db.query(`
       INSERT INTO fechamento_caixa (
-        data_fechamento, total_pedidos, total_vendas, total_despesas_extras,
+        data_fechamento, total_pedidos_dia, total_vendas, total_despesas_extras,
         total_receitas_extras, total_descontos, total_impostos, total_taxas_entrega,
         saldo_final, observacoes, vendas_por_metodo
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)

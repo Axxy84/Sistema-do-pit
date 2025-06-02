@@ -12,10 +12,13 @@ router.post('/fechamentos', authenticateToken, async (req, res) => {
     const result = await db.query(`
       SELECT 
         fc.*,
+        TO_CHAR(fc.data_fechamento, 'YYYY-MM-DD') as data_fechamento_formatted,
+        COALESCE(fc.total_pedidos_dia, 0) as total_pedidos_dia,
         (
           SELECT COUNT(DISTINCT p.id) 
           FROM pedidos p 
-          WHERE DATE(p.data_pedido) = fc.data_fechamento
+          WHERE DATE(COALESCE(p.data_pedido, p.created_at)) = fc.data_fechamento
+          AND p.status_pedido = 'entregue'
         ) as total_pedidos_calculado
       FROM fechamento_caixa fc
       WHERE fc.data_fechamento BETWEEN $1 AND $2
