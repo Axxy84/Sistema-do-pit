@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient from '@/lib/apiClient';
 
 export const mesaService = {
   // Buscar resumo de uma mesa para fechamento
