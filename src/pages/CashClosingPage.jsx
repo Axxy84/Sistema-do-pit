@@ -688,14 +688,16 @@ ${paymentMethodsSummaryText || '  Nenhuma venda registrada por forma de pag.'}
 
   const fetchDashboardData = async (dataInicio = null, dataFim = null) => {
     try {
+      console.log('🔍 [Dashboard] Buscando dados dashboard:', { dataInicio, dataFim, filterDate });
       setIsLoadingDashboard(true);
       const data = await dashboardService.getFechamentoConsolidado(
         dataInicio || filterDate, 
         dataFim || filterDate
       );
+      console.log('✅ [Dashboard] Dados recebidos:', data);
       setDashboardData(data);
     } catch (error) {
-      console.error('Erro ao buscar dados do dashboard:', error);
+      console.error('❌ [Dashboard] Erro ao buscar dados:', error);
       toast({
         title: 'Erro',
         description: 'Erro ao carregar dados do dashboard',
@@ -708,10 +710,18 @@ ${paymentMethodsSummaryText || '  Nenhuma venda registrada por forma de pag.'}
 
   // Atualizar dados do dashboard quando a data mudar
   useEffect(() => {
+    console.log('🔄 [Dashboard] useEffect triggered:', { activeTab, filterDate });
     if (activeTab === 'dashboard') {
+      console.log('📊 [Dashboard] Chamando fetchDashboardData...');
       fetchDashboardData();
     }
   }, [filterDate, activeTab]);
+
+  // Carregamento inicial dos dados do dashboard
+  useEffect(() => {
+    console.log('🚀 [Dashboard] Carregamento inicial...');
+    fetchDashboardData();
+  }, []);
 
   // Dashboard Component
   const DashboardContent = () => {
