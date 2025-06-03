@@ -651,4 +651,174 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// ==================== ROTAS DE FECHAMENTO INDIVIDUAL DE MESA ====================
+
+// GET /api/orders/mesa/:numero/resumo - Buscar resumo da mesa para fechamento
+router.get('/mesa/:numero/resumo', authenticateToken, async (req, res) => {
+  try {
+    const { numero } = req.params;
+    
+    // Verificar se existe mesa com esse número que não está fechada
+    const mesaResult = await db.query(`
+      SELECT 
+        p.*,
+        c.nome as cliente_nome,
+        c.telefone as cliente_telefone,
+        c.endereco as cliente_endereco
+      FROM pedidos p
+      LEFT JOIN clientes c ON p.cliente_id = c.id
+      WHERE p.numero_mesa = $1 
+        AND p.tipo_pedido = 'mesa'
+        AND p.status_pedido != 'fechado'
+      ORDER BY p.created_at DESC
+      LIMIT 1
+    `, [numero]);
+
+    if (mesaResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Mesa não encontrada ou já fechada' 
+      });
+    }
+
+    const mesa = mesaResult.rows[0];
+
+    // Buscar todos os itens da mesa
+    const itensResult = await db.query(`
+      SELECT 
+        ip.*,
+        pr.nome as produto_nome,
+        pr.tipo_produto,
+        pr.categoria
+      FROM itens_pedido ip
+      LEFT JOIN produtos pr ON ip.produto_id_ref = pr.id
+      WHERE ip.pedido_id = $1
+      ORDER BY ip.created_at
+    `, [mesa.id]);
+
+    // Buscar múltiplos pagamentos se existirem
+    let pagamentos = [];
+    if (mesa.multiplos_pagamentos) {
+      const pagamentosResult = await db.query(`
+        SELECT * FROM pagamentos_pedido 
+        WHERE pedido_id = $1 
+        ORDER BY created_at
+      `, [mesa.id]);
+      pagamentos = pagamentosResult.rows;
+    }
+
+    // Buscar configuração PIX (vamos criar uma tabela de configurações)
+    const pixConfigResult = await db.query(`
+      SELECT valor FROM configuracoes 
+      WHERE chave = 'pix_qr_code' AND ativo = true
+      LIMIT 1
+    `);
+
+    const pixQrCode = pixConfigResult.rows.length > 0 ? pixConfigResult.rows[0].valor : null;
+
+    const resumoMesa = {
+      ...mesa,
+      itens: itensResult.rows,
+      pagamentos: pagamentos,
+      cliente: mesa.cliente_id ? {
+        id: mesa.cliente_id,
+        nome: mesa.cliente_nome,
+        telefone: mesa.cliente_telefone,
+        endereco: mesa.cliente_endereco
+      } : null,
+      pix_qr_code: pixQrCode
+    };
+
+    res.json({ mesa: resumoMesa });
+  } catch (error) {
+    console.error('Erro ao buscar resumo da mesa:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// POST /api/orders/mesa/:numero/fechar - Fechar mesa individualmente
+router.post('/mesa/:numero/fechar', authenticateToken, async (req, res) => {
+  try {
+    const { numero } = req.params;
+    const { observacoes = '' } = req.body;
+    
+    // Verificar se existe mesa aberta com esse número
+    const mesaResult = await db.query(`
+      SELECT id FROM pedidos 
+      WHERE numero_mesa = $1 
+        AND tipo_pedido = 'mesa'
+        AND status_pedido != 'fechado'
+    `, [numero]);
+
+    if (mesaResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Mesa não encontrada ou já fechada' 
+      });
+    }
+
+    const mesaId = mesaResult.rows[0].id;
+
+    // Atualizar status da mesa para fechado
+    const updateResult = await db.query(`
+      UPDATE pedidos 
+      SET status_pedido = 'fechado',
+          observacoes = CASE 
+            WHEN observacoes IS NULL OR observacoes = '' 
+            THEN $2 
+            ELSE observacoes || ' | ' || $2 
+          END,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *
+    `, [mesaId, observacoes || `Mesa fechada em ${new Date().toLocaleString('pt-BR')}`]);
+
+    // Invalidar caches relacionados
+    invalidateOrderCaches(mesaId, null);
+
+    console.log(`✅ Mesa ${numero} fechada com sucesso`);
+
+    res.json({ 
+      message: `Mesa ${numero} fechada com sucesso`,
+      mesa: updateResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Erro ao fechar mesa:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// GET /api/orders/mesas/abertas - Listar mesas abertas
+router.get('/mesas/abertas', authenticateToken, async (req, res) => {
+  try {
+    const mesasResult = await db.query(`
+      SELECT 
+        numero_mesa,
+        COUNT(*) as total_pedidos,
+        SUM(total) as valor_total,
+        MIN(created_at) as abertura,
+        MAX(updated_at) as ultima_atividade,
+        status_pedido
+      FROM pedidos 
+      WHERE tipo_pedido = 'mesa'
+        AND status_pedido != 'fechado'
+        AND numero_mesa IS NOT NULL
+      GROUP BY numero_mesa, status_pedido
+      ORDER BY numero_mesa
+    `);
+
+    res.json({ mesas: mesasResult.rows });
+  } catch (error) {
+    console.error('Erro ao buscar mesas abertas:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
 module.exports = router; 

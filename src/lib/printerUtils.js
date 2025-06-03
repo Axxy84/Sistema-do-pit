@@ -400,3 +400,201 @@ Entregador: ${order.delivererName || order.entregador_nome || 'N/A'}
     throw error;
   }
 };
+
+export const formatTableClosingTicketForPrint = (mesa, pixConfig) => {
+  try {
+    const formatCurrency = (value) => {
+      return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      }).format(value || 0);
+    };
+
+    const formatDateTime = (dateString) => {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      return date.toLocaleString('pt-BR');
+    };
+
+    let ticketContent = `
+${pixConfig?.empresa_nome || 'PIT STOP PIZZARIA'}
+==============================
+FECHAMENTO DE MESA ${mesa.numero_mesa}
+==============================
+Data: ${formatDateTime(mesa.created_at)}
+Mesa: ${mesa.numero_mesa}
+${mesa.cliente ? `Cliente: ${mesa.cliente.nome}` : ''}
+${mesa.cliente?.telefone ? `Telefone: ${mesa.cliente.telefone}` : ''}
+==============================
+CONSUMO DA MESA:
+
+`;
+
+    // Processar itens consumidos
+    if (mesa.itens && mesa.itens.length > 0) {
+      let totalItens = 0;
+      
+      mesa.itens.forEach((item) => {
+        const itemTotal = parseFloat(item.quantidade) * parseFloat(item.valor_unitario);
+        totalItens += itemTotal;
+        
+        ticketContent += `${item.quantidade}x ${item.sabor_registrado || item.produto_nome}\n`;
+        ticketContent += `   Unit.: ${formatCurrency(item.valor_unitario)}  Total: ${formatCurrency(itemTotal)}\n`;
+      });
+      
+      ticketContent += `\n==============================\n`;
+      ticketContent += `SUBTOTAL: ${formatCurrency(totalItens)}\n`;
+      
+      if (mesa.desconto_aplicado > 0) {
+        ticketContent += `DESCONTO: -${formatCurrency(mesa.desconto_aplicado)}\n`;
+        if (mesa.cupom_codigo) {
+          ticketContent += `CUPOM: ${mesa.cupom_codigo}\n`;
+        }
+      }
+      
+      ticketContent += `\nTOTAL A PAGAR: ${formatCurrency(mesa.total)}\n`;
+      ticketContent += `==============================\n`;
+    } else {
+      ticketContent += 'Nenhum item registrado\n==============================\n';
+    }
+
+    // Informações de pagamento
+    if (mesa.multiplos_pagamentos && mesa.pagamentos && mesa.pagamentos.length > 0) {
+      ticketContent += `FORMAS DE PAGAMENTO ACEITAS:\n`;
+      
+      mesa.pagamentos.forEach((pagamento, index) => {
+        const valor = parseFloat(pagamento.valor || 0);
+        if (valor > 0) {
+          const metodoPagamento = pagamento.forma_pagamento === 'dinheiro' ? 'DINHEIRO' :
+                                 pagamento.forma_pagamento === 'cartao' ? 'CARTÃO' :
+                                 pagamento.forma_pagamento === 'pix' ? 'PIX' :
+                                 pagamento.forma_pagamento.toUpperCase();
+          
+          ticketContent += `${index + 1}. ${metodoPagamento}: ${formatCurrency(valor)}\n`;
+        }
+      });
+    } else {
+      ticketContent += `FORMAS DE PAGAMENTO ACEITAS:\n`;
+      ticketContent += `💵 DINHEIRO\n`;
+      ticketContent += `💳 CARTÃO\n`;
+      ticketContent += `📱 PIX (QR Code abaixo)\n`;
+    }
+
+    // QR Code PIX
+    if (pixConfig?.pix_chave) {
+      ticketContent += `\n==============================\n`;
+      ticketContent += `💰 PAGAMENTO VIA PIX:\n`;
+      ticketContent += `Chave PIX: ${pixConfig.pix_chave}\n`;
+      ticketContent += `Valor: ${formatCurrency(mesa.total)}\n`;
+      ticketContent += `\n📱 ESCANEIE O QR CODE ABAIXO:\n`;
+      ticketContent += `[QR CODE PIX SERÁ EXIBIDO AQUI]\n`;
+      ticketContent += `\n⚠️  Após o pagamento, informe o\n`;
+      ticketContent += `    garçom para confirmar o recebimento.\n`;
+    }
+
+    // Observações
+    if (mesa.observacoes) {
+      ticketContent += `\n📝 OBSERVAÇÕES:\n${mesa.observacoes}\n`;
+    }
+
+    ticketContent += `\n==============================\n`;
+    ticketContent += `Obrigado pela preferência!\n`;
+    ticketContent += `${pixConfig?.empresa_nome || 'PIT STOP PIZZARIA'}\n`;
+    ticketContent += `==============================\n`;
+
+    return ticketContent;
+    
+  } catch (error) {
+    console.error('[TABLE-CLOSING-PRINT] Erro na formatação:', error);
+    throw error;
+  }
+};
+
+// Função para gerar HTML do QR Code PIX para impressão
+export const generatePixQrCodeHTML = (pixData, valor, mesa) => {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Pagamento PIX - Mesa ${mesa}</title>
+    <style>
+        body { 
+            font-family: monospace; 
+            font-size: 12pt; 
+            margin: 10px;
+            text-align: center;
+        }
+        .header { 
+            font-size: 14pt; 
+            font-weight: bold; 
+            margin-bottom: 20px;
+        }
+        .qr-container {
+            margin: 20px 0;
+            border: 2px solid #000;
+            padding: 10px;
+            display: inline-block;
+        }
+        .qr-code {
+            width: 200px;
+            height: 200px;
+            margin: 10px auto;
+            display: block;
+        }
+        .pix-info {
+            margin: 15px 0;
+            font-size: 11pt;
+        }
+        .instructions {
+            margin-top: 20px;
+            font-size: 10pt;
+            text-align: left;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 10pt;
+            border-top: 1px solid #000;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        🍕 PIT STOP PIZZARIA<br>
+        PAGAMENTO PIX - MESA ${mesa}
+    </div>
+    
+    <div class="qr-container">
+        <div class="pix-info">
+            <strong>💰 Valor a Pagar: R$ ${valor}</strong><br>
+            Mesa: ${mesa}
+        </div>
+        
+        ${pixData ? `<img src="${pixData}" alt="QR Code PIX" class="qr-code" />` : `<div class="qr-code" style="border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center;">QR CODE SERÁ INSERIDO AQUI</div>`}
+        
+        <div class="pix-info">
+            📱 Escaneie com seu app do banco
+        </div>
+    </div>
+    
+    <div class="instructions">
+        <strong>Instruções:</strong><br>
+        1. Abra o app do seu banco<br>
+        2. Escaneie o QR Code acima<br>
+        3. Confirme o valor e efetue o pagamento<br>
+        4. Apresente o comprovante ao garçom<br>
+        5. Aguarde a confirmação do recebimento
+    </div>
+    
+    <div class="footer">
+        Após o pagamento, informe o garçom<br>
+        para liberar a mesa.<br><br>
+        <strong>Obrigado pela preferência!</strong>
+    </div>
+</body>
+</html>`;
+};

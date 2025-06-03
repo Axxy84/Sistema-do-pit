@@ -12,15 +12,177 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, AlertTriangle, Loader2, Filter, CalendarDays, RefreshCw, Printer } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { BarChart2, AlertTriangle, Loader2, Filter, CalendarDays, RefreshCw, Printer, Car, Store, TrendingUp, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import reportService from '@/services/reportService';
 import { formatCurrency } from '@/lib/utils';
 
+// Novo componente para relatório comparativo
+const ComparativeReport = ({ startDate, endDate }) => {
+  const [comparativeData, setComparativeData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  const fetchComparativeData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await reportService.getComparativeReport(startDate, endDate);
+      setComparativeData(data);
+    } catch (error) {
+      toast({ title: 'Erro ao buscar dados comparativos', description: error.message, variant: 'destructive' });
+      setComparativeData(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [startDate, endDate, toast]);
+
+  useEffect(() => {
+    fetchComparativeData();
+  }, [fetchComparativeData]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-40">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!comparativeData || !comparativeData.comparative) {
+    return (
+      <div className="text-center py-8">
+        <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <p className="text-muted-foreground">Nenhum dado comparativo encontrado para este período</p>
+      </div>
+    );
+  }
+
+  const { comparative, hourlyBreakdown, productPreferences } = comparativeData;
+
+  return (
+    <div className="space-y-6">
+      {/* Comparativo Mesa vs Delivery */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Comparativo Mesa vs Delivery
+          </CardTitle>
+          <CardDescription>Análise de performance por tipo de pedido</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {comparative.map((data) => {
+              const isDelivery = data.tipo_pedido === 'delivery';
+              const icon = isDelivery ? Car : Store;
+              const IconComponent = icon;
+              const bgColor = isDelivery ? 'bg-green-50 border-green-200' : 'bg-blue-50 border-blue-200';
+              const textColor = isDelivery ? 'text-green-800' : 'text-blue-800';
+              
+              return (
+                <Card key={data.tipo_pedido} className={`${bgColor} border-l-4`}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className={`text-lg flex items-center gap-2 ${textColor}`}>
+                        <IconComponent className="h-5 w-5" />
+                        {isDelivery ? 'Delivery' : 'Mesa'}
+                      </CardTitle>
+                      <Badge variant="secondary">
+                        {data.total_pedidos} pedidos
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Vendas</p>
+                        <p className="text-xl font-bold text-green-600">{formatCurrency(data.total_vendas)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Ticket Médio</p>
+                        <p className="text-xl font-bold">{formatCurrency(data.ticket_medio)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Clientes Únicos</p>
+                        <p className="text-lg font-semibold">{data.clientes_unicos}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Descontos</p>
+                        <p className="text-lg font-semibold text-orange-600">{formatCurrency(data.total_descontos)}</p>
+                      </div>
+                    </div>
+                    
+                    {isDelivery && data.total_taxas_entrega > 0 && (
+                      <div className="pt-2 border-t">
+                        <p className="text-sm text-muted-foreground">Taxa de Entrega Total</p>
+                        <p className="text-lg font-semibold text-blue-600">{formatCurrency(data.total_taxas_entrega)}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Top Produtos por Tipo */}
+      {productPreferences && productPreferences.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Produtos Mais Vendidos por Tipo</CardTitle>
+            <CardDescription>Preferências de produtos entre mesa e delivery</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {['delivery', 'mesa'].map((tipo) => {
+                const produtosTipo = productPreferences
+                  .filter(p => p.tipo_pedido === tipo)
+                  .slice(0, 5);
+                
+                if (produtosTipo.length === 0) return null;
+                
+                const isDelivery = tipo === 'delivery';
+                const icon = isDelivery ? Car : Store;
+                const IconComponent = icon;
+                
+                return (
+                  <div key={tipo}>
+                    <h4 className="font-semibold mb-3 flex items-center gap-2">
+                      <IconComponent className="h-4 w-4" />
+                      Top 5 - {isDelivery ? 'Delivery' : 'Mesa'}
+                    </h4>
+                    <div className="space-y-2">
+                      {produtosTipo.map((produto, index) => (
+                        <div key={`${produto.produto_nome}-${produto.tipo_pedido}`} className="flex justify-between items-center p-2 rounded bg-muted/50">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="w-6 h-6 p-0 flex items-center justify-center text-xs">
+                              {index + 1}
+                            </Badge>
+                            <span className="text-sm font-medium">{produto.produto_nome}</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground">{produto.quantidade_vendida} vendidos</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+};
+
 const ReportsPage = () => {
   const [cashClosings, setCashClosings] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('fechamentos');
   const { toast } = useToast();
 
   const today = new Date().toISOString().split('T')[0];
@@ -45,8 +207,10 @@ const ReportsPage = () => {
   }, [toast]);
 
   useEffect(() => {
-    fetchCashClosings(startDate, endDate);
-  }, [startDate, endDate, fetchCashClosings]);
+    if (activeTab === 'fechamentos') {
+      fetchCashClosings(startDate, endDate);
+    }
+  }, [startDate, endDate, activeTab, fetchCashClosings]);
 
   useEffect(() => {
     const handleCashClosedEvent = (event) => {
@@ -170,10 +334,10 @@ ${paymentMethodsSummaryText || '  Nenhuma venda registrada por forma de pag.'}
     >
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Relatórios de Fechamento</h1>
-          <p className="text-muted-foreground">Visualize os fechamentos de caixa realizados.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Relatórios</h1>
+          <p className="text-muted-foreground">Análise completa de fechamentos e vendas por tipo</p>
         </div>
-        <Button onClick={() => fetchCashClosings(startDate, endDate, true)} disabled={isLoading} variant="outline">
+        <Button onClick={() => activeTab === 'fechamentos' ? fetchCashClosings(startDate, endDate, true) : null} disabled={isLoading} variant="outline">
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
           Atualizar
         </Button>
@@ -211,86 +375,108 @@ ${paymentMethodsSummaryText || '  Nenhuma venda registrada por forma de pag.'}
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-12 h-12 text-primary animate-spin" />
-            </div>
-          ) : cashClosings.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-64 text-center">
-              <CalendarDays className="w-16 h-16 text-muted-foreground mb-4" />
-              <h2 className="text-xl font-semibold text-foreground mb-2">Nenhum fechamento encontrado</h2>
-              <p className="text-muted-foreground max-w-md">
-                Não há registros de fechamento de caixa para o período selecionado.
-              </p>
-            </div>
-          ) : (
-            <Table>
-              <TableCaption>Exibindo {cashClosings.length} fechamentos de caixa.</TableCaption>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data Fechamento</TableHead>
-                  <TableHead>Total Vendas</TableHead>
-                  <TableHead>Despesas Extras</TableHead>
-                  <TableHead>Receitas Extras</TableHead>
-                  <TableHead>Saldo Final</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cashClosings.map((closing) => {
-                  const formatSafeDate = (dateStr) => {
-                    if (!dateStr) return 'Data inválida';
-                    try {
-                      if (closing.data_fechamento_formatted) {
-                        const date = new Date(closing.data_fechamento_formatted + 'T00:00:00');
-                        return date.toLocaleDateString('pt-BR');
-                      }
-                      const date = new Date(dateStr);
-                      return date.toLocaleDateString('pt-BR');
-                    } catch (error) {
-                      return 'Data inválida';
-                    }
-                  };
-                  
-                  return (
-                    <TableRow key={closing.id}>
-                      <TableCell>{formatSafeDate(closing.data_fechamento)}</TableCell>
-                      <TableCell>{formatCurrency(closing.total_vendas)}</TableCell>
-                      <TableCell>{formatCurrency(closing.total_despesas_extras)}</TableCell>
-                      <TableCell>{formatCurrency(closing.total_receitas_extras)}</TableCell>
-                      <TableCell className="font-semibold">{formatCurrency(closing.saldo_final)}</TableCell>
-                      <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => handlePrintReport(closing)} className="text-sky-500 hover:text-sky-700">
-                              <Printer className="h-4 w-4"/>
-                          </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-        {cashClosings.length > 0 && (
-            <CardFooter className="border-t pt-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-                    <div className="p-3 bg-muted/50 rounded-md">
-                        <p className="text-sm text-muted-foreground">Total de Pedidos no Período</p>
-                        <p className="text-lg font-bold text-primary">{totalPeriodOrders}</p>
-                    </div>
-                    <div className="p-3 bg-muted/50 rounded-md">
-                        <p className="text-sm text-muted-foreground">Total Vendas no Período</p>
-                        <p className="text-lg font-bold text-green-600">{formatCurrency(totalPeriodSales)}</p>
-                    </div>
-                    <div className="p-3 bg-muted/50 rounded-md">
-                        <p className="text-sm text-muted-foreground">Saldo Final Total no Período</p>
-                        <p className="text-lg font-bold text-blue-600">{formatCurrency(totalPeriodNetRevenue)}</p>
-                    </div>
-                </div>
-            </CardFooter>
-        )}
       </Card>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="fechamentos" className="flex items-center gap-2">
+            <BarChart2 className="h-4 w-4" />
+            Fechamentos de Caixa
+          </TabsTrigger>
+          <TabsTrigger value="comparativo" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Mesa vs Delivery
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="fechamentos" className="space-y-4">
+          <Card className="shadow-lg">
+            <CardContent className="pt-6">
+              {isLoading ? (
+                <div className="flex items-center justify-center h-64">
+                  <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                </div>
+              ) : cashClosings.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-64 text-center">
+                  <CalendarDays className="w-16 h-16 text-muted-foreground mb-4" />
+                  <h2 className="text-xl font-semibold text-foreground mb-2">Nenhum fechamento encontrado</h2>
+                  <p className="text-muted-foreground max-w-md">
+                    Não há registros de fechamento de caixa para o período selecionado.
+                  </p>
+                </div>
+              ) : (
+                <Table>
+                  <TableCaption>Exibindo {cashClosings.length} fechamentos de caixa.</TableCaption>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data Fechamento</TableHead>
+                      <TableHead>Total Vendas</TableHead>
+                      <TableHead>Despesas Extras</TableHead>
+                      <TableHead>Receitas Extras</TableHead>
+                      <TableHead>Saldo Final</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cashClosings.map((closing) => {
+                      const formatSafeDate = (dateStr) => {
+                        if (!dateStr) return 'Data inválida';
+                        try {
+                          if (closing.data_fechamento_formatted) {
+                            const date = new Date(closing.data_fechamento_formatted + 'T00:00:00');
+                            return date.toLocaleDateString('pt-BR');
+                          }
+                          const date = new Date(dateStr);
+                          return date.toLocaleDateString('pt-BR');
+                        } catch (error) {
+                          return 'Data inválida';
+                        }
+                      };
+                      
+                      return (
+                        <TableRow key={closing.id}>
+                          <TableCell>{formatSafeDate(closing.data_fechamento)}</TableCell>
+                          <TableCell>{formatCurrency(closing.total_vendas)}</TableCell>
+                          <TableCell>{formatCurrency(closing.total_despesas_extras)}</TableCell>
+                          <TableCell>{formatCurrency(closing.total_receitas_extras)}</TableCell>
+                          <TableCell className="font-semibold">{formatCurrency(closing.saldo_final)}</TableCell>
+                          <TableCell className="text-right">
+                              <Button variant="ghost" size="icon" onClick={() => handlePrintReport(closing)} className="text-sky-500 hover:text-sky-700">
+                                  <Printer className="h-4 w-4"/>
+                              </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+            {cashClosings.length > 0 && (
+                <CardFooter className="border-t pt-4 mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+                        <div className="p-3 bg-muted/50 rounded-md">
+                            <p className="text-sm text-muted-foreground">Total de Pedidos no Período</p>
+                            <p className="text-lg font-bold text-primary">{totalPeriodOrders}</p>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                            <p className="text-sm text-muted-foreground">Total Vendas no Período</p>
+                            <p className="text-lg font-bold text-green-600">{formatCurrency(totalPeriodSales)}</p>
+                        </div>
+                        <div className="p-3 bg-muted/50 rounded-md">
+                            <p className="text-sm text-muted-foreground">Saldo Final Total no Período</p>
+                            <p className="text-lg font-bold text-blue-600">{formatCurrency(totalPeriodNetRevenue)}</p>
+                        </div>
+                    </div>
+                </CardFooter>
+            )}
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="comparativo" className="space-y-4">
+          <ComparativeReport startDate={startDate} endDate={endDate} />
+        </TabsContent>
+      </Tabs>
     </motion.div>
   );
 };

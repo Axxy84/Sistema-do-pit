@@ -63,7 +63,73 @@ router.get('/vendas-por-periodo/:dias', async (req, res) => {
 });
 ```
 
-### Exemplo 3: Invalidação Automática ao Modificar Dados
+### Exemplo 3: Relatórios Separados por Tipo (Mesa vs Delivery)
+```javascript
+// POST /api/reports/vendas-por-tipo
+router.post('/vendas-por-tipo', async (req, res) => {
+  try {
+    const { start_date, end_date, tipo_pedido } = req.body;
+    const cacheKey = CacheKeys.REPORTS_SALES_BY_TYPE(start_date, end_date, tipo_pedido || 'all');
+    
+    const vendas = await cache.getOrFetch(cacheKey, async () => {
+      let whereClause = 'WHERE data_pedido BETWEEN $1 AND $2 AND status_pedido != \'cancelado\'';
+      const params = [start_date, end_date];
+      
+      if (tipo_pedido && ['mesa', 'delivery'].includes(tipo_pedido)) {
+        whereClause += ' AND tipo_pedido = $3';
+        params.push(tipo_pedido);
+      }
+      
+      const result = await db.query(`
+        SELECT 
+          tipo_pedido,
+          DATE(data_pedido) as data,
+          COUNT(*) as total_pedidos,
+          SUM(total) as vendas_totais,
+          AVG(total) as ticket_medio,
+          SUM(taxa_entrega) as total_taxas_entrega
+        FROM pedidos
+        ${whereClause}
+        GROUP BY tipo_pedido, DATE(data_pedido)
+        ORDER BY data, tipo_pedido
+      `, params);
+      
+      return result.rows;
+    }, 600); // Cache por 10 minutos
+    
+    res.json({ vendas });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+```
+
+### Exemplo 4: Fechamento de Caixa Integrado
+```javascript
+// POST /api/cash-closing com auto_generate
+router.post('/fechamento-automatico', async (req, res) => {
+  try {
+    const { observacoes } = req.body;
+    
+    // Chama a API de fechamento com geração automática
+    const response = await fetch('/api/cash-closing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        auto_generate: true,
+        observacoes: observacoes || 'Fechamento gerado automaticamente'
+      })
+    });
+    
+    const result = await response.json();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+```
+
+### Exemplo 5: Invalidação Automática ao Modificar Dados
 ```javascript
 // POST /api/produtos
 router.post('/', async (req, res) => {
@@ -79,6 +145,7 @@ router.post('/', async (req, res) => {
     // Invalidar caches relacionados a produtos
     cache.deletePattern('produtos:.*'); // Todos os caches de produtos
     cache.deletePattern('dashboard:top_pizzas:.*'); // Top pizzas podem ter mudado
+    cache.deletePattern('reports:.*_by_type:.*'); // Relatórios por tipo
     
     res.status(201).json({ produto: result.rows[0] });
   } catch (error) {
@@ -87,235 +154,271 @@ router.post('/', async (req, res) => {
 });
 ```
 
-## Testando o Cache
+## Testando as Novas Funcionalidades
 
-### 1. Teste Básico no Terminal
+### 1. Teste de Relatórios por Tipo
 ```bash
-# Primeira requisição (cache miss)
-curl http://localhost:3000/api/dashboard
-# Logs: ❌ Cache MISS: dashboard:data
+# Relatório de vendas separado por mesa
+curl -X POST http://localhost:3000/api/reports/top-products \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -d '{
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31", 
+    "tipo_pedido": "mesa",
+    "limit": 10
+  }'
 
-# Segunda requisição (cache hit)
-curl http://localhost:3000/api/dashboard  
-# Logs: 🎯 Cache HIT: dashboard:data
+# Relatório comparativo mesa vs delivery
+curl -X POST http://localhost:3000/api/reports/comparative \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -d '{
+    "start_date": "2024-01-01",
+    "end_date": "2024-01-31"
+  }'
 ```
 
-### 2. Monitoramento via API
+### 2. Teste de Fechamento Integrado
 ```bash
-# Ver estatísticas
-curl -H "Authorization: Bearer SEU_TOKEN" http://localhost:3000/api/cache-admin/stats
+# Buscar dados atuais detalhados
+curl -H "Authorization: Bearer SEU_TOKEN" \
+  http://localhost:3000/api/cash-closing/current
 
-# Resultado:
+# Resultado esperado:
 # {
-#   "totalItems": 5,
-#   "keys": ["dashboard:data", "orders:list", "reports:sales:2024-01-01:2024-01-31"],
-#   "message": "Cache contém 5 itens"
+#   "cash_closing": {
+#     "data_fechamento": "2024-01-15",
+#     "details_by_type": [
+#       {
+#         "tipo_pedido": "delivery",
+#         "total_pedidos": 25,
+#         "vendas_brutas": 850.00,
+#         "ticket_medio": 34.00
+#       },
+#       {
+#         "tipo_pedido": "mesa", 
+#         "total_pedidos": 15,
+#         "vendas_brutas": 450.00,
+#         "ticket_medio": 30.00
+#       }
+#     ]
+#   }
 # }
+
+# Criar fechamento automático
+curl -X POST http://localhost:3000/api/cash-closing \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer SEU_TOKEN" \
+  -d '{
+    "auto_generate": true,
+    "observacoes": "Fechamento automático do dia"
+  }'
 ```
 
-### 3. Limpeza Seletiva
+### 3. Monitoramento de Cache por Tipo
 ```bash
-# Limpar apenas dados de dashboard
-curl -X DELETE -H "Authorization: Bearer SEU_TOKEN" \
-  http://localhost:3000/api/cache-admin/pattern/dashboard
+# Ver estatísticas específicas
+curl -H "Authorization: Bearer SEU_TOKEN" \
+  http://localhost:3000/api/cache-admin/stats
 
-# Limpar tudo
+# Limpar apenas caches de relatórios por tipo
 curl -X DELETE -H "Authorization: Bearer SEU_TOKEN" \
-  http://localhost:3000/api/cache-admin/clear
+  "http://localhost:3000/api/cache-admin/pattern/reports.*_by_type.*"
 ```
 
 ## Padrões de Uso Recomendados
 
-### 1. TTL por Tipo de Consulta
+### 1. TTL por Tipo de Consulta e Separação
 ```javascript
-// Dados em tempo real (pedidos ativos)
-const pedidosAtivos = await cache.getOrFetch(key, fetcher, 60); // 1 minuto
+// Dados em tempo real por tipo
+const pedidosAtivosMesa = await cache.getOrFetch(
+  CacheKeys.ORDERS_BY_TYPE('mesa', 'ativo'), 
+  fetcher, 
+  60 // 1 minuto
+);
 
-// Dados do dia (vendas hoje)
-const vendasHoje = await cache.getOrFetch(key, fetcher, 300); // 5 minutos
+// Relatórios comparativos (mais estáveis)
+const relatorioComparativo = await cache.getOrFetch(
+  CacheKeys.REPORTS_COMPARATIVE(start, end), 
+  fetcher, 
+  900 // 15 minutos
+);
 
-// Dados históricos (relatórios)
-const relatorio = await cache.getOrFetch(key, fetcher, 900); // 15 minutos
-
-// Dados imutáveis (pedidos entregues)
-const pedidoFinalizado = await cache.getOrFetch(key, fetcher, 1800); // 30 minutos
+// Fechamento detalhado do dia atual
+const fechamentoDetalhado = await cache.getOrFetch(
+  CacheKeys.CASH_CLOSING_CURRENT_DETAILED(today), 
+  fetcher, 
+  120 // 2 minutos
+);
 ```
 
-### 2. Chaves de Cache Organizadas
+### 2. Chaves de Cache Organizadas por Tipo
 ```javascript
-// ✅ BOM: Chaves estruturadas
+// ✅ BOM: Separação clara por tipo
 const chaves = {
-  vendas: `vendas:${periodo}:${tipo}`,
-  cliente: `cliente:${id}:pedidos`,
-  relatorio: `relatorio:${tipo}:${inicio}:${fim}`
+  vendasMesa: CacheKeys.REPORTS_SALES_BY_TYPE(inicio, fim, 'mesa'),
+  vendasDelivery: CacheKeys.REPORTS_SALES_BY_TYPE(inicio, fim, 'delivery'),
+  comparativo: CacheKeys.REPORTS_COMPARATIVE(inicio, fim)
 };
 
-// ❌ EVITAR: Chaves genéricas
-const chaves = {
-  dados: 'dados',
-  info: 'cliente_info',
-  vendas: 'vendas_mes'
-};
+// ✅ BOM: Cache específico por preferência do cliente
+const clientesMesa = CacheKeys.CUSTOMERS_BY_TYPE_PREFERENCE(inicio, fim);
 ```
 
-### 3. Invalidação Inteligente
+### 3. Invalidação Inteligente por Tipo
 ```javascript
-// ✅ BOM: Invalidação específica
-function invalidarVendas(novoEstado) {
-  if (novoEstado === 'entregue') {
-    cache.deletePattern('vendas:.*');
-    cache.deletePattern('dashboard:.*');
-  }
+// ✅ BOM: Invalidação específica quando pedido mesa é criado
+function invalidarCachesPedidoMesa(pedidoId) {
+  cache.deletePattern('orders:type:mesa:.*');
+  cache.deletePattern('reports:.*_by_type:.*:mesa:.*');
+  cache.deletePattern('reports:comparative:.*');
+  cache.delete(CacheKeys.CASH_CLOSING_CURRENT_DETAILED(today));
 }
 
-// ✅ BOM: Invalidação granular
-function invalidarCliente(clienteId) {
-  cache.delete(`cliente:${clienteId}:dados`);
-  cache.delete(`cliente:${clienteId}:pedidos`);
-  // Não precisa invalidar outros clientes
+// ✅ BOM: Invalidação baseada no tipo alterado
+function invalidarPorTipoAlterado(tipoAntigo, tipoNovo) {
+  if (tipoAntigo) cache.deletePattern(`.*:${tipoAntigo}:.*`);
+  if (tipoNovo) cache.deletePattern(`.*:${tipoNovo}:.*`);
+  cache.deletePattern('reports:comparative:.*');
 }
 ```
 
-## Debug e Troubleshooting
+## Exemplos de Uso Frontend
 
-### 1. Logs de Debug
+### 1. Dashboard com Separação por Tipo
 ```javascript
-// Ativar logs detalhados (já ativo por padrão)
-console.log(`🎯 Cache HIT: ${key}`);   // Cache encontrado
-console.log(`❌ Cache MISS: ${key}`);  // Cache não encontrado
-console.log(`💾 Cache SET: ${key}`);   // Item armazenado
-console.log(`🗑️ Cache DELETE: ${key}`); // Item removido
-```
+// Buscar dados do dashboard com análise por tipo
+const dashboardData = await fetch('/api/dashboard');
+const data = await dashboardData.json();
 
-### 2. Verificação de Performance
-```javascript
-// Medir tempo de consulta
-const inicio = Date.now();
-const dados = await cache.getOrFetch(key, fetcher, ttl);
-const tempo = Date.now() - inicio;
-console.log(`⏱️ Consulta executada em ${tempo}ms`);
-```
-
-### 3. Health Check Personalizado
-```javascript
-// GET /api/health-cache (exemplo)
-router.get('/health-cache', async (req, res) => {
-  const stats = cache.getStats();
-  const testKey = 'test_' + Date.now();
+// Processar dados por tipo se disponível
+if (data.salesByType) {
+  const mesaData = data.salesByType.find(s => s.tipo_pedido === 'mesa');
+  const deliveryData = data.salesByType.find(s => s.tipo_pedido === 'delivery');
   
-  // Teste write/read
-  cache.set(testKey, { test: true }, 10);
-  const retrieved = cache.get(testKey);
-  cache.delete(testKey);
+  console.log('Mesa:', mesaData);
+  console.log('Delivery:', deliveryData);
+}
+```
+
+### 2. Relatório Comparativo
+```javascript
+// Buscar relatório comparativo
+const comparative = await fetch('/api/reports/comparative', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    start_date: '2024-01-01',
+    end_date: '2024-01-31'
+  })
+});
+
+const result = await comparative.json();
+
+// Usar dados comparativos
+const { comparative: data, hourlyBreakdown, productPreferences } = result.report;
+```
+
+### 3. Fechamento com Análise Detalhada
+```javascript
+// Buscar dados de fechamento com detalhes por tipo
+const currentData = await fetch('/api/cash-closing/current');
+const { cash_closing } = await currentData.json();
+
+// Exibir análise por tipo
+cash_closing.details_by_type?.forEach(detail => {
+  console.log(`${detail.tipo_pedido}: ${detail.total_pedidos} pedidos, R$ ${detail.vendas_brutas}`);
+});
+
+// Realizar fechamento automático
+const fechamento = await fetch('/api/cash-closing', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    auto_generate: true,
+    observacoes: 'Fechamento via interface'
+  })
+});
+```
+
+## Debug e Troubleshooting das Novas Funcionalidades
+
+### 1. Logs Específicos por Tipo
+```javascript
+// Ativar logs específicos para relatórios por tipo
+console.log(`🎯 Cache HIT para tipo mesa: ${key}`);
+console.log(`📊 Relatório comparativo gerado: ${key}`);
+console.log(`💰 Fechamento detalhado criado: ${key}`);
+```
+
+### 2. Verificação de Cache por Padrão
+```javascript
+// Verificar caches de um tipo específico
+const stats = cache.getStats();
+const cachesDelivery = stats.keys.filter(key => key.includes('delivery'));
+const cachesComparativos = stats.keys.filter(key => key.includes('comparative'));
+
+console.log('Caches Delivery:', cachesDelivery);
+console.log('Caches Comparativos:', cachesComparativos);
+```
+
+### 3. Health Check Específico
+```javascript
+// GET /api/health-cache-types
+router.get('/health-cache-types', async (req, res) => {
+  const stats = cache.getStats();
+  
+  const typeBreakdown = {
+    mesa: stats.keys.filter(k => k.includes('mesa')).length,
+    delivery: stats.keys.filter(k => k.includes('delivery')).length,
+    comparative: stats.keys.filter(k => k.includes('comparative')).length,
+    detailed: stats.keys.filter(k => k.includes('detailed')).length
+  };
   
   res.json({
-    status: retrieved ? 'OK' : 'FAIL',
+    status: 'OK',
     totalItems: stats.totalItems,
-    memoryUsage: process.memoryUsage(),
+    typeBreakdown,
     timestamp: new Date().toISOString()
   });
 });
 ```
 
-## Integração com Frontend
+## Métricas e Monitoramento das Novas Funcionalidades
 
-### 1. Indicador de Cache no Frontend
+### 1. Hit Rate por Tipo de Relatório
 ```javascript
-// Adicionar header customizado (opcional)
-router.get('/api/dashboard', async (req, res) => {
-  const cached = cache.get(cacheKey);
-  const data = cached || await fetchData();
-  
-  res.set('X-Cache-Status', cached ? 'HIT' : 'MISS');
-  res.json(data);
-});
-```
-
-### 2. Força Refresh do Cache
-```javascript
-// GET /api/dashboard?refresh=true
-router.get('/dashboard', async (req, res) => {
-  const { refresh } = req.query;
-  const cacheKey = 'dashboard:data';
-  
-  if (refresh === 'true') {
-    cache.delete(cacheKey); // Força nova consulta
-  }
-  
-  const data = await cache.getOrFetch(cacheKey, fetchData, 300);
-  res.json(data);
-});
-```
-
-### 3. Cache com Fallback
-```javascript
-router.get('/api/dados-criticos', async (req, res) => {
-  try {
-    const dados = await cache.getOrFetch(key, async () => {
-      const result = await db.query('SELECT * FROM dados_criticos');
-      return result.rows;
-    }, 300);
-    
-    res.json({ dados, source: 'cache' });
-  } catch (error) {
-    // Fallback: tentar cache expirado
-    const dadosExpirados = cache.cache.get(key);
-    if (dadosExpirados) {
-      res.json({ 
-        dados: dadosExpirados, 
-        source: 'cache_expired',
-        warning: 'Dados podem estar desatualizados'
-      });
-    } else {
-      res.status(500).json({ error: error.message });
-    }
-  }
-});
-```
-
-## Métricas e Monitoramento
-
-### 1. Calcular Hit Rate
-```javascript
-let cacheHits = 0;
-let cacheMisses = 0;
-
-// Sobrescrever métodos de cache para contar
-const originalGet = cache.get;
-cache.get = function(key) {
-  const result = originalGet.call(this, key);
-  if (result !== null) {
-    cacheHits++;
-  } else {
-    cacheMisses++;
-  }
-  return result;
+let cacheHitsByType = {
+  mesa: { hits: 0, misses: 0 },
+  delivery: { hits: 0, misses: 0 },
+  comparative: { hits: 0, misses: 0 }
 };
 
-// GET /api/cache-metrics
-router.get('/cache-metrics', (req, res) => {
-  const total = cacheHits + cacheMisses;
-  const hitRate = total > 0 ? (cacheHits / total * 100).toFixed(2) : 0;
-  
-  res.json({
-    hits: cacheHits,
-    misses: cacheMisses,
-    hitRate: `${hitRate}%`,
-    totalRequests: total
-  });
-});
+// Contar hits por tipo
+function trackCacheByType(key, hit) {
+  if (key.includes('mesa')) {
+    cacheHitsByType.mesa[hit ? 'hits' : 'misses']++;
+  } else if (key.includes('delivery')) {
+    cacheHitsByType.delivery[hit ? 'hits' : 'misses']++;
+  } else if (key.includes('comparative')) {
+    cacheHitsByType.comparative[hit ? 'hits' : 'misses']++;
+  }
+}
 ```
 
-### 2. Alertas de Performance
+### 2. Alertas de Performance por Tipo
 ```javascript
-// Alertar se hit rate muito baixo
+// Alertar se algum tipo específico tem hit rate baixo
 setInterval(() => {
-  const total = cacheHits + cacheMisses;
-  if (total > 100) {
-    const hitRate = cacheHits / total;
-    if (hitRate < 0.5) { // menos de 50%
-      console.warn(`⚠️ Cache hit rate baixo: ${(hitRate * 100).toFixed(2)}%`);
+  Object.entries(cacheHitsByType).forEach(([type, stats]) => {
+    const total = stats.hits + stats.misses;
+    if (total > 20) {
+      const hitRate = stats.hits / total;
+      if (hitRate < 0.6) {
+        console.warn(`⚠️ Hit rate baixo para tipo ${type}: ${(hitRate * 100).toFixed(2)}%`);
+      }
     }
-  }
-}, 60000); // Verificar a cada minuto
+  });
+}, 300000); // Verificar a cada 5 minutos
 ``` 

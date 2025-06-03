@@ -14,11 +14,17 @@ const CacheKeys = {
   // Relatórios
   REPORTS_SALES: (startDate, endDate) => `reports:sales:${startDate}:${endDate}`,
   REPORTS_FECHAMENTOS: (startDate, endDate) => `reports:fechamentos:${startDate}:${endDate}`,
-  REPORTS_TOP_PRODUCTS: (startDate, endDate, limit) => `reports:top_products:${startDate}:${endDate}:${limit}`,
+  REPORTS_TOP_PRODUCTS: (startDate, endDate, filter) => `reports:top_products:${startDate}:${endDate}:${filter}`,
   REPORTS_CUSTOMERS: (startDate, endDate) => `reports:customers:${startDate}:${endDate}`,
+  REPORTS_COMPARATIVE: (startDate, endDate) => `reports:comparative:${startDate}:${endDate}`,
+
+  // Relatórios por tipo de pedido (nova funcionalidade)
+  REPORTS_SALES_BY_TYPE: (startDate, endDate, type) => `reports:sales_by_type:${startDate}:${endDate}:${type}`,
+  REPORTS_PRODUCTS_BY_TYPE: (startDate, endDate, type, limit) => `reports:products_by_type:${startDate}:${endDate}:${type}:${limit}`,
 
   // Fechamento de Caixa
   CASH_CLOSING_CURRENT: (date) => `cash_closing:current:${date}`,
+  CASH_CLOSING_CURRENT_DETAILED: (date) => `cash_closing:current_detailed:${date}`,
   CASH_CLOSING_LIST: (startDate, endDate) => `cash_closing:list:${startDate || 'all'}:${endDate || 'all'}`,
   CASH_CLOSING_BY_ID: (id) => `cash_closing:${id}`,
 
@@ -33,6 +39,7 @@ const CacheKeys = {
   },
   ORDERS_BY_ID: (id) => `orders:${id}`,
   ORDERS_PENDING: 'orders:pending',
+  ORDERS_BY_TYPE: (type, status) => `orders:type:${type}:${status || 'all'}`,
 
   // Produtos
   PRODUCTS_LIST: 'products:list',
@@ -43,6 +50,7 @@ const CacheKeys = {
   CUSTOMERS_LIST: 'customers:list',
   CUSTOMERS_BY_ID: (id) => `customers:${id}`,
   CUSTOMERS_TOP: (startDate, endDate) => `customers:top:${startDate}:${endDate}`,
+  CUSTOMERS_BY_TYPE_PREFERENCE: (startDate, endDate) => `customers:by_type_preference:${startDate}:${endDate}`,
 
   // Padrões para invalidação
   PATTERNS: {
@@ -51,7 +59,10 @@ const CacheKeys = {
     CASH_CLOSING: 'cash_closing:.*',
     ORDERS: 'orders:.*',
     PRODUCTS: 'products:.*',
-    CUSTOMERS: 'customers:.*'
+    CUSTOMERS: 'customers:.*',
+    // Novos padrões específicos
+    REPORTS_BY_TYPE: 'reports:.*_by_type:.*',
+    CASH_CLOSING_DETAILED: 'cash_closing:.*detailed.*'
   }
 };
 
@@ -67,7 +78,24 @@ function normalizeKey(key) {
  * Função para gerar chave baseada em data
  */
 function getDateKey(date = new Date()) {
-  return date.toISOString().split('T')[0];
+  try {
+    // Se for uma string, tentar converter para Date
+    if (typeof date === 'string') {
+      date = new Date(date);
+    }
+    
+    // Verificar se é uma data válida
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      console.warn('⚠️ Data inválida fornecida para getDateKey, usando data atual');
+      date = new Date();
+    }
+    
+    return date.toISOString().split('T')[0];
+  } catch (error) {
+    console.error('❌ Erro na função getDateKey:', error);
+    // Fallback para data atual
+    return new Date().toISOString().split('T')[0];
+  }
 }
 
 /**
@@ -79,9 +107,19 @@ function getPeriodKey(startDate, endDate) {
   return `${start}:${end}`;
 }
 
+/**
+ * Função para gerar chave baseada em tipo de pedido
+ */
+function getTypeKey(type, additionalParams = []) {
+  const normalizedType = type ? normalizeKey(type) : 'all';
+  const params = [normalizedType, ...additionalParams].join(':');
+  return params;
+}
+
 module.exports = {
   CacheKeys,
   normalizeKey,
   getDateKey,
-  getPeriodKey
+  getPeriodKey,
+  getTypeKey
 }; 

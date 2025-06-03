@@ -9,7 +9,6 @@ import OrdersPage from '@/pages/OrdersPage';
 import DeliveriesPage from '@/pages/DeliveriesPage';
 import ReportsPage from '@/pages/ReportsPage';
 import CashClosingPage from '@/pages/CashClosingPage';
-import SeparateCashClosingPage from '@/pages/SeparateCashClosingPage';
 import AuthPage from '@/pages/AuthPage';
 import TonyPage from '@/pages/TonyPage'; 
 import CouponsPage from '@/pages/CouponsPage.jsx';
@@ -18,6 +17,7 @@ import { ThemeProvider } from '@/contexts/ThemeProvider.jsx';
 import { AuthProvider } from '@/contexts/AuthContext.jsx';
 import ProtectedRoute from '@/components/ProtectedRoute.jsx';
 import ErrorBoundary from '@/components/ErrorBoundary.jsx';
+import MesasPage from './pages/MesasPage';
 
 function App() {
   console.log('🚀 App - Iniciando aplicação');
@@ -70,6 +70,7 @@ function App() {
                         </ProtectedRoute>
                       </ErrorBoundary>
                     } />
+                    {/* Rotas de fechamento de caixa integradas */}
                     <Route path="/fechamento-caixa" element={
                       <ErrorBoundary>
                         <ProtectedRoute allowedRoles={['admin', 'atendente']}>
@@ -77,13 +78,15 @@ function App() {
                         </ProtectedRoute>
                       </ErrorBoundary>
                     } />
-                    <Route path="/fechamento-separado" element={
+                    <Route path="/fechamento-caixa/:mode" element={
                       <ErrorBoundary>
                         <ProtectedRoute allowedRoles={['admin', 'atendente']}>
-                          <SeparateCashClosingPage />
+                          <CashClosingPage />
                         </ProtectedRoute>
                       </ErrorBoundary>
                     } />
+                    {/* Rota de redirecionamento para compatibilidade */}
+                    <Route path="/fechamento-separado" element={<Navigate to="/fechamento-caixa/separado" replace />} />
                     
                     <Route 
                       path="/relatorios" 
@@ -115,6 +118,7 @@ function App() {
                         </ErrorBoundary>
                       } 
                     />
+                    <Route path="/mesas" element={<MesasPage />} />
                     {/* Catch-all for undefined routes, redirect to dashboard or login */}
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </Routes>

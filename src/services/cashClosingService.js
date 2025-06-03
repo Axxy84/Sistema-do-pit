@@ -68,5 +68,18 @@ export const cashClosingService = {
       console.error('Error closing day:', error.message);
       throw error;
     }
+  },
+
+  // Novo método para fechamento automático integrado
+  async closeDayAutomatic(observacoes = '') {
+    try {
+      return await this.createCashClosing({
+        auto_generate: true,
+        observacoes: observacoes || `Fechamento automático gerado em ${new Date().toLocaleString('pt-BR')}`
+      });
+    } catch (error) {
+      console.error('Error closing day automatically:', error.message);
+      throw error;
+    }
   }
 }; 

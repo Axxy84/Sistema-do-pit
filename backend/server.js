@@ -82,35 +82,35 @@ app.use((req, res, next) => {
 
 // Importar rotas
 const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
-const clientRoutes = require('./routes/clients');
-const customerRoutes = require('./routes/customers');
-const orderRoutes = require('./routes/orders');
-const productRoutes = require('./routes/products');
-const delivererRoutes = require('./routes/deliverers');
-const couponRoutes = require('./routes/coupons');
-const expenseRoutes = require('./routes/expenses');
-const cashClosingRoutes = require('./routes/cash-closing');
+const ordersRoutes = require('./routes/orders');
+const productsRoutes = require('./routes/products');
+const deliverersRoutes = require('./routes/deliverers');
+const customersRoutes = require('./routes/customers');
+const clientsRoutes = require('./routes/clients');
+const couponsRoutes = require('./routes/coupons');
 const dashboardRoutes = require('./routes/dashboard');
-const reportRoutes = require('./routes/reports');
+const expensesRoutes = require('./routes/expenses');
+const reportsRoutes = require('./routes/reports');
+const cashClosingRoutes = require('./routes/cash-closing');
 const migrateRoutes = require('./routes/migrate');
 const cacheAdminRoutes = require('./routes/cache-admin');
+const configurationsRoutes = require('./routes/configurations');
 
-// Usar rotas
+// Registrar rotas
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/clients', clientRoutes);
-app.use('/api/customers', customerRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/deliverers', delivererRoutes);
-app.use('/api/coupons', couponRoutes);
-app.use('/api/expenses', expenseRoutes);
-app.use('/api/cash-closing', cashClosingRoutes);
+app.use('/api/orders', ordersRoutes);
+app.use('/api/products', productsRoutes);
+app.use('/api/deliverers', deliverersRoutes);
+app.use('/api/customers', customersRoutes);
+app.use('/api/clients', clientsRoutes);
+app.use('/api/coupons', couponsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/reports', reportRoutes);
+app.use('/api/expenses', expensesRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/cash-closing', cashClosingRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/cache-admin', cacheAdminRoutes);
+app.use('/api/configurations', configurationsRoutes);
 
 // Rotas
 app.use('/api/orders', require('./routes/orders'));
@@ -119,7 +119,6 @@ app.use('/api/products', require('./routes/products'));
 app.use('/api/expenses', require('./routes/expenses'));
 app.use('/api/coupons', require('./routes/coupons'));
 app.use('/api/cash-closing', require('./routes/cash-closing'));
-app.use('/api/separate-cash-closing', require('./routes/separate-cash-closing'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 
@@ -393,16 +392,151 @@ async function runMultiplePaymentsMigration() {
   }
 }
 
+// Função para executar migração da tabela de configurações
+async function runConfigurationsMigration() {
+  try {
+    console.log('🔄 Verificando e aplicando migração da tabela configuracoes...');
+    
+    // Verificar se a tabela configuracoes já existe
+    const checkTable = await db.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name = 'configuracoes';
+    `);
+    
+    if (checkTable.rows.length === 0) {
+      console.log('📋 Criando tabela configuracoes...');
+      
+      await db.query(`
+        CREATE TABLE configuracoes (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          chave VARCHAR(100) UNIQUE NOT NULL,
+          valor TEXT,
+          descricao TEXT,
+          tipo VARCHAR(50) DEFAULT 'texto',
+          ativo BOOLEAN DEFAULT true,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        );
+      `);
+      
+      await db.query(`
+        CREATE INDEX idx_configuracoes_chave ON configuracoes(chave);
+        CREATE INDEX idx_configuracoes_ativo ON configuracoes(ativo);
+      `);
+      
+      await db.query(`
+        COMMENT ON TABLE configuracoes IS 'Configurações gerais do sistema (PIX, impressora, etc)';
+        COMMENT ON COLUMN configuracoes.chave IS 'Chave única da configuração';
+        COMMENT ON COLUMN configuracoes.valor IS 'Valor da configuração (pode ser texto, JSON, etc)';
+        COMMENT ON COLUMN configuracoes.tipo IS 'Tipo da configuração: texto, json, url, boolean, numero';
+      `);
+      
+      // Inserir configuração padrão do PIX
+      await db.query(`
+        INSERT INTO configuracoes (chave, valor, descricao, tipo) 
+        VALUES (
+          'pix_qr_code', 
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+          'QR Code PIX para pagamentos (base64 ou URL)',
+          'texto'
+        ),
+        (
+          'pix_chave',
+          'pitstop.pizzaria@exemplo.com',
+          'Chave PIX da pizzaria',
+          'texto'
+        ),
+        (
+          'empresa_nome',
+          'PIT STOP PIZZARIA',
+          'Nome da empresa para cupons',
+          'texto'
+        );
+      `);
+      
+      console.log('✅ Tabela configuracoes criada com configurações padrão!');
+    } else {
+      console.log('✅ Tabela configuracoes já existe');
+      
+      // Verificar se as configurações padrão existem
+      const existingConfigs = await db.query(`
+        SELECT chave FROM configuracoes 
+        WHERE chave IN ('pix_qr_code', 'pix_chave', 'empresa_nome')
+      `);
+      
+      const existingKeys = existingConfigs.rows.map(row => row.chave);
+      
+      if (!existingKeys.includes('pix_qr_code')) {
+        await db.query(`
+          INSERT INTO configuracoes (chave, valor, descricao, tipo) 
+          VALUES (
+            'pix_qr_code', 
+            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+            'QR Code PIX para pagamentos (base64 ou URL)',
+            'texto'
+          );
+        `);
+        console.log('✅ Configuração pix_qr_code adicionada');
+      }
+      
+      if (!existingKeys.includes('pix_chave')) {
+        await db.query(`
+          INSERT INTO configuracoes (chave, valor, descricao, tipo) 
+          VALUES (
+            'pix_chave',
+            'pitstop.pizzaria@exemplo.com',
+            'Chave PIX da pizzaria',
+            'texto'
+          );
+        `);
+        console.log('✅ Configuração pix_chave adicionada');
+      }
+      
+      if (!existingKeys.includes('empresa_nome')) {
+        await db.query(`
+          INSERT INTO configuracoes (chave, valor, descricao, tipo) 
+          VALUES (
+            'empresa_nome',
+            'PIT STOP PIZZARIA',
+            'Nome da empresa para cupons',
+            'texto'
+          );
+        `);
+        console.log('✅ Configuração empresa_nome adicionada');
+      }
+    }
+    
+    console.log('✅ Migração da tabela configuracoes concluída com sucesso!');
+    
+  } catch (error) {
+    console.error('❌ Erro na migração da tabela configuracoes:', error.message);
+    throw error;
+  }
+}
+
+// Função principal para executar todas as migrações
+async function runAllMigrations() {
+  try {
+    await runTaxaEntregaMigration();
+    await runFechamentoCaixaMigration();
+    await runMultiplePaymentsMigration();
+    await runConfigurationsMigration(); // Adicionar nova migração
+    console.log('✅ Todas as migrações executadas com sucesso!');
+  } catch (error) {
+    console.error('❌ Erro ao executar migrações:', error);
+    process.exit(1);
+  }
+}
+
 app.listen(PORT, async () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`🌐 Environment: ${config.NODE_ENV}`);
   console.log(`🔗 CORS habilitado para: ${config.CORS_ORIGIN}`);
   
   // Executar migrações
-  await runProductTypesMigration();
-  await runTaxaEntregaMigration();
-  await runFechamentoCaixaMigration();
-  await runMultiplePaymentsMigration();
+  await runAllMigrations();
 });
 
 // Graceful shutdown

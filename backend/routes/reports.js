@@ -44,7 +44,7 @@ router.post('/fechamentos', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/reports/sales - Relatório de vendas
+// POST /api/reports/sales - Relatório de vendas com separação por tipo
 router.post('/sales', authenticateToken, async (req, res) => {
   try {
     const { start_date, end_date } = req.body;
@@ -53,7 +53,7 @@ router.post('/sales', authenticateToken, async (req, res) => {
     // Implementação Cache-Aside para relatório completo de vendas
     const report = await cache.getOrFetch(cacheKey, async () => {
       // Executa todas as consultas em paralelo para melhor performance
-      const [salesByDayResult, salesByPaymentResult, salesByTypeResult] = await Promise.all([
+      const [salesByDayResult, salesByPaymentResult, salesByTypeResult, salesByDeliveryTypeResult] = await Promise.all([
         // Total de vendas por dia
         db.query(`
           SELECT 
@@ -80,23 +80,43 @@ router.post('/sales', authenticateToken, async (req, res) => {
           GROUP BY forma_pagamento
         `, [start_date, end_date]),
 
-        // Vendas por tipo de pedido
+        // Vendas por tipo de pedido (mesa/delivery)
         db.query(`
           SELECT 
             tipo_pedido,
             COUNT(*) as quantidade,
-            SUM(total) as total
+            SUM(total) as total,
+            AVG(total) as ticket_medio,
+            SUM(taxa_entrega) as total_taxas_entrega
           FROM pedidos
           WHERE data_pedido BETWEEN $1 AND $2
             AND status_pedido != 'cancelado'
           GROUP BY tipo_pedido
+        `, [start_date, end_date]),
+
+        // Vendas detalhadas por tipo com breakdown diário
+        db.query(`
+          SELECT 
+            DATE(data_pedido) as data,
+            tipo_pedido,
+            COUNT(*) as quantidade_pedidos,
+            SUM(total) as total_vendas,
+            AVG(total) as ticket_medio,
+            SUM(taxa_entrega) as total_taxas_entrega,
+            SUM(desconto_aplicado) as total_descontos
+          FROM pedidos
+          WHERE data_pedido BETWEEN $1 AND $2
+            AND status_pedido != 'cancelado'
+          GROUP BY DATE(data_pedido), tipo_pedido
+          ORDER BY data, tipo_pedido
         `, [start_date, end_date])
       ]);
 
       return {
         salesByDay: salesByDayResult.rows,
         salesByPayment: salesByPaymentResult.rows,
-        salesByType: salesByTypeResult.rows
+        salesByType: salesByTypeResult.rows,
+        salesByDeliveryType: salesByDeliveryTypeResult.rows // Novo: breakdown detalhado
       };
     }, 600); // Cache por 10 minutos
 
@@ -110,29 +130,42 @@ router.post('/sales', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/reports/top-products - Produtos mais vendidos
+// POST /api/reports/top-products - Produtos mais vendidos com separação por tipo
 router.post('/top-products', authenticateToken, async (req, res) => {
   try {
-    const { start_date, end_date, limit = 10 } = req.body;
-    const cacheKey = CacheKeys.REPORTS_TOP_PRODUCTS(start_date, end_date, limit);
+    const { start_date, end_date, limit = 10, tipo_pedido } = req.body;
+    const cacheKey = CacheKeys.REPORTS_TOP_PRODUCTS(start_date, end_date, `${limit}_${tipo_pedido || 'all'}`);
 
     // Implementação Cache-Aside
     const products = await cache.getOrFetch(cacheKey, async () => {
+      let whereClause = `
+        WHERE p.data_pedido BETWEEN $1 AND $2
+          AND p.status_pedido != 'cancelado'
+      `;
+      const params = [start_date, end_date];
+      
+      // Filtrar por tipo de pedido se especificado
+      if (tipo_pedido && ['mesa', 'delivery'].includes(tipo_pedido)) {
+        whereClause += ` AND p.tipo_pedido = $3`;
+        params.push(tipo_pedido);
+      }
+
       const result = await db.query(`
         SELECT 
           COALESCE(ip.sabor_registrado, pr.nome) as produto_nome,
           pr.tipo_produto,
+          p.tipo_pedido,
           SUM(ip.quantidade) as quantidade_vendida,
-          SUM(ip.quantidade * ip.valor_unitario) as total_vendas
+          SUM(ip.quantidade * ip.valor_unitario) as total_vendas,
+          COUNT(DISTINCT p.id) as pedidos_diferentes
         FROM itens_pedido ip
         JOIN pedidos p ON ip.pedido_id = p.id
         LEFT JOIN produtos pr ON ip.produto_id_ref = pr.id
-        WHERE p.data_pedido BETWEEN $1 AND $2
-          AND p.status_pedido != 'cancelado'
-        GROUP BY produto_nome, pr.tipo_produto
+        ${whereClause}
+        GROUP BY produto_nome, pr.tipo_produto, p.tipo_pedido
         ORDER BY quantidade_vendida DESC
-        LIMIT $3
-      `, [start_date, end_date, limit]);
+        LIMIT $${params.length + 1}
+      `, [...params, limit]);
 
       return result.rows;
     }, 900); // Cache por 15 minutos (análises históricas são estáveis)
@@ -147,7 +180,7 @@ router.post('/top-products', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/reports/customers - Relatório de clientes
+// POST /api/reports/customers - Relatório de clientes com separação por tipo
 router.post('/customers', authenticateToken, async (req, res) => {
   try {
     const { start_date, end_date } = req.body;
@@ -156,7 +189,7 @@ router.post('/customers', authenticateToken, async (req, res) => {
     // Implementação Cache-Aside para relatório de clientes
     const report = await cache.getOrFetch(cacheKey, async () => {
       // Executa consultas em paralelo
-      const [topCustomersResult, newCustomersResult] = await Promise.all([
+      const [topCustomersResult, newCustomersResult, customersByTypeResult] = await Promise.all([
         // Top clientes por valor gasto
         db.query(`
           SELECT 
@@ -167,7 +200,11 @@ router.post('/customers', authenticateToken, async (req, res) => {
             SUM(p.total) as total_gasto,
             AVG(p.total) as ticket_medio,
             SUM(p.pontos_ganhos) as pontos_ganhos_total,
-            SUM(p.pontos_resgatados) as pontos_resgatados_total
+            SUM(p.pontos_resgatados) as pontos_resgatados_total,
+            COUNT(CASE WHEN p.tipo_pedido = 'delivery' THEN 1 END) as pedidos_delivery,
+            COUNT(CASE WHEN p.tipo_pedido = 'mesa' THEN 1 END) as pedidos_mesa,
+            SUM(CASE WHEN p.tipo_pedido = 'delivery' THEN p.total ELSE 0 END) as valor_delivery,
+            SUM(CASE WHEN p.tipo_pedido = 'mesa' THEN p.total ELSE 0 END) as valor_mesa
           FROM clientes c
           JOIN pedidos p ON c.id = p.cliente_id
           WHERE p.data_pedido BETWEEN $1 AND $2
@@ -182,18 +219,109 @@ router.post('/customers', authenticateToken, async (req, res) => {
           SELECT COUNT(*) as total
           FROM clientes
           WHERE created_at BETWEEN $1 AND $2
+        `, [start_date, end_date]),
+
+        // Clientes por tipo de pedido preferido
+        db.query(`
+          SELECT 
+            c.nome,
+            c.telefone,
+            p.tipo_pedido,
+            COUNT(*) as quantidade_pedidos,
+            SUM(p.total) as total_gasto,
+            AVG(p.total) as ticket_medio
+          FROM clientes c
+          JOIN pedidos p ON c.id = p.cliente_id
+          WHERE p.data_pedido BETWEEN $1 AND $2
+            AND p.status_pedido != 'cancelado'
+          GROUP BY c.id, c.nome, c.telefone, p.tipo_pedido
+          ORDER BY c.nome, p.tipo_pedido
         `, [start_date, end_date])
       ]);
 
       return {
         topCustomers: topCustomersResult.rows,
-        newCustomersCount: newCustomersResult.rows[0].total
+        newCustomersCount: newCustomersResult.rows[0].total,
+        customersByType: customersByTypeResult.rows
       };
     }, 900); // Cache por 15 minutos
 
     res.json({ report });
   } catch (error) {
     console.error('Erro ao gerar relatório de clientes:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// POST /api/reports/comparative - Novo: Relatório comparativo mesa vs delivery
+router.post('/comparative', authenticateToken, async (req, res) => {
+  try {
+    const { start_date, end_date } = req.body;
+    const cacheKey = `reports:comparative:${start_date}:${end_date}`;
+
+    const report = await cache.getOrFetch(cacheKey, async () => {
+      const [comparativeData, hourlyData, productPreferences] = await Promise.all([
+        // Comparativo geral mesa vs delivery
+        db.query(`
+          SELECT 
+            tipo_pedido,
+            COUNT(*) as total_pedidos,
+            SUM(total) as total_vendas,
+            AVG(total) as ticket_medio,
+            SUM(taxa_entrega) as total_taxas_entrega,
+            SUM(desconto_aplicado) as total_descontos,
+            COUNT(DISTINCT cliente_id) as clientes_unicos
+          FROM pedidos
+          WHERE data_pedido BETWEEN $1 AND $2
+            AND status_pedido != 'cancelado'
+          GROUP BY tipo_pedido
+        `, [start_date, end_date]),
+
+        // Vendas por hora do dia separado por tipo
+        db.query(`
+          SELECT 
+            EXTRACT(HOUR FROM data_pedido) as hora,
+            tipo_pedido,
+            COUNT(*) as quantidade_pedidos,
+            SUM(total) as total_vendas
+          FROM pedidos
+          WHERE data_pedido BETWEEN $1 AND $2
+            AND status_pedido != 'cancelado'
+          GROUP BY EXTRACT(HOUR FROM data_pedido), tipo_pedido
+          ORDER BY hora, tipo_pedido
+        `, [start_date, end_date]),
+
+        // Preferências de produtos por tipo
+        db.query(`
+          SELECT 
+            p.tipo_pedido,
+            COALESCE(ip.sabor_registrado, pr.nome) as produto_nome,
+            pr.tipo_produto,
+            SUM(ip.quantidade) as quantidade_vendida,
+            COUNT(DISTINCT p.id) as pedidos_diferentes
+          FROM itens_pedido ip
+          JOIN pedidos p ON ip.pedido_id = p.id
+          LEFT JOIN produtos pr ON ip.produto_id_ref = pr.id
+          WHERE p.data_pedido BETWEEN $1 AND $2
+            AND p.status_pedido != 'cancelado'
+          GROUP BY p.tipo_pedido, produto_nome, pr.tipo_produto
+          ORDER BY p.tipo_pedido, quantidade_vendida DESC
+        `, [start_date, end_date])
+      ]);
+
+      return {
+        comparative: comparativeData.rows,
+        hourlyBreakdown: hourlyData.rows,
+        productPreferences: productPreferences.rows
+      };
+    }, 900); // Cache por 15 minutos
+
+    res.json({ report });
+  } catch (error) {
+    console.error('Erro ao gerar relatório comparativo:', error);
     res.status(500).json({ 
       error: 'Erro interno do servidor',
       message: error.message 
