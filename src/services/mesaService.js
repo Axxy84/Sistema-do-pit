@@ -34,30 +34,6 @@ export const mesaService = {
       console.error('Erro ao buscar mesas abertas:', error);
       throw error;
     }
-  },
-
-  // Obter configurações PIX
-  async getPixConfigurations() {
-    try {
-      const [pixQrCode, pixChave, empresaNome] = await Promise.all([
-        this.getConfiguration('pix_qr_code').catch(() => null),
-        this.getConfiguration('pix_chave').catch(() => null),
-        this.getConfiguration('empresa_nome').catch(() => null)
-      ]);
-
-      return {
-        pix_qr_code: pixQrCode?.configuration?.valor || null,
-        pix_chave: pixChave?.configuration?.valor || null,
-        empresa_nome: empresaNome?.configuration?.valor || null
-      };
-    } catch (error) {
-      console.error('Erro ao buscar configurações PIX:', error);
-      return {
-        pix_qr_code: null,
-        pix_chave: null,
-        empresa_nome: null
-      };
-    }
   }
 };
 
@@ -111,6 +87,30 @@ export const configurationService = {
     } catch (error) {
       console.error('Erro ao criar configuração:', error);
       throw error;
+    }
+  },
+
+  // Obter configurações PIX
+  async getPixConfigurations() {
+    try {
+      const [pixQrCode, pixChave, empresaNome] = await Promise.all([
+        this.getConfiguration('pix_qr_code').catch(() => null),
+        this.getConfiguration('pix_chave').catch(() => null),
+        this.getConfiguration('empresa_nome').catch(() => null)
+      ]);
+
+      return {
+        pix_qr_code: pixQrCode?.configuration?.valor || null,
+        pix_chave: pixChave?.configuration?.valor || null,
+        empresa_nome: empresaNome?.configuration?.valor || null
+      };
+    } catch (error) {
+      console.error('Erro ao buscar configurações PIX:', error);
+      return {
+        pix_qr_code: null,
+        pix_chave: null,
+        empresa_nome: null
+      };
     }
   }
 }; 
