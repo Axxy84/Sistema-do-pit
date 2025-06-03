@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../config/database');
 const cache = require('../cache/cache-manager');
 const { CacheKeys, getDateKey } = require('../cache/cache-keys');
+const { authenticateToken } = require('../middleware/auth');
 
 // GET /api/dashboard - Buscar todos os dados do dashboard
 router.get('/', async (req, res) => {
