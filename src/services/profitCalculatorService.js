@@ -23,8 +23,8 @@ export const profitCalculatorService = {
         apiClient.get(`/expenses?data_inicio=${today}&data_fim=${today}`)
       ]);
 
-      const orders = ordersResponse.data.orders || [];
-      const expenses = expensesResponse.data.expenses || [];
+      const orders = ordersResponse.orders || [];
+      const expenses = expensesResponse.expenses || [];
 
       // Calcular vendas brutas do dia
       const vendas_brutas = orders
@@ -101,8 +101,8 @@ export const profitCalculatorService = {
         apiClient.get(`/expenses?data_inicio=${startDateStr}&data_fim=${endDateStr}`)
       ]);
 
-      const orders = ordersResponse.data.orders || [];
-      const expenses = expensesResponse.data.expenses || [];
+      const orders = ordersResponse.orders || [];
+      const expenses = expensesResponse.expenses || [];
 
       // Calcular média diária
       const totalDays = days;
