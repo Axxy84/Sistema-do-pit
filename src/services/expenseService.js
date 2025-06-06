@@ -105,5 +105,57 @@ export const expenseService = {
       console.error('Error fetching daily transactions:', error.message);
       return { data: [], error: error };
     }
+  },
+
+  // Buscar despesas do dia
+  async getTodayExpenses() {
+    const today = new Date().toISOString().split('T')[0];
+    return this.getAllExpenses({
+      tipo: 'despesa',
+      data_inicio: today,
+      data_fim: today
+    });
+  },
+
+  // Buscar resumo do dia
+  async getTodaySummary() {
+    const today = new Date().toISOString().split('T')[0];
+    return this.getExpensesSummary({
+      data_inicio: today,
+      data_fim: today
+    });
+  },
+
+  // Buscar despesas por categoria
+  async getExpensesByCategory(date = null) {
+    try {
+      const today = date || new Date().toISOString().split('T')[0];
+      const expenses = await this.getAllExpenses({
+        tipo: 'despesa',
+        data_inicio: today,
+        data_fim: today
+      });
+
+      const categorySummary = {};
+
+      expenses.forEach(expense => {
+        const categoria = expense.categoria || 'outro';
+        if (!categorySummary[categoria]) {
+          categorySummary[categoria] = {
+            total: 0,
+            count: 0,
+            items: []
+          };
+        }
+        categorySummary[categoria].total += parseFloat(expense.valor);
+        categorySummary[categoria].count += 1;
+        categorySummary[categoria].items.push(expense);
+      });
+
+      return categorySummary;
+    } catch (error) {
+      console.error('Erro ao buscar despesas por categoria:', error);
+      throw new Error('Erro ao buscar despesas por categoria');
+    }
   }
 }; 

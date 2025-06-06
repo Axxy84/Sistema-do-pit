@@ -12,6 +12,9 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 - **Frontend**: React with Vite, TailwindCSS, and Radix UI components
 - **Infrastructure**: PostgreSQL on neural server (192.168.0.105)
 
+## Memories
+- organize o layout ponha vermelho e preto que nem as outras paginas
+
 ## Essential Commands
 
 ### Backend Development

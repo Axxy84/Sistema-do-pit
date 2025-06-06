@@ -36,5 +36,40 @@ export const dashboardService = {
       console.error('Erro ao buscar dados do dashboard:', error);
       throw error;
     }
+  },
+
+  // Dashboard do Dono - Métricas específicas
+  async getOwnerDashboardData(date = new Date().toISOString().split('T')[0]) {
+    try {
+      // Buscar dados consolidados para a data específica
+      const consolidatedData = await this.getFechamentoConsolidado(date, date);
+      
+      // Buscar despesas do dia
+      const expensesResponse = await apiClient.get('/expenses', {
+        params: { 
+          tipo: 'despesa',
+          data_inicio: date,
+          data_fim: date
+        }
+      });
+
+      // Buscar pedidos do dia
+      const ordersResponse = await apiClient.get('/orders', {
+        params: {
+          data_inicio: date,
+          data_fim: date,
+          status: 'entregue'
+        }
+      });
+
+      return {
+        consolidated: consolidatedData,
+        expenses: expensesResponse.data.expenses || [],
+        orders: ordersResponse.data.orders || []
+      };
+    } catch (error) {
+      console.error('Erro ao buscar dados do dashboard do dono:', error);
+      throw error;
+    }
   }
 }; 
