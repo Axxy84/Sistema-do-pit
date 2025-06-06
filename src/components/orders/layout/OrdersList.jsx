@@ -1,20 +1,23 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Search, AlertTriangle, CheckCircle2, Printer, Edit2, Trash2, Truck } from 'lucide-react'; // Added Truck
+import { Loader2, Search, AlertTriangle, CheckCircle2, Printer, Edit2, Trash2, Truck, ChefHat } from 'lucide-react'; // Added Truck and ChefHat
 import OrdersTable from '@/components/orders/OrdersTable';
 import { Button } from '@/components/ui/button';
 import { orderService } from '@/services/orderService';
 import { useToast } from '@/components/ui/use-toast';
 
 // Componente padrão para ações da tabela
-const DefaultActionsComponent = ({ order, onEdit, onDelete, onPrint, onPrintDelivery }) => (
+const DefaultActionsComponent = ({ order, onEdit, onDelete, onPrint, onPrintDelivery, onPrintKitchen }) => (
   <>
     <Button variant="ghost" size="icon" onClick={() => onPrint(order)} className="text-sky-500 hover:text-sky-700 hover:bg-sky-100 dark:hover:bg-sky-800/50" title="Imprimir cupom">
       <Printer className="h-4 w-4" />
     </Button>
     <Button variant="ghost" size="icon" onClick={() => onPrintDelivery(order)} className="text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-800/50" title="Imprimir para entregador">
       <Truck className="h-4 w-4" />
+    </Button>
+    <Button variant="ghost" size="icon" onClick={() => onPrintKitchen(order)} className="text-orange-500 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-800/50" title="Imprimir para cozinha">
+      <ChefHat className="h-4 w-4" />
     </Button>
     <Button variant="ghost" size="icon" onClick={() => onEdit(order)} className="text-green-500 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-800/50" title="Editar pedido">
       <Edit2 className="h-4 w-4" />
@@ -25,7 +28,7 @@ const DefaultActionsComponent = ({ order, onEdit, onDelete, onPrint, onPrintDeli
   </>
 );
 
-const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPrint, onPrintDelivery, isLoading, fetchOrders }) => {
+const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPrint, onPrintDelivery, onPrintKitchen, isLoading, fetchOrders }) => {
   const [updatingStatusOrderId, setUpdatingStatusOrderId] = useState(null);
   const { toast } = useToast();
 
@@ -71,6 +74,7 @@ const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPri
             onDelete={onDelete} 
             onPrint={onPrint} 
             onPrintDelivery={onPrintDelivery}
+            onPrintKitchen={onPrintKitchen}
         />
       </div>
     )
@@ -120,6 +124,7 @@ const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPri
             onDelete={onDelete}
             onPrint={onPrint}
             onPrintDelivery={onPrintDelivery}
+            onPrintKitchen={onPrintKitchen}
           />
         )}
       </CardContent>

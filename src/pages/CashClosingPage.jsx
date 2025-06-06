@@ -25,7 +25,144 @@ import { orderService } from '@/services/orderService';
 import { apiClient } from '@/lib/apiClient';
 import { dashboardService } from '@/services/dashboardService';
 
-// Novo componente para análise por tipo
+// Componente para resumo de vendas por tipo (Mesa vs Delivery)
+const SalesByOrderType = ({ data }) => {
+  if (!data?.cash_closing?.details_by_type || data.cash_closing.details_by_type.length === 0) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="pt-6">
+          <p className="text-muted-foreground text-center">Nenhum dado por tipo disponível</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const detailsByType = data.cash_closing.details_by_type;
+  const totalVendas = detailsByType.reduce((sum, detail) => sum + detail.vendas_brutas, 0);
+
+  // Separar dados por tipo
+  const mesaData = detailsByType.find(d => d.tipo_pedido === 'mesa');
+  const deliveryData = detailsByType.find(d => d.tipo_pedido === 'delivery');
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center mb-4">
+        <h3 className="text-lg font-semibold">Resumo por Tipo de Pedido</h3>
+        <p className="text-sm text-muted-foreground">Distribuição das vendas do dia</p>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Card Mesa */}
+        {mesaData && (
+          <Card className="border-l-4 border-l-green-500 bg-green-50/50 dark:bg-green-950/50">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2 text-green-700 dark:text-green-300">
+                  <UtensilsCrossed className="h-5 w-5" />
+                  Total Vendas Mesa
+                </CardTitle>
+                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                  {totalVendas > 0 ? ((mesaData.vendas_brutas / totalVendas) * 100).toFixed(1) : 0}%
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                    {formatCurrency(mesaData.vendas_brutas)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {mesaData.total_pedidos} pedidos entregues
+                  </p>
+                </div>
+                <div className="pt-2 border-t space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span>Ticket Médio:</span>
+                    <span className="font-medium">{formatCurrency(mesaData.ticket_medio)}</span>
+                  </div>
+                  {mesaData.descontos_totais > 0 && (
+                    <div className="flex justify-between">
+                      <span>Descontos:</span>
+                      <span className="font-medium text-orange-600">{formatCurrency(mesaData.descontos_totais)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Card Delivery */}
+        {deliveryData && (
+          <Card className="border-l-4 border-l-blue-500 bg-blue-50/50 dark:bg-blue-950/50">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                  <Truck className="h-5 w-5" />
+                  Total Vendas Delivery
+                </CardTitle>
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  {totalVendas > 0 ? ((deliveryData.vendas_brutas / totalVendas) * 100).toFixed(1) : 0}%
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                    {formatCurrency(deliveryData.vendas_brutas)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {deliveryData.total_pedidos} pedidos entregues
+                  </p>
+                </div>
+                <div className="pt-2 border-t space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span>Ticket Médio:</span>
+                    <span className="font-medium">{formatCurrency(deliveryData.ticket_medio)}</span>
+                  </div>
+                  {deliveryData.total_taxas_entrega > 0 && (
+                    <div className="flex justify-between">
+                      <span>Taxa Entrega:</span>
+                      <span className="font-medium text-blue-600">{formatCurrency(deliveryData.total_taxas_entrega)}</span>
+                    </div>
+                  )}
+                  {deliveryData.descontos_totais > 0 && (
+                    <div className="flex justify-between">
+                      <span>Descontos:</span>
+                      <span className="font-medium text-orange-600">{formatCurrency(deliveryData.descontos_totais)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Resumo Total */}
+      <Card className="bg-muted/30">
+        <CardContent className="pt-4">
+          <div className="flex items-center justify-between">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Total Geral</p>
+              <p className="text-2xl font-bold">{formatCurrency(totalVendas)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Total Pedidos</p>
+              <p className="text-2xl font-bold">
+                {detailsByType.reduce((sum, detail) => sum + detail.total_pedidos, 0)}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Componente para análise por tipo (versão detalhada - mantido para compatibilidade)
 const OrderTypeAnalysis = ({ detailsByType }) => {
   if (!detailsByType || detailsByType.length === 0) {
     return (
@@ -640,47 +777,110 @@ const CashClosingPage = () => {
         closedAt: isCurrentDayReport ? null : (closingDataInput.closedAt || new Date().toISOString())
     };
     
-    let paymentMethodsSummaryText = '';
+    // ==================== DADOS PARA VENDAS POR FORMA DE PAGAMENTO ====================
     const salesByPaymentMethodToPrint = dataToPrint.salesByPaymentMethod || {};
-
-    paymentMethodsSummaryText = Object.values(salesByPaymentMethodToPrint)
+    let paymentMethodsSummaryText = Object.values(salesByPaymentMethodToPrint)
         .filter(pm => pm.count > 0)
         .map(pm => `  - ${pm.name}: ${formatCurrency(pm.total)} (${pm.count} pedidos)`)
         .join('\n');
     
+    if (!paymentMethodsSummaryText) {
+        paymentMethodsSummaryText = '  Nenhuma venda registrada por forma de pag.';
+    }
+
+    // ==================== NOVA SEÇÃO: TOTAL POR FORMA DE PAGAMENTO ====================
+    // Preparar dados de forma padronizada
+    const paymentTotals = {
+        dinheiro: 0,
+        pix: 0,
+        cartao_debito: 0,
+        cartao_credito: 0,
+        outro: 0
+    };
+
+    // Mapear dados do sistema para nossa estrutura padronizada
+    Object.values(salesByPaymentMethodToPrint).forEach(pm => {
+        const total = parseFloat(pm.total || 0);
+        if (total > 0) {
+            const name = pm.name?.toLowerCase() || '';
+            if (name.includes('dinheiro')) {
+                paymentTotals.dinheiro += total;
+            } else if (name.includes('pix')) {
+                paymentTotals.pix += total;
+            } else if (name.includes('cartão') || name.includes('cartao')) {
+                if (name.includes('débito') || name.includes('debito')) {
+                    paymentTotals.cartao_debito += total;
+                } else if (name.includes('crédito') || name.includes('credito')) {
+                    paymentTotals.cartao_credito += total;
+                } else {
+                    // Se for só "cartão" sem especificar, assumir crédito
+                    paymentTotals.cartao_credito += total;
+                }
+            } else {
+                paymentTotals.outro += total;
+            }
+        }
+    });
+
+    // ==================== NOVA SEÇÃO: RESUMO POR TIPO DE PEDIDO ====================
+    // Preparar dados de vendas por tipo de pedido - SEMPRE MOSTRAR
+    let totalVendasMesa = 0;
+    let totalVendasDelivery = 0;
+
+    // Tentar obter dados de tipos de pedido dos dados atuais
+    if (isCurrentDayReport && isToday && displayData?.cash_closing?.details_by_type) {
+        const detailsByType = displayData.cash_closing.details_by_type;
+        const mesaData = detailsByType.find(d => d.tipo_pedido === 'mesa');
+        const deliveryData = detailsByType.find(d => d.tipo_pedido === 'delivery');
+        
+        totalVendasMesa = parseFloat(mesaData?.vendas_brutas || 0);
+        totalVendasDelivery = parseFloat(deliveryData?.vendas_brutas || 0);
+    }
+    
     const reportDate = dataToPrint.date || dataToPrint.data_fechamento;
 
-    const reportContent = `
-      PIT STOP PIZZARIA - FECHAMENTO DE CAIXA
-      ------------------------------------------
-      Data: ${new Date(reportDate+'T00:00:00').toLocaleDateString()}
-      ${dataToPrint.closedAt ? `Fechado em: ${new Date(dataToPrint.closedAt).toLocaleString()}` : 'Status: Em Aberto (Resumo do Dia)'}
-      ------------------------------------------
-      TOTAL DE PEDIDOS (Entregues): ${dataToPrint.totalOrdersCount}
-      ------------------------------------------
-      VENDAS POR FORMA DE PAGAMENTO:
-${paymentMethodsSummaryText || '  Nenhuma venda registrada por forma de pag.'}
-      ------------------------------------------
-      Total Geral de Vendas Brutas: ${formatCurrency(dataToPrint.totalSales + dataToPrint.totalDiscounts)}
-      Total de Descontos (Cupons/Pontos): ${formatCurrency(dataToPrint.totalDiscounts)}
-      Total Líquido de Vendas: ${formatCurrency(dataToPrint.totalSales)}
-      Total de Impostos: ${formatCurrency(dataToPrint.totalTaxes)}
-      Total de Taxas de Entrega: ${formatCurrency(dataToPrint.totalDeliveryFees)}
-      Total Despesas Extras: ${formatCurrency(dataToPrint.totalExpenses)}
-      Total Receitas Extras: ${formatCurrency(dataToPrint.totalExtraRevenues)}
-      ------------------------------------------
-      SALDO FINAL EM CAIXA: ${formatCurrency(dataToPrint.netRevenue)}
-      ------------------------------------------
-    `;
-     const printWindow = window.open('', '_blank');
-     if (printWindow) {
+    // ==================== MONTAGEM DO RELATÓRIO FINAL ====================
+    const reportContent = `PIT STOP PIZZARIA - FECHAMENTO DE CAIXA
+------------------------------------------
+Data: ${new Date(reportDate+'T00:00:00').toLocaleDateString()}
+${dataToPrint.closedAt ? `Fechado em: ${new Date(dataToPrint.closedAt).toLocaleString()}` : 'Status: Em Aberto (Resumo do Dia)'}
+------------------------------------------
+TOTAL DE PEDIDOS (Entregues): ${dataToPrint.totalOrdersCount || 0}
+------------------------------------------
+VENDAS POR FORMA DE PAGAMENTO:
+${paymentMethodsSummaryText}
+
+TOTAL POR FORMA DE PAGAMENTO:
+Dinheiro: ${formatCurrency(paymentTotals.dinheiro)}
+PIX: ${formatCurrency(paymentTotals.pix)}
+Cartão Débito: ${formatCurrency(paymentTotals.cartao_debito)}
+Cartão Crédito: ${formatCurrency(paymentTotals.cartao_credito)}
+Outro: ${formatCurrency(paymentTotals.outro)}
+------------------------------------------
+Total Geral de Vendas Brutas: ${formatCurrency((dataToPrint.totalSales || 0) + (dataToPrint.totalDiscounts || 0))}
+Total de Descontos (Cupons/Pontos): ${formatCurrency(dataToPrint.totalDiscounts || 0)}
+Total Líquido de Vendas: ${formatCurrency(dataToPrint.totalSales || 0)}
+Total de Impostos: ${formatCurrency(dataToPrint.totalTaxes || 0)}
+Total de Taxas de Entrega: ${formatCurrency(dataToPrint.totalDeliveryFees || 0)}
+Total Despesas Extras: ${formatCurrency(dataToPrint.totalExpenses || 0)}
+Total Receitas Extras: ${formatCurrency(dataToPrint.totalExtraRevenues || 0)}
+------------------------------------------
+RESUMO POR TIPO DE PEDIDO:
+Total Vendas Mesa: ${formatCurrency(totalVendasMesa)}
+Total Vendas Delivery: ${formatCurrency(totalVendasDelivery)}
+------------------------------------------
+SALDO FINAL EM CAIXA: ${formatCurrency(dataToPrint.netRevenue || 0)}
+------------------------------------------`;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
         printWindow.document.write('<pre>' + reportContent + '</pre>');
         printWindow.document.close();
         printWindow.print();
         toast({ title: 'Impressão', description: 'Preparando relatório para impressão.' });
-     } else {
-       toast({ title: 'Erro de Impressão', description: 'Não foi possível abrir a janela de impressão.', variant: 'destructive' });
-     }
+    } else {
+        toast({ title: 'Erro de Impressão', description: 'Não foi possível abrir a janela de impressão.', variant: 'destructive' });
+    }
   };
 
   const [dashboardData, setDashboardData] = useState(null);
@@ -1112,6 +1312,9 @@ ${paymentMethodsSummaryText || '  Nenhuma venda registrada por forma de pag.'}
                           pix: { name: 'PIX', total: displayData.cash_closing.vendas_pix, count: displayData.cash_closing.pedidos_pix }
                         }
                       }} />
+                      
+                      {/* Novo componente: Resumo por Tipo de Pedido */}
+                      <SalesByOrderType data={displayData} />
                     </div>
                   ) : (
                     // Dados legacy para datas anteriores

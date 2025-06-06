@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PlusCircle, Loader2, Printer } from 'lucide-react';
 import { motion } from 'framer-motion';
 import OrderForm from '@/components/orders/OrderForm';
 import OrdersList from '@/components/orders/layout/OrdersList';
 import OrdersHeader from '@/components/orders/layout/OrdersHeader';
 import { PAYMENT_METHODS, PIZZA_SIZES } from '@/lib/constants';
-import { formatOrderTicketForPrint, formatDeliveryTicketForPrint, testSimplePrint } from '@/lib/printerUtils';
+import { formatOrderTicketForPrint, formatDeliveryTicketForPrint, formatKitchenTicketForPrint, testSimplePrint } from '@/lib/printerUtils';
 
 import { orderService } from '@/services/orderService';
 import { productService } from '@/services/productService';
@@ -23,6 +24,8 @@ const OrdersPage = () => {
   const [isSavingOrder, setIsSavingOrder] = useState(false); 
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [showPriorityModal, setShowPriorityModal] = useState(false);
+  const [orderForKitchenPrint, setOrderForKitchenPrint] = useState(null);
 
   const { toast } = useToast();
 
@@ -270,20 +273,12 @@ const OrdersPage = () => {
       toast({ title: 'Sucesso!', description: finalToastMessage });
       
       setTimeout(() => {
-        if (savedPedidoFullData) {
-          try {
-            handlePrint(savedPedidoFullData, true); // Reativando impressão com tratamento de erro
-          } catch (printError) {
-            console.error('[OrdersPage] Erro ao imprimir:', printError);
-            // Não interromper o fluxo se a impressão falhar
-          }
-        }
         fetchOrders(); 
         window.dispatchEvent(new CustomEvent('orderSaved', { detail: { orderId: savedOrder.id } })); 
         if (currentOrder?.status_pedido !== savedOrder.status_pedido || !currentOrder) {
           window.dispatchEvent(new CustomEvent('orderStatusChanged', { detail: { orderId: savedOrder.id, newStatus: savedOrder.status_pedido } }));
         }
-      }, 100); // Aumentando delay para 100ms para dar tempo da UI atualizar
+      }, 100);
 
     } catch (error) {
       console.error('[OrdersPage] Erro ao salvar pedido:', error);
@@ -398,7 +393,8 @@ const OrdersPage = () => {
             }
           };
           
-          toast({ title: 'Impressão', description: `Cupom do pedido #${orderToPrint.id?.slice(-5).toUpperCase() || 'N/A'} preparado.` });
+          const printAction = autoPrint ? 'enviado para impressão' : 'aberto para impressão';
+          toast({ title: 'Cupom Preparado', description: `Cupom do pedido #${orderToPrint.id?.slice(-5).toUpperCase() || 'N/A'} ${printAction}.` });
           
         } catch (error) {
           console.error('[PRINT] Erro geral:', error);
@@ -477,6 +473,87 @@ const OrdersPage = () => {
     }
   }, [allProductsData, toast]);
 
+  const handlePrintKitchen = useCallback((orderToPrint, selectedPriority = null) => {
+    try {
+      // Verificar se os dados do pedido são válidos
+      if (!orderToPrint) {
+        console.error('[KITCHEN-PRINT] Dados do pedido inválidos para impressão');
+        toast({ title: 'Erro', description: 'Dados do pedido inválidos para impressão de cozinha', variant: 'destructive' });
+        return;
+      }
+
+      // Se não foi fornecida uma prioridade, mostrar modal de seleção
+      if (selectedPriority === null) {
+        setOrderForKitchenPrint(orderToPrint);
+        setShowPriorityModal(true);
+        return;
+      }
+      
+      const completeOrderDataForPrint = {
+        ...orderToPrint,
+        delivererName: orderToPrint.delivererName || orderToPrint.entregador_nome || 'Não atribuído',
+        paymentMethodName: orderToPrint.paymentMethodName || PAYMENT_METHODS.find(pm => pm.id === orderToPrint.forma_pagamento)?.name || 'Não informado',
+      };
+
+      let ticketContent;
+      try {
+        ticketContent = formatKitchenTicketForPrint(completeOrderDataForPrint, allProductsData, selectedPriority);
+      } catch (formatError) {
+        console.error('[KITCHEN-PRINT] Erro ao formatar cupom da cozinha:', formatError);
+        toast({ title: 'Erro', description: 'Erro ao formatar cupom da cozinha', variant: 'destructive' });
+        return;
+      }
+      
+      // Usar setTimeout para garantir que não bloqueie o thread principal
+      setTimeout(() => {
+        try {
+          const printWindow = window.open('', '_blank', 'width=300,height=500');
+          
+          if (!printWindow) {
+            console.error('[KITCHEN-PRINT] Não foi possível abrir janela de impressão');
+            toast({ title: 'Erro de Impressão', description: 'Não foi possível abrir a janela de impressão. Verifique se pop-ups estão bloqueados.', variant: 'destructive'});
+            return;
+          }
+          
+          printWindow.document.write('<html><head><title>Cupom Cozinha</title>');
+          printWindow.document.write('<style>body { font-family: monospace; font-size: 10pt; margin: 5px; } pre { white-space: pre-wrap; word-wrap: break-word; } </style>');
+          printWindow.document.write('</head><body>');
+          printWindow.document.write('<pre>' + ticketContent + '</pre>');
+          printWindow.document.write('</body></html>');
+          printWindow.document.close();
+          
+          printWindow.onload = function() {
+            try {
+              printWindow.focus();
+              printWindow.print();
+            } catch (printError) {
+              console.error('[KITCHEN-PRINT] Erro ao chamar print():', printError);
+            }
+          };
+          
+          toast({ title: 'Impressão Cozinha', description: `Cupom para cozinha #${orderToPrint.id?.slice(-5).toUpperCase() || 'N/A'} preparado.` });
+          
+        } catch (error) {
+          console.error('[KITCHEN-PRINT] Erro geral:', error);
+          toast({ title: 'Erro de Impressão', description: 'Erro inesperado durante a impressão para cozinha', variant: 'destructive' });
+        }
+      }, 100);
+      
+    } catch (error) {
+      console.error('[KITCHEN-PRINT] Erro crítico:', error);
+      toast({ title: 'Erro Crítico', description: 'Falha crítica no sistema de impressão para cozinha', variant: 'destructive' });
+    }
+  }, [allProductsData, toast]);
+
+  const handlePrioritySelection = useCallback((priority) => {
+    if (orderForKitchenPrint) {
+      setShowPriorityModal(false);
+      // Chamar a função novamente com a prioridade selecionada
+      handlePrintKitchen(orderForKitchenPrint, priority);
+      setOrderForKitchenPrint(null);
+    }
+  }, [orderForKitchenPrint, handlePrintKitchen]);
+
   const filteredOrders = useMemo(() => orders.filter(order => 
     (order.customerName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
     (order.id?.toLowerCase() || '').includes(searchTerm.toLowerCase())
@@ -515,9 +592,71 @@ const OrdersPage = () => {
         onDelete={handleDelete}
         onPrint={(order) => handlePrint(order, false)} 
         onPrintDelivery={handlePrintDelivery}
+        onPrintKitchen={handlePrintKitchen}
         isLoading={isLoadingOrders}
         fetchOrders={fetchOrders}
       />
+
+      {/* Modal de Seleção de Prioridade para Cozinha */}
+      <Dialog open={showPriorityModal} onOpenChange={setShowPriorityModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>🧑‍🍳 Selecionar Prioridade do Pedido</DialogTitle>
+            <DialogDescription>
+              Escolha a prioridade para o cupom da cozinha do pedido #{orderForKitchenPrint?.id?.slice(-5).toUpperCase() || 'N/A'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-3 py-4">
+            <Button
+              onClick={() => handlePrioritySelection('normal')}
+              variant="outline"
+              className="h-16 text-left flex items-center gap-3 hover:bg-blue-50"
+            >
+              <span className="text-2xl">🚚</span>
+              <div>
+                <div className="font-semibold">PEDIDO DELIVERY</div>
+                <div className="text-sm text-muted-foreground">Prioridade normal de entrega</div>
+              </div>
+            </Button>
+            
+            <Button
+              onClick={() => handlePrioritySelection('balcao')}
+              variant="outline"
+              className="h-16 text-left flex items-center gap-3 hover:bg-amber-50"
+            >
+              <span className="text-2xl">🏪</span>
+              <div>
+                <div className="font-semibold">PEDIDO BALCÃO</div>
+                <div className="text-sm text-muted-foreground">Cliente aguardando no balcão</div>
+              </div>
+            </Button>
+
+            <Button
+              onClick={() => handlePrioritySelection('urgente')}
+              variant="outline"
+              className="h-16 text-left flex items-center gap-3 hover:bg-yellow-50"
+            >
+              <span className="text-2xl">⚡</span>
+              <div>
+                <div className="font-semibold">PEDIDO URGENTE</div>
+                <div className="text-sm text-muted-foreground">Preparar com prioridade máxima</div>
+              </div>
+            </Button>
+
+            <Button
+              onClick={() => handlePrioritySelection('atrasado')}
+              variant="outline"
+              className="h-16 text-left flex items-center gap-3 hover:bg-red-50"
+            >
+              <span className="text-2xl">🚨</span>
+              <div>
+                <div className="font-semibold">PEDIDO ATRASADO</div>
+                <div className="text-sm text-muted-foreground">Pedido que passou do prazo</div>
+              </div>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

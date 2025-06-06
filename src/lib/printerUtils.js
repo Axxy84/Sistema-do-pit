@@ -401,6 +401,180 @@ Entregador: ${order.delivererName || order.entregador_nome || 'N/A'}
   }
 };
 
+export const formatKitchenTicketForPrint = (order, allProductsData, selectedPriority = null) => {
+  try {
+    const formatDateTime = (dateString) => {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      return date.toLocaleString('pt-BR');
+    };
+
+    let ticketContent = `
+PIT STOP PIZZARIA - PEDIDO PARA PREPARO
+========================================
+CLIENTE: ${order.customerName || 'N/A'}
+DATA: ${formatDateTime(order.orderDate || order.createdAt)}
+========================================
+
+`;
+
+    // Separar itens por categoria para preparo
+    const pizzas = [];
+    const bordas = [];
+    const outros = [];
+
+    // Processar apenas itens que precisam de preparo (não incluir bebidas)
+    if (order.items && order.items.length > 0) {
+      order.items.forEach((item) => {
+        if (item.itemType === 'pizza') {
+          pizzas.push(item);
+          
+          // Se a pizza tem borda, adicionar à lista de bordas
+          if (item.border && item.border !== 'none' && item.borderPrice > 0) {
+            bordas.push({
+              ...item,
+              borderName: item.border === 'salgada' ? 'Salty' : 
+                         item.border === 'doce' ? 'Doce' : item.border,
+              borderPrice: item.borderPrice
+            });
+          }
+        } else if (item.category !== 'bebida' && 
+                   !item.productName?.toLowerCase().includes('refrigerante') && 
+                   !item.productName?.toLowerCase().includes('coca')) {
+          // Incluir apenas itens que precisam de preparo (não bebidas)
+          outros.push(item);
+        }
+      });
+
+      // Imprimir Pizzas
+      if (pizzas.length > 0) {
+        ticketContent += `🍕 PIZZAS:\n`;
+        pizzas.forEach((item) => {
+          // Converter tamanho para letra
+          const sizeMap = {
+            'pequena': 'P',
+            'pequeno': 'P',
+            'small': 'P',
+            'media': 'M',
+            'médio': 'M',
+            'medio': 'M',
+            'medium': 'M',
+            'grande': 'G',
+            'large': 'G',
+            'familia': 'F',
+            'família': 'F',
+            'family': 'F',
+            'gigante': 'F'
+          };
+          
+          const sizeLetter = sizeMap[item.sizeName?.toLowerCase()] || 
+                           sizeMap[item.size?.toLowerCase()] || 
+                           item.sizeName || item.size || 'M';
+          
+          const itemName = `${sizeLetter} ${item.flavor}`;
+          ticketContent += `${item.quantity}x ${itemName}\n`;
+          
+          // Verificar se há observações específicas para a pizza
+          if (item.observacoes) {
+            ticketContent += `OBSERVAÇÕES: ${item.observacoes}\n`;
+          }
+        });
+        ticketContent += `\n`;
+      }
+
+      // Imprimir Bordas separadamente
+      if (bordas.length > 0) {
+        ticketContent += `🧀 BORDA RECHEADA:\n`;
+        bordas.forEach((item) => {
+          ticketContent += `${item.quantity}x ${item.borderName}\n`;
+          
+          // Observações específicas da borda
+          if (item.borderObservacoes) {
+            ticketContent += `OBSERVAÇÕES: ${item.borderObservacoes}\n`;
+          }
+        });
+        ticketContent += `\n`;
+      }
+
+      // Imprimir outros itens que precisam de preparo
+      if (outros.length > 0) {
+        ticketContent += `📦 OUTROS ITENS:\n`;
+        outros.forEach((item) => {
+          ticketContent += `${item.quantity}x ${item.productName}\n`;
+          
+          if (item.observacoes) {
+            ticketContent += `OBSERVAÇÕES: ${item.observacoes}\n`;
+          }
+        });
+        ticketContent += `\n`;
+      }
+    } else {
+      ticketContent += 'Nenhum item para preparo\n\n';
+    }
+
+    // Observações gerais do pedido (importantes para a cozinha)
+    if (order.observacoes) {
+      ticketContent += `📝 OBSERVAÇÕES GERAIS:\n${order.observacoes}\n\n`;
+    }
+
+    // Determinar prioridade do pedido
+    const getPriorityText = (order, selectedPriority) => {
+      // Se uma prioridade foi selecionada manualmente, usar ela
+      if (selectedPriority) {
+        const priorityMap = {
+          'normal': '🚚 PEDIDO DELIVERY',
+          'balcao': '🏪 PEDIDO BALCÃO',
+          'urgente': '⚡ PEDIDO URGENTE',
+          'atrasado': '🚨 PEDIDO ATRASADO'
+        };
+        return priorityMap[selectedPriority] || '🚚 PEDIDO DELIVERY';
+      }
+      
+      // Caso contrário, usar lógica automática
+      // Verificar se é pedido de balcão (mesa)
+      if (order.tipo_pedido === 'mesa') {
+        return '🏪 PEDIDO BALCÃO';
+      }
+      
+      // Verificar se está atrasado (mais de 30 min)
+      const orderTime = new Date(order.orderDate || order.createdAt);
+      const currentTime = new Date();
+      const diffMinutes = (currentTime - orderTime) / (1000 * 60);
+      
+      if (diffMinutes > 30) {
+        return '🚨 PEDIDO ATRASADO';
+      }
+      
+      // Verificar se tem observações que indicam urgência
+      const urgentKeywords = ['urgente', 'rápido', 'pressa', 'emergência'];
+      const hasUrgentNote = order.observacoes?.toLowerCase().includes('urgente') || 
+                           urgentKeywords.some(keyword => 
+                             order.observacoes?.toLowerCase().includes(keyword)
+                           );
+      
+      if (hasUrgentNote) {
+        return '⚡ PEDIDO URGENTE';
+      }
+      
+      // Pedido normal de delivery
+      return '🚚 PEDIDO DELIVERY';
+    };
+
+    const priorityText = getPriorityText(order, selectedPriority);
+    
+    ticketContent += `========================================
+${priorityText}
+========================================
+`;
+
+    return ticketContent;
+    
+  } catch (error) {
+    console.error('[KITCHEN-PRINT-FORMAT] Erro na formatação:', error);
+    throw error;
+  }
+};
+
 export const formatTableClosingTicketForPrint = (mesa, pixConfig) => {
   try {
     const formatCurrency = (value) => {

@@ -1,11 +1,13 @@
-import apiClient from '@/lib/apiClient';
+import { apiClient } from '@/lib/apiClient';
 
 export const mesaService = {
   // Buscar resumo de uma mesa para fechamento
   async getResumoMesa(numeroMesa) {
     try {
       const response = await apiClient.get(`/orders/mesa/${numeroMesa}/resumo`);
-      return response.data;
+      console.log('Resposta getResumoMesa:', response);
+      // apiClient já retorna os dados diretamente, não em response.data
+      return response;
     } catch (error) {
       console.error('Erro ao buscar resumo da mesa:', error);
       throw error;
@@ -18,7 +20,8 @@ export const mesaService = {
       const response = await apiClient.post(`/orders/mesa/${numeroMesa}/fechar`, {
         observacoes
       });
-      return response.data;
+      // apiClient já retorna os dados diretamente, não em response.data
+      return response;
     } catch (error) {
       console.error('Erro ao fechar mesa:', error);
       throw error;
@@ -29,7 +32,8 @@ export const mesaService = {
   async getMesasAbertas() {
     try {
       const response = await apiClient.get('/orders/mesas/abertas');
-      return response.data;
+      console.log('Resposta do apiClient.get:', response);
+      return response;
     } catch (error) {
       console.error('Erro ao buscar mesas abertas:', error);
       throw error;

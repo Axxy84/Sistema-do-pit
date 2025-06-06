@@ -749,7 +749,7 @@ router.post('/mesa/:numero/fechar', authenticateToken, async (req, res) => {
       SELECT id FROM pedidos 
       WHERE numero_mesa = $1 
         AND tipo_pedido = 'mesa'
-        AND status_pedido != 'fechado'
+        AND status_pedido NOT IN ('entregue', 'cancelado')
     `, [numero]);
 
     if (mesaResult.rows.length === 0) {
@@ -760,10 +760,10 @@ router.post('/mesa/:numero/fechar', authenticateToken, async (req, res) => {
 
     const mesaId = mesaResult.rows[0].id;
 
-    // Atualizar status da mesa para fechado
+    // Atualizar status da mesa para entregue (equivale a fechado para mesas)
     const updateResult = await db.query(`
       UPDATE pedidos 
-      SET status_pedido = 'fechado',
+      SET status_pedido = 'entregue',
           observacoes = CASE 
             WHEN observacoes IS NULL OR observacoes = '' 
             THEN $2 
@@ -802,15 +802,16 @@ router.get('/mesas/abertas', authenticateToken, async (req, res) => {
         SUM(total) as valor_total,
         MIN(created_at) as abertura,
         MAX(updated_at) as ultima_atividade,
-        status_pedido
+        MAX(status_pedido) as status_pedido
       FROM pedidos 
       WHERE tipo_pedido = 'mesa'
-        AND status_pedido != 'fechado'
+        AND status_pedido NOT IN ('entregue', 'cancelado')
         AND numero_mesa IS NOT NULL
-      GROUP BY numero_mesa, status_pedido
+      GROUP BY numero_mesa
       ORDER BY numero_mesa
     `);
 
+    console.log(`✅ Mesas abertas encontradas: ${mesasResult.rows.length}`);
     res.json({ mesas: mesasResult.rows });
   } catch (error) {
     console.error('Erro ao buscar mesas abertas:', error);

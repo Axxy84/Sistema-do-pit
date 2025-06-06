@@ -95,6 +95,7 @@ const cashClosingRoutes = require('./routes/cash-closing');
 const migrateRoutes = require('./routes/migrate');
 const cacheAdminRoutes = require('./routes/cache-admin');
 const configurationsRoutes = require('./routes/configurations');
+const profitCalculatorRoutes = require('./routes/profit-calculator');
 
 // Registrar rotas
 app.use('/api/auth', authRoutes);
@@ -111,6 +112,7 @@ app.use('/api/cash-closing', cashClosingRoutes);
 app.use('/api/migrate', migrateRoutes);
 app.use('/api/cache-admin', cacheAdminRoutes);
 app.use('/api/configurations', configurationsRoutes);
+app.use('/api/profit-calculator', profitCalculatorRoutes);
 
 // Rotas
 app.use('/api/orders', require('./routes/orders'));

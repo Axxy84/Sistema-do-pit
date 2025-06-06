@@ -123,7 +123,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // POST /api/expenses - Criar nova despesa/receita
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { tipo, valor, descricao, data_transacao } = req.body;
+    const { tipo, valor, descricao, data_transacao, categoria } = req.body;
 
     // Validações básicas
     if (!tipo || !valor || !descricao || !data_transacao) {
@@ -144,11 +144,18 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
+    // Validar categoria (apenas para despesas)
+    if (tipo === 'despesa' && categoria && !['fixa', 'insumos', 'taxa', 'outro'].includes(categoria)) {
+      return res.status(400).json({ 
+        error: 'Categoria deve ser: fixa, insumos, taxa ou outro' 
+      });
+    }
+
     const result = await db.query(`
-      INSERT INTO despesas_receitas (tipo, valor, descricao, data_transacao)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO despesas_receitas (tipo, valor, descricao, data_transacao, categoria)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
-    `, [tipo, parseFloat(valor), descricao, data_transacao]);
+    `, [tipo, parseFloat(valor), descricao, data_transacao, categoria || 'outro']);
 
     res.status(201).json({ expense: result.rows[0] });
   } catch (error) {
@@ -164,7 +171,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.patch('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { tipo, valor, descricao, data_transacao } = req.body;
+    const { tipo, valor, descricao, data_transacao, categoria } = req.body;
 
     // Verificar se registro existe
     const existingRecord = await db.query('SELECT id FROM despesas_receitas WHERE id = $1', [id]);
@@ -182,6 +189,13 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     if (valor && parseFloat(valor) <= 0) {
       return res.status(400).json({ 
         error: 'Valor deve ser maior que zero' 
+      });
+    }
+
+    // Validar categoria
+    if (categoria && !['fixa', 'insumos', 'taxa', 'outro'].includes(categoria)) {
+      return res.status(400).json({ 
+        error: 'Categoria deve ser: fixa, insumos, taxa ou outro' 
       });
     }
 
@@ -205,6 +219,10 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     if (data_transacao !== undefined) {
       fields.push(`data_transacao = $${paramIndex++}`);
       values.push(data_transacao);
+    }
+    if (categoria !== undefined) {
+      fields.push(`categoria = $${paramIndex++}`);
+      values.push(categoria);
     }
 
     fields.push(`updated_at = $${paramIndex++}`);

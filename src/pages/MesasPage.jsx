@@ -43,12 +43,24 @@ const MesasPage = () => {
   const loadMesasAbertas = async () => {
     try {
       setIsLoadingMesas(true);
-      const data = await mesaService.getMesasAbertas();
-      setMesasAbertas(data.mesas || []);
+      const response = await mesaService.getMesasAbertas();
+      
+      // O apiClient retorna os dados diretamente, não em response.data
+      const mesas = response?.mesas || [];
+      console.log('📋 Mesas carregadas:', mesas.length, mesas);
+      
+      setMesasAbertas(mesas);
     } catch (error) {
+      console.error('❌ Erro ao carregar mesas:', error);
+      
+      // Se for erro de autenticação, não mostrar toast (já redireciona)
+      if (error.message?.includes('401') || error.message?.includes('403')) {
+        return;
+      }
+      
       toast({
         title: 'Erro',
-        description: 'Erro ao carregar mesas abertas',
+        description: error.message || 'Erro ao carregar mesas abertas',
         variant: 'destructive'
       });
     } finally {
@@ -78,16 +90,34 @@ const MesasPage = () => {
     try {
       setIsLoading(true);
       const data = await mesaService.getResumoMesa(numeroMesa);
-      setMesaSelecionada(data.mesa);
-      toast({
-        title: 'Mesa encontrada',
-        description: `Mesa ${numeroMesa} carregada com sucesso`
-      });
+      console.log('🔍 Resumo da mesa', numeroMesa, ':', data);
+      
+      if (data && data.mesa) {
+        setMesaSelecionada(data.mesa);
+        toast({
+          title: 'Mesa encontrada',
+          description: `Mesa ${numeroMesa} carregada com sucesso`
+        });
+      } else {
+        setMesaSelecionada(null);
+        toast({
+          title: 'Mesa não encontrada',
+          description: 'Mesa não encontrada ou já fechada',
+          variant: 'destructive'
+        });
+      }
     } catch (error) {
+      console.error('❌ Erro ao buscar mesa:', error);
       setMesaSelecionada(null);
+      
+      // Extrair mensagem de erro mais específica
+      const errorMessage = error.response?.data?.error || 
+                          error.message || 
+                          'Mesa não encontrada ou já fechada';
+      
       toast({
         title: 'Mesa não encontrada',
-        description: error.response?.data?.error || 'Mesa não encontrada ou já fechada',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {

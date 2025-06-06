@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { ORDER_STATUSES_GENERAL, PAYMENT_METHODS } from '@/lib/constants'; 
 import { formatCurrency } from '@/lib/utils';
-import { Truck, Coffee, CreditCard, DollarSign, Smartphone, Layers, Edit, Printer, Trash2 } from 'lucide-react';
+import { Truck, Coffee, CreditCard, DollarSign, Smartphone, Layers, Edit, Printer, Trash2, ChefHat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const OrdersTable = ({ 
@@ -20,6 +20,7 @@ const OrdersTable = ({
   onDelete = () => {}, 
   onPrint = () => {}, 
   onPrintDelivery = () => {},
+  onPrintKitchen = () => {},
   actionsComponent: ActionsComponent = null 
 }) => {
 
@@ -152,6 +153,16 @@ const OrdersTable = ({
                         title="Imprimir para entregador"
                       >
                         <Truck className="h-4 w-4" />
+                      </Button>
+                      {/* Novo botão: Imprimir para cozinha */}
+                      <Button
+                        onClick={() => onPrintKitchen(order)}
+                        size="sm"
+                        variant="outline"
+                        className="h-8 bg-orange-50 hover:bg-orange-100 border-orange-200 text-orange-700"
+                        title="Imprimir para cozinha"
+                      >
+                        <ChefHat className="h-4 w-4" />
                       </Button>
                       <Button
                         onClick={() => onDelete(order.id)}
