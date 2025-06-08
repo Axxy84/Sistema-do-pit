@@ -86,7 +86,6 @@ const ordersRoutes = require('./routes/orders');
 const productsRoutes = require('./routes/products');
 const deliverersRoutes = require('./routes/deliverers');
 const customersRoutes = require('./routes/customers');
-const clientsRoutes = require('./routes/clients');
 const couponsRoutes = require('./routes/coupons');
 const dashboardRoutes = require('./routes/dashboard');
 const expensesRoutes = require('./routes/expenses');
@@ -104,7 +103,6 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/deliverers', deliverersRoutes);
 app.use('/api/customers', customersRoutes);
-app.use('/api/clients', clientsRoutes);
 app.use('/api/coupons', couponsRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/expenses', expensesRoutes);
@@ -116,15 +114,6 @@ app.use('/api/configurations', configurationsRoutes);
 app.use('/api/profit-calculator', profitCalculatorRoutes);
 app.use('/api/owner', ownerRoutes);
 
-// Rotas
-app.use('/api/orders', require('./routes/orders'));
-app.use('/api/customers', require('./routes/customers'));
-app.use('/api/products', require('./routes/products'));
-app.use('/api/expenses', require('./routes/expenses'));
-app.use('/api/coupons', require('./routes/coupons'));
-app.use('/api/cash-closing', require('./routes/cash-closing'));
-app.use('/api/reports', require('./routes/reports'));
-app.use('/api/dashboard', require('./routes/dashboard'));
 
 // Ignorar requisições para favicon.ico
 app.get('/favicon.ico', (req, res) => res.status(204).end());

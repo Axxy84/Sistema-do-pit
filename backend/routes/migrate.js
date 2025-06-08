@@ -1,10 +1,11 @@
 const express = require('express');
 const db = require('../config/database');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
 // POST /api/migrate/product-types - Migrar constraint de tipos de produto
-router.post('/product-types', async (req, res) => {
+router.post('/product-types', authenticateToken, requireAdmin, async (req, res) => {
   try {
     console.log('🔄 Iniciando migração da constraint produtos_tipo_produto_check...');
     
