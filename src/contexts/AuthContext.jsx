@@ -22,13 +22,28 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     console.log('🔐 AuthProvider - Inicializando...');
     
-    // TEMPORÁRIO: Sempre começar deslogado para testes
-    // Limpar localStorage para forçar tela de login
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userProfile');
+    // Verificar se existe token salvo no localStorage
+    const savedToken = localStorage.getItem('authToken');
+    const savedProfile = localStorage.getItem('userProfile');
     
-    updateUserState(null, null, null);
-    console.log('🔧 AuthProvider - MODO TESTE: Iniciando sempre deslogado');
+    if (savedToken && savedProfile) {
+      try {
+        const profile = JSON.parse(savedProfile);
+        const session = { user: profile, access_token: savedToken };
+        
+        // Restaurar sessão salva
+        updateUserState(session, profile, profile);
+        console.log('✅ AuthProvider - Sessão restaurada do localStorage');
+      } catch (error) {
+        console.error('❌ AuthProvider - Erro ao restaurar sessão:', error);
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userProfile');
+        updateUserState(null, null, null);
+      }
+    } else {
+      updateUserState(null, null, null);
+      console.log('🔓 AuthProvider - Nenhuma sessão encontrada');
+    }
   }, [updateUserState]);
 
   // Log sempre que o estado mudar
@@ -48,26 +63,39 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     
     try {
-      // Simular login bem-sucedido para teste
-      const userData = {
-        id: '1',
-        email: email,
-        full_name: 'Usuário Teste',
-        role: 'admin'
+      // Fazer chamada real para API de login
+      const response = await fetch('http://localhost:3001/api/auth/signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro no login');
+      }
+
+      // Extrair dados da resposta
+      const { token, user } = data;
+      const profile = {
+        full_name: user.full_name || user.name,
+        role: user.role
       };
-      
+
       // Salvar no localStorage
-      localStorage.setItem('authToken', 'test-token-123');
-      localStorage.setItem('userProfile', JSON.stringify(userData));
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('userProfile', JSON.stringify(user));
       
-      const session = { user: userData, access_token: 'test-token-123' };
-      const profile = { full_name: userData.full_name, role: userData.role };
+      const session = { user, access_token: token };
       
-      updateUserState(session, userData, profile);
+      updateUserState(session, user, profile);
       console.log('✅ AuthProvider - Login realizado com sucesso');
       
       return { 
-        data: { session, user: userData }, 
+        data: { session, user }, 
         error: null, 
         profile 
       };
@@ -85,31 +113,49 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     
     try {
-      // TEMPORÁRIO: Simular cadastro bem-sucedido para teste
-      const userData = {
-        id: Math.random().toString(36).substr(2, 9),
-        email: email,
-        full_name: fullName,
-        role: role || 'atendente'
+      // Fazer chamada real para API de cadastro
+      const response = await fetch('http://localhost:3001/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          email, 
+          password, 
+          full_name: fullName,
+          role: role || 'atendente'
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro no cadastro');
+      }
+
+      // Extrair dados da resposta
+      const { token, user } = data;
+      const profile = {
+        full_name: user.full_name || user.name,
+        role: user.role
       };
-      
+
       // Salvar no localStorage
-      localStorage.setItem('authToken', 'test-token-' + Date.now());
-      localStorage.setItem('userProfile', JSON.stringify(userData));
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('userProfile', JSON.stringify(user));
       
-      const session = { user: userData, access_token: 'test-token-' + Date.now() };
-      const profile = { full_name: userData.full_name, role: userData.role };
+      const session = { user, access_token: token };
       
-      updateUserState(session, userData, profile);
+      updateUserState(session, user, profile);
       console.log('✅ AuthProvider - Cadastro realizado com sucesso');
       
       return { 
-        data: { session, user: userData }, 
+        data: { session, user }, 
         error: null, 
         profile 
       };
     } catch (err) {
-      console.error('❌ AuthProvider - Exceção no cadastro:', err);
+      console.error('❌ AuthProvider - Erro no cadastro:', err);
       updateUserState(null, null, null);
       return { data: null, error: { message: err.message }, profile: null };
     } finally {
@@ -122,7 +168,7 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     
     try {
-      // TEMPORÁRIO: Logout simples sem API
+      // Logout local (limpar dados salvos)
       localStorage.removeItem('authToken');
       localStorage.removeItem('userProfile');
       
