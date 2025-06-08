@@ -273,13 +273,14 @@ const OrdersPage = () => {
       
       toast({ title: 'Sucesso!', description: finalToastMessage });
       
-      setTimeout(() => {
-        fetchOrders(); 
-        window.dispatchEvent(new CustomEvent('orderSaved', { detail: { orderId: savedOrder.id } })); 
-        if (currentOrder?.status_pedido !== savedOrder.status_pedido || !currentOrder) {
-          window.dispatchEvent(new CustomEvent('orderStatusChanged', { detail: { orderId: savedOrder.id, newStatus: savedOrder.status_pedido } }));
-        }
-      }, 100);
+      // Atualizar lista de pedidos imediatamente
+      await fetchOrders(); 
+      
+      // Emitir eventos
+      window.dispatchEvent(new CustomEvent('orderSaved', { detail: { orderId: savedOrder.id } })); 
+      if (currentOrder?.status_pedido !== savedOrder.status_pedido || !currentOrder) {
+        window.dispatchEvent(new CustomEvent('orderStatusChanged', { detail: { orderId: savedOrder.id, newStatus: savedOrder.status_pedido } }));
+      }
 
     } catch (error) {
       console.error('[OrdersPage] Erro ao salvar pedido:', error);

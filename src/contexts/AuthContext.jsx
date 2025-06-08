@@ -122,7 +122,7 @@ export const AuthProvider = ({ children }) => {
         body: JSON.stringify({ 
           email, 
           password, 
-          full_name: fullName,
+          fullName: fullName,
           role: role || 'atendente'
         }),
       });
