@@ -114,7 +114,7 @@ const OrdersTable = ({
                 exit={{ opacity: 0 }}
                 className="hover:bg-muted/30 transition-colors"
               >
-                <TableCell className="font-mono text-xs text-foreground/80">#{order.id.slice(-5).toUpperCase()}</TableCell>
+                <TableCell className="font-mono text-xs text-foreground/80">#{String(order.id).slice(-5).toUpperCase()}</TableCell>
                 <TableCell>{getOrderTypeBadge(order)}</TableCell>
                 <TableCell className="font-medium text-foreground">{order.customerName}</TableCell>
                 <TableCell className="text-foreground/90">{formatCurrency(order.totalValue)}</TableCell>

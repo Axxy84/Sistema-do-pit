@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import DashboardPage from '@/pages/DashboardPage';
-import PizzasPage from '@/pages/PizzasPage'; // Not used, but kept for structure
 import ProductsPage from '@/pages/ProductsPage'; 
 import CustomersPage from '@/pages/CustomersPage.jsx';
 import OrdersPage from '@/pages/OrdersPage';
@@ -20,7 +19,7 @@ import ErrorBoundary from '@/components/ErrorBoundary.jsx';
 import MesasPage from './pages/MesasPage';
 
 function App() {
-  console.log('🚀 App - Iniciando aplicação');
+  console.log('🚀 App - Sistema PIT STOP iniciado!');
 
   return (
     <ErrorBoundary>
@@ -41,7 +40,7 @@ function App() {
                         </ProtectedRoute>
                       </ErrorBoundary>
                     } />
-                    {/* <Route path="/pizzas" element={<ProtectedRoute allowedRoles={['admin', 'atendente']}><PizzasPage /></ProtectedRoute>} />  */}
+                    
                     <Route path="/produtos" element={
                       <ErrorBoundary>
                         <ProtectedRoute allowedRoles={['admin', 'atendente']}>
@@ -70,7 +69,6 @@ function App() {
                         </ProtectedRoute>
                       </ErrorBoundary>
                     } />
-                    {/* Rotas de fechamento de caixa integradas */}
                     <Route path="/fechamento-caixa" element={
                       <ErrorBoundary>
                         <ProtectedRoute allowedRoles={['admin', 'atendente']}>
@@ -85,7 +83,6 @@ function App() {
                         </ProtectedRoute>
                       </ErrorBoundary>
                     } />
-                    {/* Rota de redirecionamento para compatibilidade */}
                     <Route path="/fechamento-separado" element={<Navigate to="/fechamento-caixa/separado" replace />} />
                     
                     <Route 
@@ -119,7 +116,6 @@ function App() {
                       } 
                     />
                     <Route path="/mesas" element={<MesasPage />} />
-                    {/* Catch-all for undefined routes, redirect to dashboard or login */}
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </Routes>
                 </ErrorBoundary>

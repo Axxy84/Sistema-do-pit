@@ -4,16 +4,19 @@ export const authService = {
   async getSession() {
     try {
       const token = localStorage.getItem('authToken');
-      if (!token) return null;
+      const userProfile = localStorage.getItem('userProfile');
+      
+      if (!token || !userProfile) return null;
 
-      // Verificar se o token ainda é válido
-      const userData = await apiClient.get('/auth/me');
+      // Retornar dados do localStorage sem validar no servidor
+      // A validação será feita apenas quando necessário
+      const user = JSON.parse(userProfile);
       return {
-        user: userData.user,
+        user: user,
         access_token: token
       };
     } catch (error) {
-      // Token inválido ou expirado
+      // Se houver erro ao ler localStorage, limpar dados
       localStorage.removeItem('authToken');
       localStorage.removeItem('userProfile');
       return null;
@@ -39,31 +42,22 @@ export const authService = {
   },
   
   onAuthStateChange(callback) {
-    // Verificar mudanças no localStorage
-    let lastToken = localStorage.getItem('authToken');
-    
-    const checkAuthState = async () => {
-      const currentToken = localStorage.getItem('authToken');
-      
-      if (lastToken !== currentToken) {
-        lastToken = currentToken;
-        
+    // Versão simplificada que apenas monitora mudanças no localStorage
+    const handleStorageChange = (e) => {
+      if (e.key === 'authToken') {
+        const currentToken = localStorage.getItem('authToken');
         if (currentToken) {
-          try {
-            const userData = await apiClient.get('/auth/me');
-            const session = {
-              user: userData.user,
-              access_token: currentToken
-            };
-            callback('SIGNED_IN', session, userData.user, {
-              full_name: userData.user.full_name,
-              role: userData.user.role
-            });
-          } catch (error) {
-            // Token inválido
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('userProfile');
-            callback('SIGNED_OUT', null, null, null);
+          const userProfile = localStorage.getItem('userProfile');
+          if (userProfile) {
+            try {
+              const user = JSON.parse(userProfile);
+              callback('SIGNED_IN', { user, access_token: currentToken }, user, {
+                full_name: user.full_name,
+                role: user.role
+              });
+            } catch (error) {
+              callback('SIGNED_OUT', null, null, null);
+            }
           }
         } else {
           callback('SIGNED_OUT', null, null, null);
@@ -71,26 +65,11 @@ export const authService = {
       }
     };
 
-    // Verificar inicialmente
-    checkAuthState();
-
-    // Verificar mudanças usando storage event (melhor que polling)
-    const handleStorageChange = (e) => {
-      if (e.key === 'authToken') {
-        checkAuthState();
-      }
-    };
-
     window.addEventListener('storage', handleStorageChange);
 
-    // Verificar a cada 30 segundos para mudanças locais
-    const interval = setInterval(checkAuthState, 30000);
-
-    // Retornar função de cleanup
     return {
       subscription: {
         unsubscribe: () => {
-          clearInterval(interval);
           window.removeEventListener('storage', handleStorageChange);
         }
       }

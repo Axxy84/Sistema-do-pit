@@ -39,10 +39,10 @@ const RecentSales = ({ orders, isLoading }) => {
             <TableBody>
               {orders.map(order => (
                 <TableRow key={order.id}>
-                  <TableCell className="font-mono text-xs">#{order.id.slice(-5)}</TableCell>
-                  <TableCell>{order.cliente_id?.nome || 'N/A'}</TableCell>
-                  <TableCell>{getStatusBadge(order.status_pedido)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(order.total)}</TableCell>
+                  <TableCell className="font-mono text-xs">#{String(order.id).slice(-5)}</TableCell>
+                  <TableCell>{order.customerName || order.cliente_id?.nome || 'N/A'}</TableCell>
+                  <TableCell>{getStatusBadge(order.status_pedido || 'entregue')}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(order.total || 0)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

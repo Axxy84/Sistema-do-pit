@@ -8,7 +8,7 @@ export const formatOrderTicketForPrint = (order, allProductsData) => {
     return `
 PIT STOP PIZZARIA
 ------------------
-PEDIDO: #${order.id?.slice(-5) || 'N/A'}
+PEDIDO: #${String(order.id || '').slice(-5).toUpperCase() || 'N/A'}
 CLIENTE: ${order.customerName || 'N/A'}
 TOTAL: R$ ${order.totalValue?.toFixed(2) || '0.00'}
 ------------------
@@ -33,7 +33,7 @@ TESTE DE IMPRESSÃO SIMPLIFICADA
     let ticketContent = `
 PIT STOP PIZZARIA
 ------------------------------
-PEDIDO: #${order.id?.slice(-5).toUpperCase() || 'N/A'}
+PEDIDO: #${String(order.id || '').slice(-5).toUpperCase() || 'N/A'}
 DATA: ${formatDateTime(order.orderDate || order.createdAt)}
 CLIENTE: ${order.customerName || 'N/A'}
 TELEFONE: ${order.customerPhone || 'N/A'}
@@ -236,7 +236,7 @@ export const formatDeliveryTicketForPrint = (order, allProductsData) => {
 PIT STOP PIZZARIA
 CUPOM PARA ENTREGADOR
 ==============================
-PEDIDO: #${order.id?.slice(-5).toUpperCase() || 'N/A'}
+PEDIDO: #${String(order.id || '').slice(-5).toUpperCase() || 'N/A'}
 DATA: ${formatDateTime(order.orderDate || order.createdAt)}
 ==============================
 

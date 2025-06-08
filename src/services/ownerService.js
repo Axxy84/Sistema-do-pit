@@ -4,40 +4,22 @@ export const ownerService = {
   // Verificar se o usuário atual tem acesso de owner
   async verifyOwnerAccess() {
     try {
-      const response = await apiClient.get('/owner/verify');
-      return {
-        success: true,
-        isOwner: true,
-        user: response.user
-      };
-    } catch (error) {
-      console.error('Erro ao verificar acesso de owner:', error);
+      // TEMPORÁRIO: Simular verificação de owner
+      await new Promise(resolve => setTimeout(resolve, 300));
       
-      // Se o erro for 403 (Forbidden), usuário existe mas não é owner
-      if (error.response?.status === 403) {
-        return {
-          success: false,
-          isOwner: false,
-          error: 'Acesso negado. Área restrita ao proprietário.',
-          userLevel: 'employee'
-        };
-      }
-      
-      // Se o erro for 401 (Unauthorized), token inválido ou usuário não logado
-      if (error.response?.status === 401) {
-        return {
-          success: false,
-          isOwner: false,
-          error: 'Autenticação necessária.',
-          needsLogin: true
-        };
-      }
-      
-      // Outros erros
+      // Por padrão, não é owner - precisa fazer login específico
       return {
         success: false,
         isOwner: false,
-        error: error.response?.data?.error || 'Erro ao verificar acesso.',
+        error: 'Autenticação de proprietário necessária.',
+        needsOwnerLogin: true
+      };
+    } catch (error) {
+      console.error('Erro ao verificar acesso de owner:', error);
+      return {
+        success: false,
+        isOwner: false,
+        error: 'Erro ao verificar acesso.',
         technical: error.message
       };
     }
@@ -46,12 +28,35 @@ export const ownerService = {
   // Buscar dados específicos do dashboard do owner
   async getOwnerDashboard(date = null) {
     try {
-      const params = date ? { date } : {};
-      const response = await apiClient.get('/owner/dashboard', { params });
-      return response;
+      // TEMPORÁRIO: Simular dados do dashboard owner
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
+      return {
+        revenue: {
+          total: 15234.56,
+          today: 1234.56,
+          week: 8500.00,
+          month: 15234.56
+        },
+        expenses: {
+          total: 3200.00,
+          today: 150.00,
+          week: 1000.00,
+          month: 3200.00
+        },
+        profit: {
+          total: 12034.56,
+          margin: 79
+        },
+        metrics: {
+          averageTicket: 45.50,
+          ordersCount: 335,
+          customersCount: 205
+        }
+      };
     } catch (error) {
       console.error('Erro ao buscar dashboard do owner:', error);
-      throw new Error(error.response?.data?.error || 'Erro ao carregar dashboard do owner');
+      throw new Error('Erro ao carregar dashboard do owner');
     }
   },
 

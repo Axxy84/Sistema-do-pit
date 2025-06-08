@@ -1,13 +1,63 @@
 import apiClient from '@/lib/apiClient';
 
 const customerService = {
+  // TEMPORÁRIO: Dados simulados para evitar travamento
+  mockCustomers: [
+    {
+      id: 1,
+      nome: 'João Silva',
+      telefone: '11999999999',
+      email: 'joao@email.com',
+      endereco: 'Rua das Flores, 123',
+      cep: '01234-567',
+      cidade: 'São Paulo',
+      pontos_atuais: 85,
+      total_pedidos: 12,
+      created_at: '2024-01-15T10:30:00Z'
+    },
+    {
+      id: 2,
+      nome: 'Maria Santos',
+      telefone: '11888888888',
+      email: 'maria@email.com',
+      endereco: 'Av. Principal, 456',
+      cep: '01234-890',
+      cidade: 'São Paulo',
+      pontos_atuais: 142,
+      total_pedidos: 23,
+      created_at: '2024-02-20T14:15:00Z'
+    },
+    {
+      id: 3,
+      nome: 'Pedro Costa',
+      telefone: '11777777777',
+      email: 'pedro@email.com',
+      endereco: 'Praça Central, 789',
+      cep: '01234-111',
+      cidade: 'São Paulo',
+      pontos_atuais: 56,
+      total_pedidos: 8,
+      created_at: '2024-03-10T09:45:00Z'
+    }
+  ],
+
   // Buscar cliente por telefone
   async getByPhone(telefone) {
     console.log('[CustomerService] Buscando cliente por telefone:', telefone);
     try {
-      const response = await apiClient.request('/customers/phone/' + encodeURIComponent(telefone));
-      console.log('[CustomerService] Cliente encontrado:', response.customer);
-      return response.customer;
+      // TEMPORÁRIO: Simular busca nos dados mock
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      const cleanedPhone = telefone.replace(/\D/g, '');
+      const customer = this.mockCustomers.find(c => c.telefone.replace(/\D/g, '') === cleanedPhone);
+      
+      if (customer) {
+        console.log('[CustomerService] Cliente encontrado:', customer);
+        return customer;
+      } else {
+        console.log('[CustomerService] Cliente não encontrado (normal para novos clientes)');
+        throw new Error('Cliente não encontrado');
+      }
     } catch (error) {
       // Não fazer log de erro para cliente não encontrado (comportamento normal)
       if (error.message.includes('404') || error.message.includes('não encontrado')) {
@@ -21,46 +71,81 @@ const customerService = {
 
   // Buscar todos os clientes
   async getAllCustomers() {
-    const response = await apiClient.request('/customers');
-    return response.customers;
+    // TEMPORÁRIO: Retornar dados simulados
+    await new Promise(resolve => setTimeout(resolve, 350));
+    return this.mockCustomers;
   },
 
   // Buscar cliente por ID
   async getById(id) {
-    const response = await apiClient.request(`/customers/${id}`);
-    return response.customer;
+    // TEMPORÁRIO: Simular busca por ID
+    await new Promise(resolve => setTimeout(resolve, 200));
+    const customer = this.mockCustomers.find(c => c.id == id);
+    if (!customer) {
+      throw new Error('Cliente não encontrado');
+    }
+    return customer;
   },
 
   // Criar novo cliente
   async createCustomer(customerData) {
-    const response = await apiClient.request('/customers', {
-      method: 'POST',
-      body: JSON.stringify(customerData)
-    });
-    return response.customer;
+    // TEMPORÁRIO: Simular criação de cliente
+    await new Promise(resolve => setTimeout(resolve, 300));
+    const newCustomer = {
+      id: Math.max(...this.mockCustomers.map(c => c.id)) + 1,
+      nome: customerData.nome,
+      telefone: customerData.telefone || '',
+      email: customerData.email || '',
+      endereco: customerData.endereco || '',
+      cep: customerData.cep || '',
+      cidade: customerData.cidade || 'São Paulo',
+      pontos_atuais: 0,
+      total_pedidos: 0,
+      created_at: new Date().toISOString()
+    };
+    this.mockCustomers.push(newCustomer);
+    console.log('[CustomerService] Cliente criado (simulado):', newCustomer);
+    return newCustomer;
   },
 
   // Atualizar cliente
   async updateCustomer(id, customerData) {
-    const response = await apiClient.request(`/customers/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify(customerData)
-    });
-    return response.customer;
+    // TEMPORÁRIO: Simular atualização de cliente
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const customerIndex = this.mockCustomers.findIndex(c => c.id == id);
+    if (customerIndex === -1) {
+      throw new Error('Cliente não encontrado');
+    }
+    
+    const updatedCustomer = {
+      ...this.mockCustomers[customerIndex],
+      ...customerData,
+      id: parseInt(id) // Manter ID original
+    };
+    this.mockCustomers[customerIndex] = updatedCustomer;
+    console.log('[CustomerService] Cliente atualizado (simulado):', updatedCustomer);
+    return updatedCustomer;
   },
 
   // Deletar cliente
   async deleteCustomer(id) {
-    const response = await apiClient.request(`/customers/${id}`, {
-      method: 'DELETE'
-    });
-    return response;
+    // TEMPORÁRIO: Simular exclusão de cliente
+    await new Promise(resolve => setTimeout(resolve, 200));
+    const customerIndex = this.mockCustomers.findIndex(c => c.id == id);
+    if (customerIndex === -1) {
+      throw new Error('Cliente não encontrado');
+    }
+    this.mockCustomers.splice(customerIndex, 1);
+    console.log('[CustomerService] Cliente deletado (simulado):', id);
+    return { success: true };
   },
 
   // Buscar pontos do cliente
   async getCustomerPoints(customerId) {
-    const response = await apiClient.request(`/customers/${customerId}/points`);
-    return response.points;
+    // TEMPORÁRIO: Simular busca de pontos
+    await new Promise(resolve => setTimeout(resolve, 150));
+    const customer = this.mockCustomers.find(c => c.id == customerId);
+    return customer ? customer.pontos_atuais : 0;
   },
 
   // Gerenciar cliente (criar ou atualizar)
@@ -121,7 +206,7 @@ const customerService = {
           console.log('[CustomerService] Sem telefone válido, criando cliente sem buscar duplicados');
           customer = await this.createCustomer({
             nome: customerData.customerName,
-            telefone: cleanedPhone || null, // Pode ser null/vazio
+            telefone: cleanedPhone || '', // String vazia em vez de null
             endereco: customerData.customerAddress,
           });
         }

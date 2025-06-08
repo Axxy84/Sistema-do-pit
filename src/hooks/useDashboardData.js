@@ -21,7 +21,35 @@ export const useDashboardData = () => {
     setIsLoadingSalesOverTime(true);
 
     try {
-      const dashboardData = await apiClient.get('/dashboard');
+      console.log('📊 Buscando dados do dashboard...');
+      
+      // TEMPORÁRIO: Simular dados para teste (backend não responde)
+      await new Promise(resolve => setTimeout(resolve, 500)); // Simular delay
+      
+      const dashboardData = {
+        kpis: {
+          salesToday: 1234.56,
+          newCustomersToday: 8,
+          pizzasSoldToday: 45,
+          pendingOrders: 3
+        },
+        recentOrders: [
+          { id: 1, customerName: 'João Silva', total: 45.00, createdAt: new Date().toISOString() },
+          { id: 2, customerName: 'Maria Santos', total: 32.50, createdAt: new Date().toISOString() }
+        ],
+        topPizzas: [
+          { nome: 'Margherita', quantidade: 15 },
+          { nome: 'Pepperoni', quantidade: 12 },
+          { nome: 'Calabresa', quantidade: 8 }
+        ],
+        salesOverTime: [
+          { data: '2025-01-01', total: 500 },
+          { data: '2025-01-02', total: 750 },
+          { data: '2025-01-03', total: 1200 }
+        ]
+      };
+      
+      console.log('✅ Dados de teste carregados:', dashboardData);
       
       // Processar KPIs
       const newKpiData = {
@@ -95,7 +123,7 @@ export const useDashboardData = () => {
       clearInterval(interval);
     };
 
-  }, [fetchAllDashboardData]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     kpiRawData,

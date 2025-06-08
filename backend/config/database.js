@@ -5,7 +5,7 @@ const pool = new Pool({
   user: process.env.DB_USER || 'postgres',
   host: process.env.DB_HOST || 'localhost',
   database: process.env.DB_NAME || 'pizzaria_db',
-  password: process.env.DB_PASS || process.env.DB_PASSWORD || 'postgres',
+  password: process.env.DB_PASSWORD || process.env.DB_PASS || 'postgres',
   port: process.env.DB_PORT || 5432,
   max: 20, // máximo de conexões no pool
   idleTimeoutMillis: 30000,

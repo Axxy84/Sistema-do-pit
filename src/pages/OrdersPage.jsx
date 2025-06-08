@@ -22,6 +22,7 @@ const OrdersPage = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentOrder, setCurrentOrder] = useState(null);
   const [isSavingOrder, setIsSavingOrder] = useState(false); 
+  const [isDeletingOrder, setIsDeletingOrder] = useState(false);
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [showPriorityModal, setShowPriorityModal] = useState(false);
@@ -46,9 +47,9 @@ const OrdersPage = () => {
     try {
       const data = await orderService.getAllOrders();
       const formattedOrders = data.map(order => {
-        // Calcular subtotal baseado nos itens
-        const calculatedSubtotal = order.itens_pedido.reduce((sum, item) => {
-          return sum + (parseFloat(item.valor_unitario) * parseInt(item.quantidade));
+        // Calcular subtotal baseado nos itens (com verificação de segurança)
+        const calculatedSubtotal = (order.itens_pedido || []).reduce((sum, item) => {
+          return sum + (parseFloat(item.valor_unitario || 0) * parseInt(item.quantidade || 0));
         }, 0);
 
         return {
@@ -322,16 +323,25 @@ const OrdersPage = () => {
   }, []);
 
   const handleDelete = useCallback(async (id) => {
-    setIsSavingOrder(true); 
+    // Adicionar confirmação
+    const confirmed = window.confirm('Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.');
+    if (!confirmed) {
+      console.log('[OrdersPage] Exclusão cancelada pelo usuário');
+      return;
+    }
+
+    setIsDeletingOrder(true); 
     try {
+      console.log('[OrdersPage] Deletando pedido:', id);
       await orderService.deleteOrder(id);
       toast({ title: 'Sucesso!', description: 'Pedido removido com sucesso.' });
       fetchOrders(); 
       window.dispatchEvent(new CustomEvent('orderSaved', { detail: { orderId: id, action: 'delete' } })); 
     } catch (error) {
+      console.error('[OrdersPage] Erro ao deletar pedido:', error);
       toast({ title: 'Erro ao remover pedido', description: error.message, variant: 'destructive' });
     } finally {
-      setIsSavingOrder(false);
+      setIsDeletingOrder(false);
     }
   }, [fetchOrders, toast]);
 
@@ -394,7 +404,7 @@ const OrdersPage = () => {
           };
           
           const printAction = autoPrint ? 'enviado para impressão' : 'aberto para impressão';
-          toast({ title: 'Cupom Preparado', description: `Cupom do pedido #${orderToPrint.id?.slice(-5).toUpperCase() || 'N/A'} ${printAction}.` });
+          toast({ title: 'Cupom Preparado', description: `Cupom do pedido #${String(orderToPrint.id || '').slice(-5).toUpperCase() || 'N/A'} ${printAction}.` });
           
         } catch (error) {
           console.error('[PRINT] Erro geral:', error);
@@ -459,7 +469,7 @@ const OrdersPage = () => {
             }
           };
           
-          toast({ title: 'Impressão Entregador', description: `Cupom para entregador #${orderToPrint.id?.slice(-5).toUpperCase() || 'N/A'} preparado.` });
+          toast({ title: 'Impressão Entregador', description: `Cupom para entregador #${String(orderToPrint.id || '').slice(-5).toUpperCase() || 'N/A'} preparado.` });
           
         } catch (error) {
           console.error('[DELIVERY-PRINT] Erro geral:', error);
@@ -531,7 +541,7 @@ const OrdersPage = () => {
             }
           };
           
-          toast({ title: 'Impressão Cozinha', description: `Cupom para cozinha #${orderToPrint.id?.slice(-5).toUpperCase() || 'N/A'} preparado.` });
+          toast({ title: 'Impressão Cozinha', description: `Cupom para cozinha #${String(orderToPrint.id || '').slice(-5).toUpperCase() || 'N/A'} preparado.` });
           
         } catch (error) {
           console.error('[KITCHEN-PRINT] Erro geral:', error);
@@ -603,7 +613,7 @@ const OrdersPage = () => {
           <DialogHeader>
             <DialogTitle>🧑‍🍳 Selecionar Prioridade do Pedido</DialogTitle>
             <DialogDescription>
-              Escolha a prioridade para o cupom da cozinha do pedido #{orderForKitchenPrint?.id?.slice(-5).toUpperCase() || 'N/A'}
+              Escolha a prioridade para o cupom da cozinha do pedido #{String(orderForKitchenPrint?.id || '').slice(-5).toUpperCase() || 'N/A'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid grid-cols-1 gap-3 py-4">

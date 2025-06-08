@@ -8,25 +8,32 @@ import { orderService } from '@/services/orderService';
 import { useToast } from '@/components/ui/use-toast';
 
 // Componente padrão para ações da tabela
-const DefaultActionsComponent = ({ order, onEdit, onDelete, onPrint, onPrintDelivery, onPrintKitchen }) => (
-  <>
-    <Button variant="ghost" size="icon" onClick={() => onPrint(order)} className="text-sky-500 hover:text-sky-700 hover:bg-sky-100 dark:hover:bg-sky-800/50" title="Imprimir cupom">
-      <Printer className="h-4 w-4" />
-    </Button>
-    <Button variant="ghost" size="icon" onClick={() => onPrintDelivery(order)} className="text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-800/50" title="Imprimir para entregador">
-      <Truck className="h-4 w-4" />
-    </Button>
-    <Button variant="ghost" size="icon" onClick={() => onPrintKitchen(order)} className="text-orange-500 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-800/50" title="Imprimir para cozinha">
-      <ChefHat className="h-4 w-4" />
-    </Button>
-    <Button variant="ghost" size="icon" onClick={() => onEdit(order)} className="text-green-500 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-800/50" title="Editar pedido">
-      <Edit2 className="h-4 w-4" />
-    </Button>
-    <Button variant="ghost" size="icon" onClick={() => onDelete(order.id)} className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-800/50" title="Deletar pedido">
-      <Trash2 className="h-4 w-4" />
-    </Button>
-  </>
-);
+const DefaultActionsComponent = ({ order, onEdit, onDelete, onPrint, onPrintDelivery, onPrintKitchen }) => {
+  const handleDeleteClick = () => {
+    console.log('[DefaultActionsComponent] Botão deletar clicado, pedido:', order.id);
+    onDelete(order.id);
+  };
+
+  return (
+    <>
+      <Button variant="ghost" size="icon" onClick={() => onPrint(order)} className="text-sky-500 hover:text-sky-700 hover:bg-sky-100 dark:hover:bg-sky-800/50" title="Imprimir cupom">
+        <Printer className="h-4 w-4" />
+      </Button>
+      <Button variant="ghost" size="icon" onClick={() => onPrintDelivery(order)} className="text-blue-500 hover:text-blue-700 hover:bg-blue-100 dark:hover:bg-blue-800/50" title="Imprimir para entregador">
+        <Truck className="h-4 w-4" />
+      </Button>
+      <Button variant="ghost" size="icon" onClick={() => onPrintKitchen(order)} className="text-orange-500 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-800/50" title="Imprimir para cozinha">
+        <ChefHat className="h-4 w-4" />
+      </Button>
+      <Button variant="ghost" size="icon" onClick={() => onEdit(order)} className="text-green-500 hover:text-green-700 hover:bg-green-100 dark:hover:bg-green-800/50" title="Editar pedido">
+        <Edit2 className="h-4 w-4" />
+      </Button>
+      <Button variant="ghost" size="icon" onClick={handleDeleteClick} className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:hover:bg-red-800/50" title="Deletar pedido">
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </>
+  );
+};
 
 const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPrint, onPrintDelivery, onPrintKitchen, isLoading, fetchOrders }) => {
   const [updatingStatusOrderId, setUpdatingStatusOrderId] = useState(null);

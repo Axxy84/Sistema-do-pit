@@ -26,7 +26,7 @@ const AuthPage = () => {
   const { toast } = useToast();
   const { signInWithPassword, signUp, userRole: authUserRole, session } = useAuth();
 
-  const from = location.state?.from?.pathname || (authUserRole === 'admin' ? '/tony' : '/dashboard');
+  const from = location.state?.from?.pathname || '/dashboard';
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -56,7 +56,7 @@ const AuthPage = () => {
           description: `Bem-vindo de volta, ${welcomeName}!`,
           variant: 'default'
         });
-        navigate(profile?.role === 'admin' ? '/tony' : from, { replace: true });
+        navigate('/dashboard', { replace: true });
       } else {
          setError('Não foi possível estabelecer a sessão. Tente novamente.');
          toast({ 

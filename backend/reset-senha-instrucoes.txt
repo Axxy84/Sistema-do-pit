@@ -1,0 +1,27 @@
+INSTRUÇÕES PARA RESETAR A SENHA DO POSTGRESQL
+
+Como você não lembra a senha do usuário pizzaria_user, você precisa:
+
+1. ACESSE O SERVIDOR onde o PostgreSQL está rodando (192.168.0.105)
+   
+2. EXECUTE UM DESTES COMANDOS:
+
+   OPÇÃO A - Com sudo:
+   sudo -u postgres psql
+   ALTER USER pizzaria_user WITH PASSWORD 'nova_senha_123';
+   \q
+
+   OPÇÃO B - Com senha do postgres:
+   psql -U postgres
+   ALTER USER pizzaria_user WITH PASSWORD 'nova_senha_123';
+   \q
+
+3. DEPOIS ATUALIZE O .env:
+   DB_PASSWORD=nova_senha_123
+
+4. TESTE A CONEXÃO:
+   node verify_password.js
+
+Se precisar criar o usuário do zero:
+   CREATE USER pizzaria_user WITH PASSWORD 'nova_senha_123';
+   GRANT ALL PRIVILEGES ON DATABASE pizzaria_db TO pizzaria_user;

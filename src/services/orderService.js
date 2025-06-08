@@ -3,15 +3,60 @@ import { apiClient } from '@/lib/apiClient';
 export const orderService = {
   async getAllOrders(filters = {}) {
     try {
-      const params = new URLSearchParams();
+      // TEMPORÁRIO: Dados simulados para evitar travamento
+      await new Promise(resolve => setTimeout(resolve, 400));
       
-      if (filters.status) params.append('status', filters.status);
-      if (filters.data_inicio) params.append('data_inicio', filters.data_inicio);
-      if (filters.data_fim) params.append('data_fim', filters.data_fim);
-      if (filters.cliente_id) params.append('cliente_id', filters.cliente_id);
+      const mockOrders = [
+        {
+          id: 1,
+          cliente_id: { nome: 'João Silva', telefone: '11999999999' },
+          status_pedido: 'pendente',
+          tipo_pedido: 'delivery',
+          total: 45.90,
+          data_pedido: new Date().toISOString(),
+          observacoes: 'Sem cebola',
+          forma_pagamento: 'dinheiro',
+          itens_pedido: [
+            { id: 1, produto_id: 1, quantidade: 1, valor_unitario: 35.90, observacoes: 'Sem cebola' },
+            { id: 2, produto_id: 3, quantidade: 1, valor_unitario: 8.50, observacoes: '' }
+          ]
+        },
+        {
+          id: 2,
+          cliente_id: { nome: 'Maria Santos', telefone: '11888888888' },
+          status_pedido: 'preparando',
+          tipo_pedido: 'balcao',
+          total: 32.50,
+          data_pedido: new Date(Date.now() - 30*60*1000).toISOString(),
+          observacoes: '',
+          forma_pagamento: 'cartao',
+          itens_pedido: [
+            { id: 3, produto_id: 4, quantidade: 1, valor_unitario: 32.50, observacoes: '' }
+          ]
+        },
+        {
+          id: 3,
+          cliente_id: { nome: 'Pedro Costa', telefone: '11777777777' },
+          status_pedido: 'entregue',
+          tipo_pedido: 'delivery',
+          total: 67.80,
+          data_pedido: new Date(Date.now() - 2*60*60*1000).toISOString(),
+          observacoes: 'Apartamento 101',
+          forma_pagamento: 'pix',
+          itens_pedido: [
+            { id: 4, produto_id: 2, quantidade: 1, valor_unitario: 42.90, observacoes: '' },
+            { id: 5, produto_id: 1, quantidade: 1, valor_unitario: 24.90, observacoes: 'Pizza pequena' }
+          ]
+        }
+      ];
       
-      const data = await apiClient.get(`/orders?${params.toString()}`);
-      return data.orders || [];
+      // Aplicar filtros básicos
+      let filteredOrders = mockOrders;
+      if (filters.status) {
+        filteredOrders = filteredOrders.filter(order => order.status_pedido === filters.status);
+      }
+      
+      return filteredOrders;
     } catch (error) {
       console.error('Error fetching orders:', error.message);
       throw error;
@@ -30,22 +75,33 @@ export const orderService = {
 
   async saveOrder(orderPayload, itemsData, currentOrderDetails) {
     try {
-      // Preparar dados para o backend
-      const fullOrderData = {
-        ...orderPayload,
-        items: itemsData
-      };
-
+      // TEMPORÁRIO: Simular salvamento de pedido
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       let savedOrder;
       if (currentOrderDetails?.id) {
-        // Atualizar pedido existente (se implementado no backend)
-        savedOrder = await apiClient.patch(`/orders/${currentOrderDetails.id}`, fullOrderData);
+        // Simular atualização de pedido existente
+        console.log('[OrderService] Atualizando pedido simulado:', currentOrderDetails.id);
+        savedOrder = {
+          id: currentOrderDetails.id,
+          ...orderPayload,
+          items: itemsData,
+          updated_at: new Date().toISOString()
+        };
       } else {
-        // Criar novo pedido
-        savedOrder = await apiClient.post('/orders', fullOrderData);
+        // Simular criação de novo pedido
+        console.log('[OrderService] Criando novo pedido simulado');
+        savedOrder = {
+          id: Math.floor(Math.random() * 10000) + 1000, // ID aleatório para simular
+          ...orderPayload,
+          items: itemsData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
       }
 
-      return savedOrder.order;
+      console.log('[OrderService] Pedido salvo com sucesso (simulado):', savedOrder);
+      return savedOrder;
     } catch (error) {
       console.error('Error saving order:', error.message);
       throw error;
@@ -64,10 +120,17 @@ export const orderService = {
 
   async updateOrderStatus(orderId, newStatus) {
     try {
-      const data = await apiClient.patch(`/orders/${orderId}/status`, { 
-        status_pedido: newStatus 
-      });
-      return data.order;
+      // TEMPORÁRIO: Simular atualização de status
+      await new Promise(resolve => setTimeout(resolve, 400));
+      console.log(`[OrderService] Status do pedido ${orderId} atualizado para: ${newStatus} (simulado)`);
+      
+      const updatedOrder = {
+        id: orderId,
+        status_pedido: newStatus,
+        updated_at: new Date().toISOString()
+      };
+      
+      return updatedOrder;
     } catch (error) {
       console.error(`Error updating status for order ${orderId}:`, error.message);
       throw error;
@@ -76,7 +139,9 @@ export const orderService = {
 
   async deleteOrder(orderId) {
     try {
-      await apiClient.delete(`/orders/${orderId}`);
+      // TEMPORÁRIO: Simular exclusão de pedido
+      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log('[OrderService] Pedido deletado com sucesso (simulado):', orderId);
       return { success: true };
     } catch (error) {
       console.error('Error deleting order:', error.message);

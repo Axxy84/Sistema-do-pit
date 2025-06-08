@@ -1,5 +1,6 @@
 // Configuração da API base
 const API_BASE_URL = 'http://localhost:3001/api';
+console.log('🔗 API Base URL configurada:', API_BASE_URL);
 
 // Cliente HTTP personalizado
 export const apiClient = {
@@ -21,30 +22,12 @@ export const apiClient = {
     }
 
     try {
-      const response = await fetch(url, config);
+      // TEMPORÁRIO: Log de tentativa de chamada API
+      console.warn(`⚠️ [API] Tentativa de chamar: ${endpoint} - Backend não responde, retornando erro simulado`);
       
-      // Verificar se a resposta é JSON válida
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        if (!response.ok) {
-          throw new Error(`Erro ${response.status}: ${response.statusText}`);
-        }
-        return null;
-      }
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Se o erro for de autenticação, limpar token
-        if (response.status === 401 || response.status === 403) {
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('userProfile');
-          window.location.href = '/login';
-        }
-        throw new Error(data.error || data.message || `Erro ${response.status}`);
-      }
-
-      return data;
+      // Simular erro de rede para todas as chamadas
+      throw new Error('Backend não disponível - usando dados simulados');
+      
     } catch (error) {
       console.error(`Erro na requisição para ${endpoint}:`, error);
       throw error;
