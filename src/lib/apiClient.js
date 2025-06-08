@@ -22,14 +22,45 @@ export const apiClient = {
     }
 
     try {
-      // TEMPORÁRIO: Log de tentativa de chamada API
-      console.warn(`⚠️ [API] Tentativa de chamar: ${endpoint} - Backend não responde, retornando erro simulado`);
+      console.log(`🔗 [API] Fazendo requisição para: ${endpoint}`);
       
-      // Simular erro de rede para todas as chamadas
-      throw new Error('Backend não disponível - usando dados simulados');
+      const response = await fetch(url, config);
+      
+      // Verificar se a resposta foi bem-sucedida
+      if (!response.ok) {
+        // Se for erro 401 (Unauthorized), limpar token e redirecionar para login
+        if (response.status === 401) {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userProfile');
+          
+          // Verificar se estamos numa página que requer autenticação
+          if (window.location.pathname !== '/auth') {
+            window.location.href = '/auth';
+          }
+          
+          throw new Error('Sessão expirada. Faça login novamente.');
+        }
+        
+        // Para outros erros, tentar extrair mensagem de erro do body
+        let errorMessage = `Erro HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          // Se não conseguir fazer parse do JSON, usar mensagem padrão
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      // Parse da resposta JSON
+      const data = await response.json();
+      console.log(`✅ [API] Resposta recebida de: ${endpoint}`);
+      
+      return data;
       
     } catch (error) {
-      console.error(`Erro na requisição para ${endpoint}:`, error);
+      console.error(`❌ [API] Erro na requisição para ${endpoint}:`, error.message);
       throw error;
     }
   },
