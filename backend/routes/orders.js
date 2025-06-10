@@ -384,6 +384,26 @@ router.post('/', authenticateToken, async (req, res) => {
         ]);
       } else {
         // Pizza tradicional (1 sabor) ou outros produtos - usar campos antigos
+        
+        // Validar e limpar produto_id_ref
+        let produto_id_ref = item.produto_id_ref;
+        
+        // Se produto_id_ref não é um UUID válido, definir como null
+        if (produto_id_ref) {
+          // Converter qualquer coisa que não seja UUID para null
+          if (typeof produto_id_ref !== 'string' || 
+              produto_id_ref.length !== 36 || 
+              !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(produto_id_ref)) {
+            console.warn('⚠️ produto_id_ref inválido convertido para NULL:', {
+              produto_id_ref: produto_id_ref,
+              type: typeof produto_id_ref,
+              itemType: item.itemType,
+              sabor_registrado: item.sabor_registrado
+            });
+            produto_id_ref = null;
+          }
+        }
+        
         await client.query(`
           INSERT INTO itens_pedido (
             pedido_id, produto_id_ref, sabor_registrado, 
@@ -391,7 +411,7 @@ router.post('/', authenticateToken, async (req, res) => {
           ) VALUES ($1, $2, $3, $4, $5, $6)
         `, [
           savedOrder.id,
-          item.produto_id_ref || null,
+          produto_id_ref,
           item.sabor_registrado || null,
           item.tamanho_registrado || null,
           parseInt(item.quantidade),
@@ -554,6 +574,26 @@ router.patch('/:id', authenticateToken, async (req, res) => {
           ]);
         } else {
           // Pizza tradicional (1 sabor) ou outros produtos - usar campos antigos
+          
+          // Validar e limpar produto_id_ref
+          let produto_id_ref = item.produto_id_ref;
+          
+          // Se produto_id_ref não é um UUID válido, definir como null
+          if (produto_id_ref) {
+            // Converter qualquer coisa que não seja UUID para null
+            if (typeof produto_id_ref !== 'string' || 
+                produto_id_ref.length !== 36 || 
+                !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(produto_id_ref)) {
+              console.warn('⚠️ produto_id_ref inválido convertido para NULL:', {
+                produto_id_ref: produto_id_ref,
+                type: typeof produto_id_ref,
+                itemType: item.itemType,
+                sabor_registrado: item.sabor_registrado
+              });
+              produto_id_ref = null;
+            }
+          }
+          
           await client.query(`
             INSERT INTO itens_pedido (
               pedido_id, produto_id_ref, sabor_registrado, 
@@ -561,7 +601,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
             ) VALUES ($1, $2, $3, $4, $5, $6)
           `, [
             id,
-            item.produto_id_ref || null,
+            produto_id_ref,
             item.sabor_registrado || null,
             item.tamanho_registrado || null,
             parseInt(item.quantidade),

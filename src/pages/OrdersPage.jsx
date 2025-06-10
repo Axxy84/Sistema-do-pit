@@ -83,9 +83,12 @@ const OrdersPage = () => {
           numero_mesa: order.numero_mesa,
           entregador_nome: order.entregador_nome, // Adicionar campo direto
           items: order.itens_pedido.map(item => {
-            const isPizza = item.produto_id_ref?.tipo_produto === 'pizza' || (item.sabor_registrado && item.tamanho_registrado);
+            const isPizza = item.produto_id_ref?.tipo_produto === 'pizza' || (item.sabor_registrado && item.tamanho_registrado) || item.sabores_registrados;
             let sizeName = item.tamanho_registrado;
             let unitPrice = item.valor_unitario;
+            
+            // Verificar se tem múltiplos sabores
+            const hasMultipleFlavors = item.sabores_registrados && Array.isArray(item.sabores_registrados) && item.sabores_registrados.length > 1;
 
             if (isPizza) {
               if (item.produto_id_ref?.tamanhos_precos) { 
@@ -101,7 +104,7 @@ const OrdersPage = () => {
               id: item.id,
               itemType: isPizza ? 'pizza' : (item.produto_id_ref?.tipo_produto || 'other'),
               productId: item.produto_id_ref?.id || null,
-              flavor: isPizza ? (item.produto_id_ref?.nome || item.sabor_registrado) : null,
+              flavor: isPizza ? (hasMultipleFlavors ? null : (item.produto_id_ref?.nome || item.sabor_registrado)) : null,
               size: item.tamanho_registrado, 
               sizeName: sizeName, 
               productName: !isPizza ? (item.produto_id_ref?.nome || item.sabor_registrado) : null,
@@ -109,6 +112,15 @@ const OrdersPage = () => {
               quantity: item.quantidade,
               unitPrice: unitPrice,
               totalPrice: unitPrice * item.quantidade,
+              // Adicionar campos para múltiplos sabores
+              useMultipleFlavors: hasMultipleFlavors,
+              multipleFlavors: hasMultipleFlavors ? item.sabores_registrados : [],
+              // Para exibição, criar um nome descritivo dos sabores
+              displayName: isPizza ? (
+                hasMultipleFlavors ? 
+                  item.sabores_registrados.map(s => s.nome).join(' + ') :
+                  (item.produto_id_ref?.nome || item.sabor_registrado)
+              ) : (item.produto_id_ref?.nome || item.sabor_registrado)
             };
           }),
           cliente_id: order.cliente_id, 
@@ -219,8 +231,16 @@ const OrdersPage = () => {
       const itensToPersist = orderFormData.items.map(item => {
         let productRefId = null;
         if(item.itemType === 'pizza') {
-            const pizzaProduct = allProductsData.find(p => p.nome === item.flavor && p.tipo_produto === 'pizza');
-            productRefId = pizzaProduct?.id || null;
+            if (item.useMultipleFlavors && item.multipleFlavors && item.multipleFlavors.length > 0) {
+                // Para múltiplos sabores, usar o primeiro sabor como referência (ou null)
+                const firstFlavor = item.multipleFlavors[0];
+                const pizzaProduct = allProductsData.find(p => p.nome === firstFlavor.nome && p.tipo_produto === 'pizza');
+                productRefId = pizzaProduct?.id || null;
+            } else {
+                // Pizza tradicional com sabor único
+                const pizzaProduct = allProductsData.find(p => p.nome === item.flavor && p.tipo_produto === 'pizza');
+                productRefId = pizzaProduct?.id || null;
+            }
         } else { 
             productRefId = item.productId || null;
         }
@@ -230,13 +250,31 @@ const OrdersPage = () => {
           item.unitPrice + (item.borderPrice || 0) : 
           item.unitPrice;
         
-        return {
+        const itemData = {
             produto_id_ref: productRefId, 
-            sabor_registrado: item.itemType === 'pizza' ? item.flavor : item.productName,
-            tamanho_registrado: item.itemType === 'pizza' ? item.size : null,
             quantidade: item.quantity,
             valor_unitario: valorUnitario,
+            itemType: item.itemType, // Adicionar para identificar no backend
         };
+
+        // Adicionar dados específicos de pizzas
+        if (item.itemType === 'pizza') {
+            itemData.tamanho_registrado = item.size;
+            
+            if (item.useMultipleFlavors && item.multipleFlavors && item.multipleFlavors.length > 1) {
+                // Pizza com múltiplos sabores
+                itemData.sabores_registrados = item.multipleFlavors;
+            } else {
+                // Pizza tradicional com sabor único
+                itemData.sabor_registrado = item.flavor;
+            }
+        } else {
+            // Produtos que não são pizza
+            itemData.sabor_registrado = item.productName;
+            itemData.tamanho_registrado = null;
+        }
+        
+        return itemData;
       });
 
       console.log('[OrdersPage] Salvando pedido:', pedidoToSave);

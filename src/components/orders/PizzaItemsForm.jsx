@@ -121,23 +121,71 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
         const actualItemIndex = items.findIndex(i => i === item); 
         return (
           <div key={`pizza-item-${actualItemIndex}`} className="p-4 border rounded-lg shadow-sm bg-card/50 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor={`item-flavor-${actualItemIndex}`} className="text-xs">Sabor</Label>
-                <Select
-                  value={item.flavor}
-                  onValueChange={(value) => handleItemChange(actualItemIndex, 'flavor', value)}
-                >
-                  <SelectTrigger id={`item-flavor-${actualItemIndex}`}>
-                    <SelectValue placeholder="Selecione o sabor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availablePizzaProducts.map((p) => (
-                      <SelectItem key={p.id} value={p.nome}>{p.nome}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Toggle para Múltiplos Sabores */}
+            <div className="flex items-center space-x-2 p-2 bg-muted/30 rounded border">
+              <Switch
+                id={`multiple-flavors-${actualItemIndex}`}
+                checked={item.useMultipleFlavors || false}
+                onCheckedChange={(checked) => {
+                  handleItemChange(actualItemIndex, 'useMultipleFlavors', checked);
+                  if (!checked) {
+                    // Reset múltiplos sabores quando desabilitado
+                    handleItemChange(actualItemIndex, 'multipleFlavors', []);
+                  }
+                }}
+              />
+              <Label htmlFor={`multiple-flavors-${actualItemIndex}`} className="text-sm">
+                Múltiplos sabores ({item.size === 'familia' ? '3 sabores máx' : '2 sabores máx'})
+              </Label>
+            </div>
+
+            {/* Seleção de Sabores */}
+            {item.useMultipleFlavors ? (
+              <MultiFlavorSelector
+                selectedSize={item.size}
+                flavors={item.multipleFlavors || []}
+                onChange={(flavors) => handleItemChange(actualItemIndex, 'multipleFlavors', flavors)}
+                allProductsData={availablePizzaProducts}
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor={`item-flavor-${actualItemIndex}`} className="text-xs">Sabor</Label>
+                  <Select
+                    value={item.flavor}
+                    onValueChange={(value) => handleItemChange(actualItemIndex, 'flavor', value)}
+                  >
+                    <SelectTrigger id={`item-flavor-${actualItemIndex}`}>
+                      <SelectValue placeholder="Selecione o sabor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availablePizzaProducts.map((p) => (
+                        <SelectItem key={p.id} value={p.nome}>{p.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor={`item-size-${actualItemIndex}`} className="text-xs">Tamanho</Label>
+                  <Select
+                    value={item.size}
+                    onValueChange={(value) => handleItemChange(actualItemIndex, 'size', value)}
+                  >
+                    <SelectTrigger id={`item-size-${actualItemIndex}`}>
+                      <SelectValue placeholder="Selecione o tamanho" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PIZZA_SIZES.map((size) => (
+                        <SelectItem key={size.id} value={size.id}>{size.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+            )}
+
+            {/* Seletor de Tamanho sempre visível para múltiplos sabores */}
+            {item.useMultipleFlavors && (
               <div>
                 <Label htmlFor={`item-size-${actualItemIndex}`} className="text-xs">Tamanho</Label>
                 <Select
@@ -154,7 +202,7 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
                   </SelectContent>
                 </Select>
               </div>
-            </div>
+            )}
             
             {/* Seletor de Borda */}
             <div className="w-full">
