@@ -365,23 +365,39 @@ router.post('/', authenticateToken, async (req, res) => {
       }
     }
 
-    // Criar itens do pedido
-    const itemsToSave = items.map(item => [
-      savedOrder.id,
-      item.produto_id_ref || null,
-      item.sabor_registrado || null,
-      item.tamanho_registrado || null,
-      parseInt(item.quantidade),
-      parseFloat(item.valor_unitario)
-    ]);
-
-    for (const itemData of itemsToSave) {
-      await client.query(`
-        INSERT INTO itens_pedido (
-          pedido_id, produto_id_ref, sabor_registrado, 
-          tamanho_registrado, quantidade, valor_unitario
-        ) VALUES ($1, $2, $3, $4, $5, $6)
-      `, itemData);
+    // Criar itens do pedido com suporte a múltiplos sabores
+    for (const item of items) {
+      // Verificar se é uma pizza com múltiplos sabores
+      if (item.itemType === 'pizza' && item.sabores_registrados && item.sabores_registrados.length > 1) {
+        // Pizza com múltiplos sabores - salvar no campo sabores_registrados
+        await client.query(`
+          INSERT INTO itens_pedido (
+            pedido_id, sabores_registrados, tamanho_registrado, 
+            quantidade, valor_unitario
+          ) VALUES ($1, $2, $3, $4, $5)
+        `, [
+          savedOrder.id,
+          JSON.stringify(item.sabores_registrados),
+          item.tamanho_registrado || null,
+          parseInt(item.quantidade),
+          parseFloat(item.valor_unitario)
+        ]);
+      } else {
+        // Pizza tradicional (1 sabor) ou outros produtos - usar campos antigos
+        await client.query(`
+          INSERT INTO itens_pedido (
+            pedido_id, produto_id_ref, sabor_registrado, 
+            tamanho_registrado, quantidade, valor_unitario
+          ) VALUES ($1, $2, $3, $4, $5, $6)
+        `, [
+          savedOrder.id,
+          item.produto_id_ref || null,
+          item.sabor_registrado || null,
+          item.tamanho_registrado || null,
+          parseInt(item.quantidade),
+          parseFloat(item.valor_unitario)
+        ]);
+      }
     }
 
     // Incrementar uso do cupom se aplicável
@@ -519,21 +535,39 @@ router.patch('/:id', authenticateToken, async (req, res) => {
       // Deletar itens antigos
       await client.query('DELETE FROM itens_pedido WHERE pedido_id = $1', [id]);
       
-      // Inserir novos itens
+      // Inserir novos itens com suporte a múltiplos sabores
       for (const item of items) {
-        await client.query(`
-          INSERT INTO itens_pedido (
-            pedido_id, produto_id_ref, sabor_registrado, 
-            tamanho_registrado, quantidade, valor_unitario
-          ) VALUES ($1, $2, $3, $4, $5, $6)
-        `, [
-          id,
-          item.produto_id_ref || null,
-          item.sabor_registrado || null,
-          item.tamanho_registrado || null,
-          parseInt(item.quantidade),
-          parseFloat(item.valor_unitario)
-        ]);
+        // Verificar se é uma pizza com múltiplos sabores
+        if (item.itemType === 'pizza' && item.sabores_registrados && item.sabores_registrados.length > 1) {
+          // Pizza com múltiplos sabores - salvar no campo sabores_registrados
+          await client.query(`
+            INSERT INTO itens_pedido (
+              pedido_id, sabores_registrados, tamanho_registrado, 
+              quantidade, valor_unitario
+            ) VALUES ($1, $2, $3, $4, $5)
+          `, [
+            id,
+            JSON.stringify(item.sabores_registrados),
+            item.tamanho_registrado || null,
+            parseInt(item.quantidade),
+            parseFloat(item.valor_unitario)
+          ]);
+        } else {
+          // Pizza tradicional (1 sabor) ou outros produtos - usar campos antigos
+          await client.query(`
+            INSERT INTO itens_pedido (
+              pedido_id, produto_id_ref, sabor_registrado, 
+              tamanho_registrado, quantidade, valor_unitario
+            ) VALUES ($1, $2, $3, $4, $5, $6)
+          `, [
+            id,
+            item.produto_id_ref || null,
+            item.sabor_registrado || null,
+            item.tamanho_registrado || null,
+            parseInt(item.quantidade),
+            parseFloat(item.valor_unitario)
+          ]);
+        }
       }
     }
 

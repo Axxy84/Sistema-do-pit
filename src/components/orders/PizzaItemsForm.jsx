@@ -9,16 +9,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Trash2, PlusCircle } from 'lucide-react';
 import { PIZZA_FLAVORS, PIZZA_SIZES } from '@/lib/constants';
 import { formatCurrency } from '@/lib/utils';
 import PizzaBorderSelector, { PIZZA_BORDERS } from './PizzaBorderSelector';
+import MultiFlavorSelector from './MultiFlavorSelector';
 
 const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => {
 
-  const getPizzaPrice = (selectedProductName, selectedSizeId) => {
+  const getPizzaPrice = (selectedProductName, selectedSizeId, multipleFlavors = null) => {
     if (!allProductsData || allProductsData.length === 0) return 0;
 
+    // Se há múltiplos sabores, calcular preço médio
+    if (multipleFlavors && multipleFlavors.length > 1) {
+      const totalPrice = multipleFlavors.reduce((sum, flavor) => {
+        const product = allProductsData.find(p => p.nome === flavor.nome && p.tipo_produto === 'pizza');
+        if (product && product.tamanhos_precos) {
+          const sizePriceInfo = product.tamanhos_precos.find(tp => tp.id_tamanho === selectedSizeId);
+          return sum + (sizePriceInfo ? parseFloat(sizePriceInfo.preco) : 0);
+        }
+        return sum;
+      }, 0);
+      return totalPrice / multipleFlavors.length;
+    }
+
+    // Pizza com sabor único (lógica original)
     const product = allProductsData.find(p => p.nome === selectedProductName && p.tipo_produto === 'pizza');
     
     if (product && product.tamanhos_precos) {
@@ -44,8 +60,18 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
     const currentItem = { ...newItems[index] };
     currentItem[field] = value;
 
-    if (field === 'flavor' || field === 'size') {
-      const price = getPizzaPrice(currentItem.flavor, currentItem.size);
+    // Recalcular preço quando sabor, tamanho ou sabores múltiplos mudarem
+    if (field === 'flavor' || field === 'size' || field === 'multipleFlavors') {
+      let price = 0;
+      
+      if (currentItem.useMultipleFlavors && currentItem.multipleFlavors && currentItem.multipleFlavors.length > 0) {
+        // Usar preço médio dos múltiplos sabores
+        price = getPizzaPrice(null, currentItem.size, currentItem.multipleFlavors);
+      } else {
+        // Usar preço do sabor único
+        price = getPizzaPrice(currentItem.flavor, currentItem.size);
+      }
+      
       currentItem.unitPrice = price;
     }
     
@@ -71,7 +97,9 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
       quantity: 1, 
       unitPrice: 0, 
       totalPrice: 0, 
-      productId: null 
+      productId: null,
+      useMultipleFlavors: false,
+      multipleFlavors: []
     }];
     setItems(newItems);
     if (onItemsChange) onItemsChange(newItems);

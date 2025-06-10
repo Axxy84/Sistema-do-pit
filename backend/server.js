@@ -96,6 +96,7 @@ const cacheAdminRoutes = require('./routes/cache-admin');
 const configurationsRoutes = require('./routes/configurations');
 const profitCalculatorRoutes = require('./routes/profit-calculator');
 const ownerRoutes = require('./routes/owner');
+const deliveryEndpointsRoutes = require('./routes/delivery-endpoints');
 
 // Registrar rotas
 app.use('/api/auth', authRoutes);
@@ -113,7 +114,7 @@ app.use('/api/cache-admin', cacheAdminRoutes);
 app.use('/api/configurations', configurationsRoutes);
 app.use('/api/profit-calculator', profitCalculatorRoutes);
 app.use('/api/owner', ownerRoutes);
-
+app.use('/api/delivery', deliveryEndpointsRoutes);
 
 // Ignorar requisições para favicon.ico
 app.get('/favicon.ico', (req, res) => res.status(204).end());
