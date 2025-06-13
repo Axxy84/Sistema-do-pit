@@ -524,7 +524,7 @@ async function runAllMigrations() {
   }
 }
 
-app.listen(PORT, async () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`🌐 Environment: ${config.NODE_ENV}`);
   console.log(`🔗 CORS habilitado para: ${config.CORS_ORIGIN}`);
