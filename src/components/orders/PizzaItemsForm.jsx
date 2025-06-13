@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,28 +10,33 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { Trash2, PlusCircle } from 'lucide-react';
+import { Trash2, PlusCircle, Search, Pizza } from 'lucide-react';
 import { PIZZA_FLAVORS, PIZZA_SIZES } from '@/lib/constants';
 import { formatCurrency } from '@/lib/utils';
 import PizzaBorderSelector, { PIZZA_BORDERS } from './PizzaBorderSelector';
+import RealBorderSelector from './RealBorderSelector';
 import MultiFlavorSelector from './MultiFlavorSelector';
 
 const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => {
+  const [pizzaSearchTerm, setPizzaSearchTerm] = useState('');
 
   const getPizzaPrice = (selectedProductName, selectedSizeId, multipleFlavors = null) => {
     if (!allProductsData || allProductsData.length === 0) return 0;
 
-    // Se há múltiplos sabores, calcular preço médio
+    // Se há múltiplos sabores, calcular preço MÁXIMO (não médio)
     if (multipleFlavors && multipleFlavors.length > 1) {
-      const totalPrice = multipleFlavors.reduce((sum, flavor) => {
+      let maxPrice = 0;
+      multipleFlavors.forEach(flavor => {
         const product = allProductsData.find(p => p.nome === flavor.nome && p.tipo_produto === 'pizza');
         if (product && product.tamanhos_precos) {
           const sizePriceInfo = product.tamanhos_precos.find(tp => tp.id_tamanho === selectedSizeId);
-          return sum + (sizePriceInfo ? parseFloat(sizePriceInfo.preco) : 0);
+          const price = sizePriceInfo ? parseFloat(sizePriceInfo.preco) : 0;
+          if (price > maxPrice) {
+            maxPrice = price;
+          }
         }
-        return sum;
-      }, 0);
-      return totalPrice / multipleFlavors.length;
+      });
+      return maxPrice;
     }
 
     // Pizza com sabor único (lógica original)
@@ -50,9 +55,16 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
     return 0;
   };
 
-  const getBorderPrice = (borderId) => {
-    const border = PIZZA_BORDERS.find(b => b.id === borderId);
-    return border ? border.price : 0;
+  const getBorderPrice = (borderValue) => {
+    if (!borderValue || borderValue === 'none') return 0;
+    
+    // Tentar encontrar por ID ou nome no banco de dados
+    const border = allProductsData.find(p => 
+      p.tipo_produto === 'borda' && 
+      (p.id === borderValue || p.nome === borderValue)
+    );
+    
+    return border ? parseFloat(border.preco_unitario) : 0;
   };
 
   const handleItemChange = (index, field, value) => {
@@ -112,10 +124,32 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
   };
   
   const availablePizzaProducts = allProductsData.filter(p => p.tipo_produto === 'pizza' && p.ativo);
+  
+  // Filtrar pizzas baseado na busca
+  const filteredPizzaProducts = availablePizzaProducts.filter(p => 
+    p.nome.toLowerCase().includes(pizzaSearchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-4 pt-4">
-      <Label className="text-lg font-semibold text-primary">Itens da Pizza</Label>
+      <div className="flex items-center justify-between">
+        <Label className="text-lg font-semibold text-primary flex items-center gap-2">
+          <Pizza className="h-5 w-5" />
+          Itens da Pizza
+        </Label>
+      </div>
+      
+      {/* Campo de Busca para Pizzas */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Buscar sabores de pizza..."
+          value={pizzaSearchTerm}
+          onChange={(e) => setPizzaSearchTerm(e.target.value)}
+          className="pl-9 bg-background/70"
+        />
+      </div>
       {items.filter(item => item.itemType === 'pizza').map((item, index) => {
         // Find the original index in the main items array to ensure correct modification
         const actualItemIndex = items.findIndex(i => i === item); 
@@ -145,7 +179,7 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
                 selectedSize={item.size}
                 flavors={item.multipleFlavors || []}
                 onChange={(flavors) => handleItemChange(actualItemIndex, 'multipleFlavors', flavors)}
-                allProductsData={availablePizzaProducts}
+                allProductsData={filteredPizzaProducts}
               />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -159,7 +193,7 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
                       <SelectValue placeholder="Selecione o sabor" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availablePizzaProducts.map((p) => (
+                      {filteredPizzaProducts.map((p) => (
                         <SelectItem key={p.id} value={p.nome}>{p.nome}</SelectItem>
                       ))}
                     </SelectContent>
@@ -187,9 +221,10 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
 
             {/* Seletor de Borda */}
             <div className="w-full">
-              <PizzaBorderSelector
+              <RealBorderSelector
                 value={item.border || 'none'}
                 onChange={(value) => handleItemChange(actualItemIndex, 'border', value)}
+                allProductsData={allProductsData}
               />
             </div>
             

@@ -55,7 +55,7 @@ const OtherItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
     if (onItemsChange) onItemsChange(newItems); // Ensure parent recalculates total order value
   };
   
-  const availableOtherProducts = allProductsData.filter(p => p.tipo_produto !== 'pizza' && p.ativo);
+  const availableOtherProducts = allProductsData.filter(p => p.tipo_produto !== 'pizza' && p.tipo_produto !== 'borda' && p.ativo);
 
   return (
     <div className="space-y-4 pt-4">

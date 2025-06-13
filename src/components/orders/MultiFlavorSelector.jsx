@@ -51,20 +51,23 @@ const MultiFlavorSelector = ({
     return flavorsArray;
   };
 
-  // Calcular preço médio dos sabores selecionados
-  const calculateAveragePrice = (flavorsArray) => {
+  // Calcular preço MÁXIMO dos sabores selecionados (padrão pizzaria)
+  const calculateMaxPrice = (flavorsArray) => {
     if (!flavorsArray || flavorsArray.length === 0 || !selectedSize) return 0;
     
-    const totalPrice = flavorsArray.reduce((sum, flavor) => {
+    let maxPrice = 0;
+    flavorsArray.forEach(flavor => {
       const product = allProductsData.find(p => p.nome === flavor.nome && p.tipo_produto === 'pizza');
       if (product && product.tamanhos_precos) {
         const sizePrice = product.tamanhos_precos.find(tp => tp.id_tamanho === selectedSize);
-        return sum + (sizePrice ? parseFloat(sizePrice.preco) : 0);
+        const price = sizePrice ? parseFloat(sizePrice.preco) : 0;
+        if (price > maxPrice) {
+          maxPrice = price;
+        }
       }
-      return sum;
-    }, 0);
+    });
     
-    return totalPrice / flavorsArray.length;
+    return maxPrice;
   };
 
   const addFlavor = () => {
@@ -98,7 +101,7 @@ const MultiFlavorSelector = ({
   };
 
   const availablePizzaProducts = allProductsData.filter(p => p.tipo_produto === 'pizza' && p.ativo);
-  const averagePrice = calculateAveragePrice(selectedFlavors);
+  const maxPrice = calculateMaxPrice(selectedFlavors);
 
   return (
     <div className="space-y-3">
@@ -110,8 +113,8 @@ const MultiFlavorSelector = ({
           </span>
         </Label>
         {selectedFlavors.length > 0 && (
-          <div className="text-xs text-muted-foreground">
-            Preço médio: {formatCurrency(averagePrice)}
+          <div className="text-xs text-green-600 font-medium">
+            Preço: {formatCurrency(maxPrice)}
           </div>
         )}
       </div>

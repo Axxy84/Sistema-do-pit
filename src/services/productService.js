@@ -64,13 +64,13 @@ export const productService = {
       const response = await apiClient.request('/products', {
         method: 'GET'
       });
+      console.log('✅ [ProductService] Carregados produtos reais do banco:', response.products?.length || 0);
       return response.products || [];
     } catch (error) {
-      console.error('Error fetching active products:', error.message);
-      // Em caso de erro, retornar dados mockados como fallback
-      console.warn('Usando dados mockados como fallback...');
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return this.mockProducts.filter(p => p.ativo);
+      console.error('❌ [ProductService] Erro ao buscar produtos reais:', error.message);
+      // TEMPORÁRIO: Em caso de erro, retornar array vazio em vez de mock
+      console.warn('⚠️ Retornando array vazio - frontend deve exibir mensagem de erro');
+      throw new Error('Não foi possível carregar produtos do servidor. Verifique a conexão.');
     }
   },
 
