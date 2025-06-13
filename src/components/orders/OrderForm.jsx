@@ -70,31 +70,42 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
   const VALOR_REAL_POR_PONTO = 0.5;
 
   const calculateTotals = useCallback(() => {
-    const currentSubtotal = items.reduce((sum, item) => sum + (parseFloat(item.totalPrice) || 0), 0);
-    setSubtotal(currentSubtotal);
+    // Subtotal: soma dos preços de todos os itens (pizzas e outros)
+    const newSubtotal = items.reduce((acc, item) => acc + (item.totalPrice || 0), 0);
+    
+    // Taxa de entrega (apenas para delivery)
+    const fee = tipoPedido === 'delivery' ? parseFloat(deliveryFee) || 0 : 0;
 
-    let currentCouponDiscount = 0;
-    if (appliedCoupon) {
+    // Desconto do cupom
+    let discount = 0;
+    if (appliedCoupon && newSubtotal > 0) {
       if (appliedCoupon.tipo_desconto === 'percentual') {
-        currentCouponDiscount = (currentSubtotal * appliedCoupon.valor_desconto) / 100;
-      } else {
-        currentCouponDiscount = appliedCoupon.valor_desconto;
+        discount = newSubtotal * (parseFloat(appliedCoupon.valor_desconto) / 100);
+      } else { // Valor fixo
+        discount = parseFloat(appliedCoupon.valor_desconto);
       }
     }
-    setDiscountValue(currentCouponDiscount);
     
-    let currentPointsDiscount = 0;
-    const redeemablePoints = parseInt(pointsToRedeem, 10);
-    if (!isNaN(redeemablePoints) && redeemablePoints > 0 && customerPoints >= redeemablePoints) {
-        currentPointsDiscount = redeemablePoints * VALOR_REAL_POR_PONTO;
+    // Desconto de pontos
+    let pointsDsc = 0;
+    if (pointsToRedeem && customerPoints > 0) {
+        const pointsBeingUsed = parseInt(pointsToRedeem, 10);
+        if (pointsBeingUsed > 0 && pointsBeingUsed <= customerPoints) {
+            // Garante que o desconto dos pontos não seja maior que o subtotal menos outros descontos
+            const maxPointsDiscount = newSubtotal - discount;
+            const potentialPointsDiscount = pointsBeingUsed * VALOR_REAL_POR_PONTO;
+            pointsDsc = Math.min(maxPointsDiscount, potentialPointsDiscount);
+        }
     }
-    const maxPointsDiscount = Math.max(0, currentSubtotal - currentCouponDiscount);
-    currentPointsDiscount = Math.min(currentPointsDiscount, maxPointsDiscount);
-    setPointsDiscountValue(currentPointsDiscount);
 
-    const finalTotal = Math.max(0, currentSubtotal - currentCouponDiscount - currentPointsDiscount + deliveryFee);
-    setTotalValue(finalTotal);
-  }, [items, appliedCoupon, pointsToRedeem, customerPoints, deliveryFee, VALOR_REAL_POR_PONTO]);
+    // Cálculo do total final
+    const finalTotal = newSubtotal + fee - discount - pointsDsc;
+    
+    setSubtotal(newSubtotal);
+    setDiscountValue(discount);
+    setPointsDiscountValue(pointsDsc);
+    setTotalValue(finalTotal > 0 ? finalTotal : 0);
+  }, [items, deliveryFee, appliedCoupon, pointsToRedeem, customerPoints, tipoPedido]);
 
   // Função para validar múltiplos pagamentos
   const validateMultiplePayments = useCallback(() => {
@@ -325,10 +336,20 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
       toast({ title: 'Erro de Validação', description: 'Adicione pelo menos um item válido ao pedido.', variant: 'destructive' });
       return;
     }
-    if (items.some(item => item.itemType === 'pizza' && (!item.flavor || !item.size || item.quantity < 1))) {
+
+    if (items.some(item => {
+      if (item.itemType !== 'pizza') return false;
+      
+      const isSingleFlavorInvalid = !item.useMultipleFlavors && !item.flavor;
+      const areMultipleFlavorsInvalid = item.useMultipleFlavors && (!item.multipleFlavors || item.multipleFlavors.filter(f => f.nome).length === 0);
+      const isFlavorInvalid = isSingleFlavorInvalid || areMultipleFlavorsInvalid;
+
+      return isFlavorInvalid || !item.size || !item.quantity || item.quantity < 1;
+    })) {
       toast({ title: 'Erro de Validação', description: 'Todas as pizzas devem ter sabor, tamanho e quantidade válidos.', variant: 'destructive' });
       return;
     }
+
     if (items.some(item => item.itemType !== 'pizza' && (!item.productId || item.quantity < 1))) {
          toast({ title: 'Erro de Validação', description: 'Todos os outros itens (bebidas, etc.) devem ser selecionados e ter quantidade válida.', variant: 'destructive' });
       return;
