@@ -184,26 +184,7 @@ const PizzaItemsForm = ({ items, setItems, allProductsData, onItemsChange }) => 
               </div>
             )}
 
-            {/* Seletor de Tamanho sempre visível para múltiplos sabores */}
-            {item.useMultipleFlavors && (
-              <div>
-                <Label htmlFor={`item-size-${actualItemIndex}`} className="text-xs">Tamanho</Label>
-                <Select
-                  value={item.size}
-                  onValueChange={(value) => handleItemChange(actualItemIndex, 'size', value)}
-                >
-                  <SelectTrigger id={`item-size-${actualItemIndex}`}>
-                    <SelectValue placeholder="Selecione o tamanho" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PIZZA_SIZES.map((size) => (
-                      <SelectItem key={size.id} value={size.id}>{size.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            
+
             {/* Seletor de Borda */}
             <div className="w-full">
               <PizzaBorderSelector

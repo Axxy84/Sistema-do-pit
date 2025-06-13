@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { Loader2, PlusCircle, Trash2 } from 'lucide-react';
+import PizzaSizeSelector from './PizzaSizeSelector';
+import ProductTypeSelector from './ProductTypeSelector';
 
 const ProductForm = ({ 
   isOpen, 
@@ -36,6 +38,7 @@ const ProductForm = ({
   const [tipoProduto, setTipoProduto] = useState('pizza');
   const [categoria, setCategoria] = useState('');
   const [tamanhosPrecos, setTamanhosPrecos] = useState([{ tamanho: '', preco: '', id_tamanho: '' }]);
+  const [ingredientes, setIngredientes] = useState('');
   const [precoUnitario, setPrecoUnitario] = useState('');
   const [estoqueDisponivel, setEstoqueDisponivel] = useState('');
   const [ativo, setAtivo] = useState(true);
@@ -47,6 +50,7 @@ const ProductForm = ({
     setTipoProduto('pizza');
     setCategoria('');
     setTamanhosPrecos([{ tamanho: '', preco: '', id_tamanho: '' }]);
+    setIngredientes('');
     setPrecoUnitario('');
     setEstoqueDisponivel('');
     setAtivo(true);
@@ -58,6 +62,7 @@ const ProductForm = ({
       setTipoProduto(initialProductData.tipo_produto || 'pizza');
       setCategoria(initialProductData.categoria || '');
       setTamanhosPrecos(initialProductData.tamanhos_precos && initialProductData.tamanhos_precos.length > 0 ? initialProductData.tamanhos_precos : [{ tamanho: '', preco: '', id_tamanho: '' }]);
+      setIngredientes(initialProductData.ingredientes || '');
       setPrecoUnitario(initialProductData.preco_unitario ? initialProductData.preco_unitario.toString() : '');
       setEstoqueDisponivel(initialProductData.estoque_disponivel ? initialProductData.estoque_disponivel.toString() : '');
       setAtivo(initialProductData.ativo === undefined ? true : initialProductData.ativo);
@@ -66,24 +71,7 @@ const ProductForm = ({
     }
   }, [initialProductData, isOpen]);
 
-  const handleTamanhoPrecoChange = (index, field, value) => {
-    const newTamanhosPrecos = [...tamanhosPrecos];
-    newTamanhosPrecos[index][field] = value;
-    if (field === 'id_tamanho') {
-        const selectedSize = pizzaSizes.find(s => s.id === value);
-        newTamanhosPrecos[index]['tamanho'] = selectedSize ? selectedSize.name : '';
-    }
-    setTamanhosPrecos(newTamanhosPrecos);
-  };
 
-  const addTamanhoPreco = () => {
-    setTamanhosPrecos([...tamanhosPrecos, { tamanho: '', preco: '', id_tamanho: '' }]);
-  };
-
-  const removeTamanhoPreco = (index) => {
-    const newTamanhosPrecos = tamanhosPrecos.filter((_, i) => i !== index);
-    setTamanhosPrecos(newTamanhosPrecos);
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -118,6 +106,7 @@ const ProductForm = ({
       tipo_produto: tipoProduto,
       categoria,
       tamanhos_precos: tipoProduto === 'pizza' ? tamanhosPrecos.map(tp => ({...tp, preco: parseFloat(tp.preco)})) : null,
+      ingredientes: tipoProduto === 'pizza' ? ingredientes : null,
       preco_unitario: (tipoProduto !== 'pizza' && tipoProduto !== 'borda') ? parseFloat(precoUnitario) : (tipoProduto === 'borda' ? parseFloat(precoUnitario) : null),
       estoque_disponivel: (tipoProduto !== 'pizza' && tipoProduto !== 'borda') && estoqueDisponivel ? parseInt(estoqueDisponivel, 10) : null,
       ativo
@@ -128,64 +117,41 @@ const ProductForm = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(openState) => { onOpenChange(openState); if (!openState) resetFormFields(); }}>
-      <DialogContent className="sm:max-w-2xl bg-card">
+      <DialogContent className="sm:max-w-4xl max-h-[95vh] bg-card">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-primary">{initialProductData ? 'Editar Produto' : 'Adicionar Novo Produto'}</DialogTitle>
+          <DialogTitle className="text-2xl text-primary flex items-center gap-2">
+            {tipoProduto === 'pizza' && <span className="text-2xl">🍕</span>}
+            {initialProductData ? 'Editar Produto' : 'Adicionar Novo Produto'}
+          </DialogTitle>
           <DialogDescription>
-            Preencha os detalhes do produto. Clique em salvar quando terminar.
+            {tipoProduto === 'pizza' 
+              ? 'Configure sua pizza com diferentes tamanhos e preços de forma intuitiva.'
+              : 'Preencha os detalhes do produto. Clique em salvar quando terminar.'
+            }
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-6 py-4 max-h-[80vh] overflow-y-auto pr-3">
+        <form onSubmit={handleSubmit} className="grid gap-6 py-4 max-h-[75vh] overflow-y-auto pr-3">
           <div className="grid gap-2">
             <Label htmlFor="product-name" className="text-foreground/80">Nome do Produto</Label>
             <Input id="product-name" value={nome} onChange={(e) => setNome(e.target.value)} required className="bg-background/70"/>
           </div>
 
-          <div className="grid gap-2">
-            <Label htmlFor="product-type" className="text-foreground/80">Tipo do Produto</Label>
-            <Select value={tipoProduto} onValueChange={(value) => { setTipoProduto(value); setCategoria(''); }} required>
-              <SelectTrigger id="product-type"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-              <SelectContent>
-                {productTypes.map((pt) => (
-                  <SelectItem key={pt.id} value={pt.id}>{pt.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <ProductTypeSelector
+            selectedType={tipoProduto}
+            onTypeChange={(value) => { setTipoProduto(value); setCategoria(''); }}
+            productTypes={productTypes}
+            disabled={isLoading}
+          />
 
           {tipoProduto === 'pizza' && (
-            <>
-              <div className="grid gap-2">
-                <Label className="text-foreground/80">Tamanhos e Preços</Label>
-                {tamanhosPrecos.map((tp, index) => (
-                  <div key={index} className="flex items-end gap-2 p-2 border rounded-md">
-                    <div className="flex-1">
-                      <Label htmlFor={`pizza-size-${index}`} className="text-xs">Tamanho</Label>
-                      <Select value={tp.id_tamanho} onValueChange={(val) => handleTamanhoPrecoChange(index, 'id_tamanho', val)} required>
-                        <SelectTrigger id={`pizza-size-${index}`}><SelectValue placeholder="Tamanho" /></SelectTrigger>
-                        <SelectContent>
-                          {pizzaSizes.map((s) => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex-1">
-                      <Label htmlFor={`pizza-price-${index}`} className="text-xs">Preço (R$)</Label>
-                      <Input id={`pizza-price-${index}`} type="number" step="0.01" placeholder="Preço" value={tp.preco} onChange={(e) => handleTamanhoPrecoChange(index, 'preco', e.target.value)} required className="bg-background/70"/>
-                    </div>
-                    {tamanhosPrecos.length > 1 && (
-                      <Button type="button" variant="ghost" size="icon" onClick={() => removeTamanhoPreco(index)} className="text-red-500 hover:text-red-700">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-                <Button type="button" variant="outline" size="sm" onClick={addTamanhoPreco} className="mt-1">
-                  <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Tamanho/Preço
-                </Button>
-              </div>
-            </>
+            <PizzaSizeSelector
+              tamanhosPrecos={tamanhosPrecos}
+              onChange={setTamanhosPrecos}
+              pizzaSizes={pizzaSizes}
+              pizzaIngredients={ingredientes}
+              onIngredientsChange={setIngredientes}
+              pizzaName={nome || 'Nova Pizza'}
+            />
           )}
 
           {tipoProduto === 'borda' && (

@@ -61,25 +61,25 @@ export const productService = {
 
   async getAllActiveProducts() {
     try {
-      // TEMPORÁRIO: Dados simulados para evitar travamento
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      return this.mockProducts.filter(p => p.ativo);
+      const response = await apiClient.request('/products', {
+        method: 'GET'
+      });
+      return response.products || [];
     } catch (error) {
       console.error('Error fetching active products:', error.message);
-      throw error;
+      // Em caso de erro, retornar dados mockados como fallback
+      console.warn('Usando dados mockados como fallback...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return this.mockProducts.filter(p => p.ativo);
     }
   },
 
   async getProductById(id) {
     try {
-      // TEMPORÁRIO: Simular busca por ID
-      await new Promise(resolve => setTimeout(resolve, 200));
-      const product = this.mockProducts.find(p => p.id == id);
-      if (!product) {
-        throw new Error('Produto não encontrado');
-      }
-      return product;
+      const response = await apiClient.request(`/products/${id}`, {
+        method: 'GET'
+      });
+      return response.product;
     } catch (error) {
       console.error('Error fetching product:', error.message);
       throw error;
@@ -88,18 +88,12 @@ export const productService = {
 
   async createProduct(productData) {
     try {
-      // TEMPORÁRIO: Simular criação de produto
-      await new Promise(resolve => setTimeout(resolve, 400));
-      
-      const newProduct = {
-        id: Math.max(...this.mockProducts.map(p => p.id)) + 1,
-        ...productData,
-        ativo: true
-      };
-      
-      this.mockProducts.push(newProduct);
-      console.log('[ProductService] Produto criado (simulado):', newProduct);
-      return newProduct;
+      const response = await apiClient.request('/products', {
+        method: 'POST',
+        body: JSON.stringify(productData)
+      });
+      console.log('[ProductService] Produto criado:', response.product);
+      return response.product;
     } catch (error) {
       console.error('Error creating product:', error.message);
       throw error;
@@ -108,23 +102,12 @@ export const productService = {
 
   async updateProduct(id, productData) {
     try {
-      // TEMPORÁRIO: Simular atualização de produto
-      await new Promise(resolve => setTimeout(resolve, 350));
-      
-      const productIndex = this.mockProducts.findIndex(p => p.id == id);
-      if (productIndex === -1) {
-        throw new Error('Produto não encontrado');
-      }
-      
-      const updatedProduct = {
-        ...this.mockProducts[productIndex],
-        ...productData,
-        id: parseInt(id) // Manter ID original
-      };
-      
-      this.mockProducts[productIndex] = updatedProduct;
-      console.log('[ProductService] Produto atualizado (simulado):', updatedProduct);
-      return updatedProduct;
+      const response = await apiClient.request(`/products/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(productData)
+      });
+      console.log('[ProductService] Produto atualizado:', response.product);
+      return response.product;
     } catch (error) {
       console.error('Error updating product:', error.message);
       throw error;
@@ -133,17 +116,11 @@ export const productService = {
 
   async deleteProduct(id) {
     try {
-      // TEMPORÁRIO: Simular exclusão de produto
-      await new Promise(resolve => setTimeout(resolve, 250));
-      
-      const productIndex = this.mockProducts.findIndex(p => p.id == id);
-      if (productIndex === -1) {
-        throw new Error('Produto não encontrado');
-      }
-      
-      this.mockProducts.splice(productIndex, 1);
-      console.log('[ProductService] Produto deletado (simulado):', id);
-      return { success: true };
+      const response = await apiClient.request(`/products/${id}`, {
+        method: 'DELETE'
+      });
+      console.log('[ProductService] Produto deletado:', id);
+      return response;
     } catch (error) {
       console.error('Error deleting product:', error.message);
       throw error;

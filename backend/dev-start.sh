@@ -51,4 +51,4 @@ if ! command -v nodemon &> /dev/null; then
 else
     echo "🔄 Iniciando com nodemon..."
     nodemon server.js
-fi
+fi 

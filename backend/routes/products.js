@@ -49,6 +49,7 @@ router.post('/', authenticateToken, async (req, res) => {
       tipo_produto,
       categoria,
       tamanhos_precos,
+      ingredientes,
       preco_unitario,
       estoque_disponivel,
       ativo = true
@@ -64,14 +65,15 @@ router.post('/', authenticateToken, async (req, res) => {
     const result = await db.query(`
       INSERT INTO produtos (
         nome, tipo_produto, categoria, tamanhos_precos, 
-        preco_unitario, estoque_disponivel, ativo
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ingredientes, preco_unitario, estoque_disponivel, ativo
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `, [
       nome,
       tipo_produto,
       categoria,
       tamanhos_precos ? JSON.stringify(tamanhos_precos) : null,
+      ingredientes,
       preco_unitario,
       estoque_disponivel,
       ativo
@@ -87,8 +89,8 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// PATCH /api/products/:id - Atualizar produto
-router.patch('/:id', authenticateToken, async (req, res) => {
+// PUT /api/products/:id - Atualizar produto (alias para PATCH)
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -96,6 +98,7 @@ router.patch('/:id', authenticateToken, async (req, res) => {
       tipo_produto,
       categoria,
       tamanhos_precos,
+      ingredientes,
       preco_unitario,
       estoque_disponivel,
       ativo
@@ -127,6 +130,93 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     if (tamanhos_precos !== undefined) {
       fields.push(`tamanhos_precos = $${paramIndex++}`);
       values.push(tamanhos_precos ? JSON.stringify(tamanhos_precos) : null);
+    }
+    if (ingredientes !== undefined) {
+      fields.push(`ingredientes = $${paramIndex++}`);
+      values.push(ingredientes);
+    }
+    if (preco_unitario !== undefined) {
+      fields.push(`preco_unitario = $${paramIndex++}`);
+      values.push(preco_unitario);
+    }
+    if (estoque_disponivel !== undefined) {
+      fields.push(`estoque_disponivel = $${paramIndex++}`);
+      values.push(estoque_disponivel);
+    }
+    if (ativo !== undefined) {
+      fields.push(`ativo = $${paramIndex++}`);
+      values.push(ativo);
+    }
+
+    fields.push(`updated_at = $${paramIndex++}`);
+    values.push(new Date());
+
+    values.push(id); // Para o WHERE
+
+    const query = `
+      UPDATE produtos 
+      SET ${fields.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `;
+
+    const result = await db.query(query, values);
+    res.json({ product: result.rows[0] });
+
+  } catch (error) {
+    console.error('Erro ao atualizar produto:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// PATCH /api/products/:id - Atualizar produto
+router.patch('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      nome,
+      tipo_produto,
+      categoria,
+      tamanhos_precos,
+      ingredientes,
+      preco_unitario,
+      estoque_disponivel,
+      ativo
+    } = req.body;
+
+    // Verificar se produto existe
+    const existingProduct = await db.query('SELECT id FROM produtos WHERE id = $1', [id]);
+    if (existingProduct.rows.length === 0) {
+      return res.status(404).json({ error: 'Produto não encontrado' });
+    }
+
+    // Construir query dinâmica
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (nome !== undefined) {
+      fields.push(`nome = $${paramIndex++}`);
+      values.push(nome);
+    }
+    if (tipo_produto !== undefined) {
+      fields.push(`tipo_produto = $${paramIndex++}`);
+      values.push(tipo_produto);
+    }
+    if (categoria !== undefined) {
+      fields.push(`categoria = $${paramIndex++}`);
+      values.push(categoria);
+    }
+    if (tamanhos_precos !== undefined) {
+      fields.push(`tamanhos_precos = $${paramIndex++}`);
+      values.push(tamanhos_precos ? JSON.stringify(tamanhos_precos) : null);
+    }
+    if (ingredientes !== undefined) {
+      fields.push(`ingredientes = $${paramIndex++}`);
+      values.push(ingredientes);
     }
     if (preco_unitario !== undefined) {
       fields.push(`preco_unitario = $${paramIndex++}`);
