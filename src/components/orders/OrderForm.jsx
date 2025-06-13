@@ -394,7 +394,7 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
           <DialogTitle className="text-2xl text-primary">
             {initialOrderData ? 'Editar Pedido' : 'Registrar Novo Pedido'}
             {isNewCustomer && (
-              <span className="ml-2 text-sm text-green-600 font-normal flex items-center inline-flex">
+              <span className="ml-2 text-sm text-green-600 font-normal inline-flex items-center">
                 <UserPlus className="h-4 w-4 mr-1" />
                 Novo Cliente
               </span>

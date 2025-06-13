@@ -132,8 +132,32 @@ const ProductForm = ({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-6 py-4 max-h-[75vh] overflow-y-auto pr-3">
           <div className="grid gap-2">
-            <Label htmlFor="product-name" className="text-foreground/80">Nome do Produto</Label>
-            <Input id="product-name" value={nome} onChange={(e) => setNome(e.target.value)} required className="bg-background/70"/>
+            <Label htmlFor="product-name" className="text-foreground/80 font-medium">
+              Nome do Produto *
+              <span className="text-xs text-muted-foreground font-normal ml-2">
+                {tipoProduto === 'bebida' && '(Ex: Coca-Cola 2L, Guaraná Antarctica, Pepsi)'}
+                {tipoProduto === 'sobremesa' && '(Ex: Pudim de Leite, Torta de Morango)'}
+                {tipoProduto === 'acompanhamento' && '(Ex: Batata Frita, Molho Especial)'}
+                {tipoProduto === 'pizza' && '(Ex: Pizza Margherita, Pizza Calabresa)'}
+                {tipoProduto === 'borda' && '(Ex: Borda de Catupiry, Borda de Cheddar)'}
+                {tipoProduto === 'outro' && '(Ex: Guardanapo, Embalagem)'}
+              </span>
+            </Label>
+            <Input 
+              id="product-name" 
+              value={nome} 
+              onChange={(e) => setNome(e.target.value)} 
+              placeholder={
+                tipoProduto === 'bebida' ? 'Digite o nome da bebida (ex: Coca-Cola 2L)' :
+                tipoProduto === 'sobremesa' ? 'Digite o nome da sobremesa' :
+                tipoProduto === 'acompanhamento' ? 'Digite o nome do acompanhamento' :
+                tipoProduto === 'pizza' ? 'Digite o nome da pizza' :
+                tipoProduto === 'borda' ? 'Digite o nome da borda recheada' :
+                'Digite o nome do produto'
+              }
+              required 
+              className="bg-background/70 text-lg font-medium"
+            />
           </div>
 
           <ProductTypeSelector
