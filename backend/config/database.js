@@ -5,8 +5,8 @@ const pool = new Pool({
   user: process.env.DB_USER || 'postgres',
   host: process.env.DB_HOST || 'localhost',
   database: process.env.DB_NAME || 'pizzaria_db',
-  password: process.env.DB_PASSWORD || process.env.DB_PASS || 'postgres',
-  port: process.env.DB_PORT || 5432,
+  password: String(process.env.DB_PASSWORD || process.env.DB_PASS || 'postgres'),
+  port: parseInt(process.env.DB_PORT) || 5432,
   max: 20, // máximo de conexões no pool
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
@@ -15,7 +15,7 @@ const pool = new Pool({
 
 // Teste de conexão
 pool.on('connect', () => {
-  console.log('✅ Conectado ao PostgreSQL no neural (192.168.0.105)');
+  console.log('✅ Conectado ao PostgreSQL WSL (localhost)');
 });
 
 pool.on('error', (err) => {
