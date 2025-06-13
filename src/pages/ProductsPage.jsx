@@ -149,9 +149,34 @@ const ProductsPage = () => {
 
   const filteredProducts = products.filter(product => {
     const nameMatch = product.nome.toLowerCase().includes(searchTerm.toLowerCase());
-    const typeMatch = activeTab === 'all' || 
-                      (activeTab === 'pizza' && product.tipo_produto === 'pizza') ||
-                      (activeTab === 'other' && product.tipo_produto !== 'pizza'); // 'other' now combines all non-pizza types
+    
+    let typeMatch = false;
+    switch (activeTab) {
+      case 'all':
+        typeMatch = true;
+        break;
+      case 'pizza':
+        typeMatch = product.tipo_produto === 'pizza';
+        break;
+      case 'bebida':
+        typeMatch = product.tipo_produto === 'bebida';
+        break;
+      case 'sobremesa':
+        typeMatch = product.tipo_produto === 'sobremesa';
+        break;
+      case 'acompanhamento':
+        typeMatch = product.tipo_produto === 'acompanhamento';
+        break;
+      case 'borda':
+        typeMatch = product.tipo_produto === 'borda';
+        break;
+      case 'outro':
+        typeMatch = product.tipo_produto === 'outro';
+        break;
+      default:
+        typeMatch = true;
+    }
+    
     return nameMatch && typeMatch;
   });
 
