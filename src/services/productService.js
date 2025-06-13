@@ -1,75 +1,44 @@
 import { apiClient } from '@/lib/apiClient';
+import { cacheManager } from '@/lib/cacheManager';
 
 export const productService = {
-  // TEMPORÁRIO: Dados simulados para evitar travamento
-  mockProducts: [
-    { 
-      id: 1, 
-      nome: 'Pizza Margherita', 
-      tipo_produto: 'pizza',
-      tamanhos_precos: [
-        { id_tamanho: 'pequena', nome_tamanho: 'Pequena', preco: 28.90 },
-        { id_tamanho: 'media', nome_tamanho: 'Média', preco: 35.90 },
-        { id_tamanho: 'grande', nome_tamanho: 'Grande', preco: 42.90 }
-      ],
-      ingredientes: 'Molho de tomate, mussarela, tomate, manjericão',
-      ativo: true
-    },
-    { 
-      id: 2, 
-      nome: 'Pizza Pepperoni', 
-      tipo_produto: 'pizza',
-      tamanhos_precos: [
-        { id_tamanho: 'pequena', nome_tamanho: 'Pequena', preco: 32.90 },
-        { id_tamanho: 'media', nome_tamanho: 'Média', preco: 39.90 },
-        { id_tamanho: 'grande', nome_tamanho: 'Grande', preco: 46.90 }
-      ],
-      ingredientes: 'Molho de tomate, mussarela, pepperoni',
-      ativo: true
-    },
-    { 
-      id: 3, 
-      nome: 'Coca-Cola 2L', 
-      tipo_produto: 'bebida',
-      categoria: 'Refrigerante',
-      preco_unitario: 8.50,
-      estoque_disponivel: 50,
-      ativo: true 
-    },
-    { 
-      id: 4, 
-      nome: 'Pizza Calabresa', 
-      tipo_produto: 'pizza',
-      tamanhos_precos: [
-        { id_tamanho: 'pequena', nome_tamanho: 'Pequena', preco: 30.90 },
-        { id_tamanho: 'media', nome_tamanho: 'Média', preco: 37.90 },
-        { id_tamanho: 'grande', nome_tamanho: 'Grande', preco: 44.90 }
-      ],
-      ingredientes: 'Molho de tomate, mussarela, calabresa, cebola',
-      ativo: true
-    },
-    { 
-      id: 5, 
-      nome: 'Água 500ml', 
-      tipo_produto: 'bebida',
-      categoria: 'Água',
-      preco_unitario: 3.00,
-      estoque_disponivel: 100,
-      ativo: true 
-    }
-  ],
 
   async getAllActiveProducts() {
     try {
+      // Verificar e limpar dados mock antes de buscar produtos reais
+      const hasMockData = cacheManager.checkForMockData();
+      if (hasMockData.length > 0) {
+        console.warn('🚨 Dados mock detectados! Limpando cache...');
+        cacheManager.clearAllCache();
+      }
+      
       const response = await apiClient.request('/products', {
         method: 'GET'
       });
-      console.log('✅ [ProductService] Carregados produtos reais do banco:', response.products?.length || 0);
-      return response.products || [];
+      
+      // Validar que todos os produtos têm UUIDs válidos
+      const products = response.products || [];
+      const validProducts = products.filter(product => {
+        const isValidUuid = typeof product.id === 'string' && 
+                           product.id.length === 36 && 
+                           product.id.includes('-');
+        
+        if (!isValidUuid) {
+          console.warn(`⚠️ Produto com ID inválido ignorado: ${product.nome} (ID: ${product.id})`);
+          return false;
+        }
+        return true;
+      });
+      
+      console.log('✅ [ProductService] Carregados produtos reais do banco:', validProducts.length);
+      
+      if (validProducts.length !== products.length) {
+        console.warn(`⚠️ ${products.length - validProducts.length} produtos com IDs inválidos foram filtrados`);
+      }
+      
+      return validProducts;
     } catch (error) {
       console.error('❌ [ProductService] Erro ao buscar produtos reais:', error.message);
-      // TEMPORÁRIO: Em caso de erro, retornar array vazio em vez de mock
-      console.warn('⚠️ Retornando array vazio - frontend deve exibir mensagem de erro');
       throw new Error('Não foi possível carregar produtos do servidor. Verifique a conexão.');
     }
   },
