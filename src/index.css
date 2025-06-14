@@ -1,9 +1,9 @@
+/* Importar estilos para detecção de autofill */
+@import './styles/autofill-detection.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Importar estilos para detecção de autofill */
-@import './styles/autofill-detection.css';
 
 @layer base {
   :root {
