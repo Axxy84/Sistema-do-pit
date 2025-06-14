@@ -82,7 +82,7 @@ router.get('/current', authenticateToken, async (req, res) => {
         COALESCE(SUM(CASE WHEN forma_pagamento = 'pix' THEN total ELSE 0 END), 0) as vendas_pix
       FROM pedidos 
       WHERE DATE(data_pedido) = $1 
-        AND status_pedido = 'entregue'
+        AND status_pedido IN ('entregue', 'retirado')
     `, [today]);
 
     console.log(`📦 Pedidos encontrados: ${pedidosResult.rows[0]?.total_pedidos || 0}`);
@@ -120,7 +120,7 @@ router.get('/current', authenticateToken, async (req, res) => {
         COALESCE(SUM(CASE WHEN forma_pagamento = 'pix' THEN total ELSE 0 END), 0) as vendas_pix
       FROM pedidos 
       WHERE DATE(data_pedido) = $1 
-        AND status_pedido = 'entregue'
+        AND status_pedido IN ('entregue', 'retirado')
       GROUP BY tipo_pedido
     `, [today]);
 

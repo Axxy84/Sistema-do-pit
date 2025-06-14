@@ -39,8 +39,16 @@ router.get('/', authenticateToken, async (req, res) => {
       let paramIndex = 1;
 
       if (status) {
-        query += ` AND LOWER(p.status_pedido) = LOWER($${paramIndex++})`;
-        params.push(status);
+        // Suportar array de status para filtrar múltiplos valores
+        if (Array.isArray(status)) {
+          const statusPlaceholders = status.map((_, i) => `$${paramIndex + i}`).join(', ');
+          query += ` AND LOWER(p.status_pedido) IN (${statusPlaceholders.toLowerCase()})`;
+          params.push(...status.map(s => s.toLowerCase()));
+          paramIndex += status.length;
+        } else {
+          query += ` AND LOWER(p.status_pedido) = LOWER($${paramIndex++})`;
+          params.push(status);
+        }
       }
 
       if (data_inicio) {

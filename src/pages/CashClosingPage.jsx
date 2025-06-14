@@ -274,7 +274,7 @@ const fetchDailyOrdersAndTransactions = async (dateString) => {
     const ordersData = await orderService.getAllOrders({
       data_inicio: dateString,
       data_fim: dateString,
-      status: 'entregue'
+      status: ['entregue', 'retirado'] // Incluir pedidos retirados (mesas pagas)
     });
     
     console.log('[DEBUG] Pedidos encontrados:', ordersData?.length || 0);

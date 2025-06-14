@@ -55,12 +55,28 @@ const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPri
     }
   };
   
+  const handleMarkAsRetirado = async (orderId) => {
+    setUpdatingStatusOrderId(orderId);
+    try {
+      await orderService.updateOrderStatus(orderId, 'retirado');
+
+      toast({ title: 'Sucesso!', description: 'Pedido marcado como retirado.' });
+      fetchOrders(); // Re-fetch orders to update the list
+      window.dispatchEvent(new CustomEvent('orderStatusChanged', { detail: { orderId, newStatus: 'retirado' } }));
+      window.dispatchEvent(new CustomEvent('orderSaved')); // General event for dashboard/cash closing updates
+    } catch (error) {
+      toast({ title: 'Erro ao atualizar status', description: error.message, variant: 'destructive' });
+    } finally {
+      setUpdatingStatusOrderId(null);
+    }
+  };
+  
   const extendedOrders = orders.map(order => ({
     ...order,
     actions: (
       <div className="flex items-center justify-end space-x-1">
-        {/* Só mostra botão "Entregue" para pedidos delivery */}
-        {order.tipo_pedido !== 'mesa' && order.status !== 'entregue' && order.status !== 'cancelado' && (
+        {/* Botão "Entregue" para pedidos delivery */}
+        {order.tipo_pedido !== 'mesa' && order.status !== 'entregue' && order.status !== 'retirado' && order.status !== 'cancelado' && (
           <Button
             variant="outline"
             size="sm"
@@ -76,6 +92,25 @@ const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPri
             Entregue
           </Button>
         )}
+        
+        {/* Botão "Retirado" para pedidos de mesa */}
+        {order.tipo_pedido === 'mesa' && order.status !== 'entregue' && order.status !== 'retirado' && order.status !== 'cancelado' && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleMarkAsRetirado(order.id)}
+            disabled={updatingStatusOrderId === order.id}
+            className="text-purple-600 border-purple-600 hover:bg-purple-100 hover:text-purple-700 dark:hover:bg-purple-700/20"
+          >
+            {updatingStatusOrderId === order.id ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 mr-1" />
+            )}
+            Retirado
+          </Button>
+        )}
+        
          <DefaultActionsComponent 
             order={order} 
             onEdit={onEdit} 

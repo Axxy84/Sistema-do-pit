@@ -21,6 +21,7 @@ export const ORDER_STATUSES_GENERAL = [
   { id: 'em_preparo', name: 'Em Preparo', color: 'bg-blue-500' },
   { id: 'saiu_para_entrega', name: 'Saiu para Entrega', color: 'bg-orange-500' },
   { id: 'entregue', name: 'Entregue', color: 'bg-green-500' },
+  { id: 'retirado', name: 'Retirado', color: 'bg-purple-500' },
   { id: 'cancelado', name: 'Cancelado', color: 'bg-red-500' },
 ];
 
