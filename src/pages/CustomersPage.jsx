@@ -379,9 +379,8 @@ const CustomersPage = () => {
             </TableHeader>
             <TableBody>
                 {filteredCustomers.map((customer) => (
-                  <motion.tr 
+                  <tr 
                     key={customer.id}
-                    layout
                     className="hover:bg-muted/30 transition-colors"
                   >
                     <TableCell className="font-medium text-foreground">{customer.nome}</TableCell>
@@ -401,7 +400,7 @@ const CustomersPage = () => {
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       </Button>
                     </TableCell>
-                  </motion.tr>
+                  </tr>
                 ))}
             </TableBody>
             {filteredCustomers.length > 10 && <TableCaption>Total de {filteredCustomers.length} clientes.</TableCaption>}
