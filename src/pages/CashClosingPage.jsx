@@ -386,7 +386,7 @@ const SeparateClosingComponent = ({ selectedDate }) => {
   // Escutar eventos de mudança de status de pedidos
   useEffect(() => {
     const handleOrderStatusChanged = (event) => {
-      console.log('💰 [CashClosing] Evento de mudança de status recebido:', event.detail);
+      console.log('💰 [SeparateClosing] Evento de mudança de status recebido:', event.detail);
       // Recarregar dados quando status mudar (especialmente importante para mesas)
       if (selectedDate && activeTab !== 'history') {
         fetchSummaryData(selectedDate);
@@ -394,19 +394,45 @@ const SeparateClosingComponent = ({ selectedDate }) => {
     };
     
     const handleOrderSaved = () => {
-      console.log('💰 [CashClosing] Evento de pedido salvo recebido');
+      console.log('💰 [SeparateClosing] Evento de pedido salvo recebido');
       // Recarregar dados quando pedido for salvo
       if (selectedDate && activeTab !== 'history') {
         fetchSummaryData(selectedDate);
       }
     };
     
+    const handleOrderDelivered = (event) => {
+      console.log('💰 [SeparateClosing] Evento de pedido entregue recebido:', event.detail);
+      // Atualizar dados do fechamento separado imediatamente
+      if (selectedDate && activeTab !== 'history') {
+        setTimeout(() => {
+          fetchSummaryData(selectedDate);
+        }, 500);
+      }
+    };
+    
+    const handleCashUpdated = (event) => {
+      console.log('💰 [SeparateClosing] Evento cashUpdated recebido:', event.detail);
+      // Atualizar dados se for relevante para o tipo atual
+      if (selectedDate && activeTab !== 'history') {
+        if (event.detail?.action === 'order_delivered') {
+          setTimeout(() => {
+            fetchSummaryData(selectedDate);
+          }, 500);
+        }
+      }
+    };
+    
     window.addEventListener('orderStatusChanged', handleOrderStatusChanged);
     window.addEventListener('orderSaved', handleOrderSaved);
+    window.addEventListener('orderDelivered', handleOrderDelivered);
+    window.addEventListener('cashUpdated', handleCashUpdated);
     
     return () => {
       window.removeEventListener('orderStatusChanged', handleOrderStatusChanged);
       window.removeEventListener('orderSaved', handleOrderSaved);
+      window.removeEventListener('orderDelivered', handleOrderDelivered);
+      window.removeEventListener('cashUpdated', handleCashUpdated);
     };
   }, [selectedDate, activeTab]);
 
@@ -764,8 +790,8 @@ const CashClosingPage = () => {
 
     const handleOrderUpdate = (event) => {
       console.log('💰 [CashClosing] Evento orderStatusChanged recebido:', event.detail);
-      if (event.detail?.newStatus === 'fechada') {
-        // Recarregar dados quando mesa é fechada
+      if (event.detail?.newStatus === 'fechada' || event.detail?.newStatus === 'entregue') {
+        // Recarregar dados quando mesa é fechada ou pedido entregue
         const today = new Date().toISOString().split('T')[0];
         if (filterDate === today) {
           setTimeout(() => {
@@ -774,15 +800,33 @@ const CashClosingPage = () => {
         }
       }
     };
+    
+    // Evento específico para pedido entregue
+    const handleOrderDelivered = (event) => {
+      console.log('💰 [CashClosing] Evento orderDelivered recebido:', event.detail);
+      // Atualizar fechamento de caixa imediatamente quando pedido é entregue
+      const today = new Date().toISOString().split('T')[0];
+      if (filterDate === today) {
+        setTimeout(() => {
+          fetchAndSetCurrentData();
+          // Se estiver na aba dashboard, atualizar também
+          if (activeTab === 'dashboard') {
+            fetchDashboardData();
+          }
+        }, 500);
+      }
+    };
 
     window.addEventListener('cashUpdated', handleCashUpdate);
     window.addEventListener('orderStatusChanged', handleOrderUpdate);
+    window.addEventListener('orderDelivered', handleOrderDelivered);
 
     return () => {
       window.removeEventListener('cashUpdated', handleCashUpdate);
       window.removeEventListener('orderStatusChanged', handleOrderUpdate);
+      window.removeEventListener('orderDelivered', handleOrderDelivered);
     };
-  }, [filterDate, fetchAndSetCurrentData]);
+  }, [filterDate, fetchAndSetCurrentData, activeTab]);
 
   const dailySummary = useMemo(() => {
     return calculateDailySummary(dailyData.orders, dailyData.transactions);

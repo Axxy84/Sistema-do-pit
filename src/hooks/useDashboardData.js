@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useToast } from '@/components/ui/use-toast';
-import { apiClient } from '@/lib/apiClient';
+import apiClient from '@/lib/apiClient';
 
 export const useDashboardData = () => {
   const [kpiRawData, setKpiRawData] = useState({ salesToday: 0, newCustomersToday: 0, pizzasSoldToday: 0, pendingOrders: 0 });
@@ -24,10 +24,14 @@ export const useDashboardData = () => {
       console.log('📊 Buscando dados do dashboard da API...');
       
       // Buscar dados reais da API
-      const response = await apiClient.get('/dashboard');
-      const dashboardData = response.data;
+      const dashboardData = await apiClient.get('/dashboard');
       
-      console.log('✅ Dados reais carregados:', dashboardData);
+      console.log('✅ Dados do dashboard carregados');
+      
+      // Verificar se os dados existem
+      if (!dashboardData) {
+        throw new Error('Nenhum dado retornado da API');
+      }
       
       // Processar KPIs
       const newKpiData = {
@@ -59,10 +63,11 @@ export const useDashboardData = () => {
       }
 
     } catch (error) {
-      console.error("❌ Erro ao buscar dados do dashboard:", error.message);
+      console.error("❌ Erro ao buscar dados do dashboard:", error);
+      console.error("Stack trace:", error.stack);
       
       if (showToast) {
-        toast({ title: "Erro ao Atualizar Dashboard", description: error.message, variant: "destructive" });
+        toast({ title: "Erro ao Atualizar Dashboard", description: error.message || 'Erro desconhecido', variant: "destructive" });
       }
       
       // Definir estados de erro
@@ -95,15 +100,23 @@ export const useDashboardData = () => {
 
     const handleOrderUpdate = (event) => {
       console.log('📊 [Dashboard] Evento orderStatusChanged recebido:', event.detail);
-      if (event.detail?.newStatus === 'fechada') {
+      if (event.detail?.newStatus === 'fechada' || event.detail?.newStatus === 'entregue') {
         setTimeout(() => fetchAllDashboardData(true), 1000);
       }
+    };
+    
+    // Evento específico para pedido entregue
+    const handleOrderDelivered = (event) => {
+      console.log('📊 [Dashboard] Evento orderDelivered recebido:', event.detail);
+      // Atualizar dashboard imediatamente quando pedido é entregue
+      setTimeout(() => fetchAllDashboardData(true), 500);
     };
 
     window.addEventListener('orderSaved', handleOrderSaved);
     window.addEventListener('cashClosed', handleCashClosed);
     window.addEventListener('cashUpdated', handleCashUpdate);
     window.addEventListener('orderStatusChanged', handleOrderUpdate);
+    window.addEventListener('orderDelivered', handleOrderDelivered);
 
     // Atualização periódica a cada 2 minutos
     const interval = setInterval(() => {
@@ -115,6 +128,7 @@ export const useDashboardData = () => {
       window.removeEventListener('cashClosed', handleCashClosed);
       window.removeEventListener('cashUpdated', handleCashUpdate);
       window.removeEventListener('orderStatusChanged', handleOrderUpdate);
+      window.removeEventListener('orderDelivered', handleOrderDelivered);
       clearInterval(interval);
     };
 

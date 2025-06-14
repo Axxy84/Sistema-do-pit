@@ -42,12 +42,51 @@ const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPri
   const handleMarkAsDelivered = async (orderId) => {
     setUpdatingStatusOrderId(orderId);
     try {
+      // Buscar detalhes do pedido para saber o tipo
+      const order = orders.find(o => o.id === orderId);
+      
       await orderService.updateOrderStatus(orderId, 'entregue');
 
       toast({ title: 'Sucesso!', description: 'Pedido marcado como entregue.' });
-      fetchOrders(); // Re-fetch orders to update the list
-      window.dispatchEvent(new CustomEvent('orderStatusChanged', { detail: { orderId, newStatus: 'entregue' } }));
-      window.dispatchEvent(new CustomEvent('orderSaved')); // General event for dashboard/cash closing updates
+      
+      // Re-fetch orders to update the list
+      fetchOrders();
+      
+      // Disparar eventos para atualizar Dashboard e Fechamento de Caixa
+      window.dispatchEvent(new CustomEvent('orderStatusChanged', { 
+        detail: { 
+          orderId, 
+          newStatus: 'entregue',
+          orderType: order?.tipo_pedido || 'delivery',
+          orderValue: order?.total || 0
+        } 
+      }));
+      
+      // Evento específico para pedido entregue
+      window.dispatchEvent(new CustomEvent('orderDelivered', { 
+        detail: { 
+          orderId,
+          orderType: order?.tipo_pedido || 'delivery',
+          orderValue: order?.total || 0
+        } 
+      }));
+      
+      // Evento geral para atualização de dados
+      window.dispatchEvent(new CustomEvent('orderSaved'));
+      
+      // Evento para atualizar caixa separado se necessário
+      window.dispatchEvent(new CustomEvent('cashUpdated', {
+        detail: {
+          tipo: order?.tipo_pedido || 'delivery',
+          action: 'order_delivered'
+        }
+      }));
+      
+      console.log('✅ [OrdersList] Pedido marcado como entregue:', {
+        orderId,
+        orderType: order?.tipo_pedido,
+        events: ['orderStatusChanged', 'orderDelivered', 'orderSaved', 'cashUpdated']
+      });
     } catch (error) {
       toast({ title: 'Erro ao atualizar status', description: error.message, variant: 'destructive' });
     } finally {
@@ -58,12 +97,34 @@ const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPri
   const handleMarkAsRetirado = async (orderId) => {
     setUpdatingStatusOrderId(orderId);
     try {
+      // Buscar detalhes do pedido para saber o tipo
+      const order = orders.find(o => o.id === orderId);
+      
       await orderService.updateOrderStatus(orderId, 'retirado');
 
       toast({ title: 'Sucesso!', description: 'Pedido marcado como retirado.' });
-      fetchOrders(); // Re-fetch orders to update the list
-      window.dispatchEvent(new CustomEvent('orderStatusChanged', { detail: { orderId, newStatus: 'retirado' } }));
-      window.dispatchEvent(new CustomEvent('orderSaved')); // General event for dashboard/cash closing updates
+      
+      // Re-fetch orders to update the list
+      fetchOrders();
+      
+      // Disparar eventos para atualizar Dashboard e Fechamento de Caixa
+      window.dispatchEvent(new CustomEvent('orderStatusChanged', { 
+        detail: { 
+          orderId, 
+          newStatus: 'retirado',
+          orderType: order?.tipo_pedido || 'mesa',
+          orderValue: order?.total || 0
+        } 
+      }));
+      
+      // Evento geral para atualização de dados
+      window.dispatchEvent(new CustomEvent('orderSaved'));
+      
+      console.log('✅ [OrdersList] Pedido marcado como retirado:', {
+        orderId,
+        orderType: order?.tipo_pedido,
+        events: ['orderStatusChanged', 'orderSaved']
+      });
     } catch (error) {
       toast({ title: 'Erro ao atualizar status', description: error.message, variant: 'destructive' });
     } finally {

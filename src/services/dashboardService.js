@@ -9,7 +9,7 @@ export const dashboardService = {
       if (dataFim) params.data_fim = dataFim;
 
       const response = await apiClient.get('/dashboard/fechamento-consolidado', { params });
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Erro ao buscar dados consolidados:', error);
       throw error;
@@ -20,7 +20,7 @@ export const dashboardService = {
   async getMesasTempoReal() {
     try {
       const response = await apiClient.get('/dashboard/mesas-tempo-real');
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Erro ao buscar status das mesas:', error);
       throw error;
@@ -31,7 +31,7 @@ export const dashboardService = {
   async getDashboardData() {
     try {
       const response = await apiClient.get('/dashboard');
-      return response.data;
+      return response;
     } catch (error) {
       console.error('Erro ao buscar dados do dashboard:', error);
       throw error;
@@ -64,8 +64,8 @@ export const dashboardService = {
 
       return {
         consolidated: consolidatedData,
-        expenses: expensesResponse.data.expenses || [],
-        orders: ordersResponse.data.orders || []
+        expenses: expensesResponse.expenses || [],
+        orders: ordersResponse.orders || []
       };
     } catch (error) {
       console.error('Erro ao buscar dados do dashboard do dono:', error);

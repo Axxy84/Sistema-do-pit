@@ -41,7 +41,8 @@
       "Bash(npm run build:*)",
       "Bash(cat:*)",
       "Bash(touch:*)",
-      "Bash(nc:*)"
+      "Bash(nc:*)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   }

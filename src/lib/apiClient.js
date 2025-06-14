@@ -5,7 +5,18 @@ console.log('🔗 API Base URL configurada:', API_BASE_URL);
 // Cliente HTTP personalizado
 export const apiClient = {
   async request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+    // Construir URL com query parameters se existirem
+    let url = `${API_BASE_URL}${endpoint}`;
+    
+    if (options.params) {
+      const queryString = new URLSearchParams(options.params).toString();
+      if (queryString) {
+        url += `?${queryString}`;
+      }
+      // Remover params das opções para não passar para fetch
+      delete options.params;
+    }
+    
     const token = localStorage.getItem('authToken');
     
     const config = {
