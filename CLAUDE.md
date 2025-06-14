@@ -24,6 +24,8 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 - impressão direta para pedidos de mesa sem abrir janela ✅ IMPLEMENTADO 14/06/2025
 - cupom de mesa não mostra informações de delivery ✅ IMPLEMENTADO 14/06/2025
 - novo fluxo de mesas: retirado = consumindo, fechada = paga ✅ IMPLEMENTADO 14/06/2025
+- erro Dashboard "Cannot read properties of undefined" ✅ RESOLVIDO 14/06/2025
+- sincronização entrega → Dashboard/Caixa em tempo real ✅ IMPLEMENTADO 14/06/2025
 
 ## 🔥 Últimas Correções Críticas (Junho 2025)
 
@@ -204,8 +206,30 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 4. `retirado` → Cliente consumindo (mesa ativa)
 5. `fechada` → Conta paga, mesa liberada
 
+### 📊 Dashboard e Sincronização de Entregas Corrigidos
+**Data:** 14/06/2025 23:45
+**Status:** ✅ RESOLVIDO COMPLETAMENTE
+
+**Problemas identificados:**
+- ❌ Dashboard erro: "Cannot read properties of undefined (reading 'kpis')"
+- ❌ Conflito import/export no apiClient
+- ❌ Dashboard não atualizava quando pedido era entregue
+- ❌ Fechamento de Caixa não sincronizava com entregas
+
+**Soluções implementadas:**
+1. **Import corrigido**: Mudança de named import para default import
+2. **apiClient melhorado**: Adicionado suporte a query parameters
+3. **Eventos customizados**: `orderDelivered`, `orderStatusChanged`, `cashUpdated`
+4. **Sincronização em tempo real**: Dashboard e Caixa atualizam em 500ms
+
+**Resultado final:**
+- ✅ Dashboard carrega sem erros
+- ✅ Ao clicar "Entregue", Dashboard atualiza automaticamente
+- ✅ Fechamento de Caixa reflete mudanças instantaneamente
+- ✅ Seções Delivery/Mesa atualizadas separadamente
+
 ### 🚀 Sistema 100% Operacional
-**Verificado em:** 14/06/2025 23:35
+**Verificado em:** 14/06/2025 23:45
 
 - ✅ **PostgreSQL**: Conectado localhost:5432
 - ✅ **Backend**: Rodando porta 3001
@@ -216,6 +240,8 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 - ✅ **Pedidos**: CRUD completo funcionando
 - ✅ **Autofill**: Sincronização automática
 - ✅ **Múltiplos sabores**: Funcionando para pedidos de mesa
+- ✅ **Dashboard**: Carregando sem erros
+- ✅ **Sincronização**: Entregas atualizam em tempo real
 
 **Credenciais de acesso:**
 ```bash
