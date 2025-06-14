@@ -15,6 +15,9 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 - organize o layout ponha vermelho e preto que nem as outras paginas ✅ IMPLEMENTADO
 - bordas não aparecem no frontend - resolver problema de dados ✅ RESOLVIDO 14/06/2025
 - corrigir erros React whileTap e API 500 produtos ✅ RESOLVIDO 14/06/2025
+- sistema de pedidos com erro 500 - colunas faltando no banco ✅ RESOLVIDO 14/06/2025
+- autofill do browser não sincronizava com React state ✅ RESOLVIDO 14/06/2025
+- telefone agora é opcional para criar clientes ✅ IMPLEMENTADO 14/06/2025
 
 ## 🔥 Últimas Correções Críticas (Junho 2025)
 
@@ -99,8 +102,23 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 - ✅ API funcionando: Update produtos 200 OK
 - ✅ Animações preservadas: Efeito visual mantido com CSS puro
 
+### 🆕 Sistema de Pedidos Restaurado (14/06/2025)
+**Status:** ✅ TOTALMENTE FUNCIONAL
+
+**Problemas resolvidos:**
+1. **Erro 500 no GET /api/orders**: Colunas `tipo_pedido`, `numero_mesa` e `endereco_entrega` estavam faltando
+2. **Motion.tr não definido**: Removida dependência do framer-motion não instalado
+3. **POST /api/customers/manage 404**: Endpoint implementado com telefone opcional
+4. **Autofill não sincronizava**: Sistema detecta e sincroniza autofill do browser com React state
+
+**Soluções implementadas:**
+- ✅ Script `fix-pedidos-missing-columns.js` adiciona colunas faltantes
+- ✅ Detecção de autofill via CSS animation e sincronização periódica
+- ✅ Fallback no submit captura valores direto do DOM
+- ✅ Telefone agora opcional para criação de clientes
+
 ### 🚀 Sistema 100% Operacional
-**Verificado em:** 14/06/2025 17:05
+**Verificado em:** 14/06/2025 19:00
 
 - ✅ **PostgreSQL**: Conectado localhost:5432
 - ✅ **Backend**: Rodando porta 3001
@@ -108,6 +126,8 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 - ✅ **Autenticação**: JWT funcional
 - ✅ **APIs**: Todos endpoints testados
 - ✅ **Cache**: Sistema otimizado ativo
+- ✅ **Pedidos**: CRUD completo funcionando
+- ✅ **Autofill**: Sincronização automática
 
 **Credenciais de acesso:**
 ```bash
