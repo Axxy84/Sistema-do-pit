@@ -395,6 +395,61 @@ const OrdersPage = () => {
         return;
       }
       
+      // Se for pedido de mesa, imprimir direto sem abrir janela
+      if (orderToPrint.tipo_pedido === 'mesa') {
+        const completeOrderDataForPrint = {
+          ...orderToPrint,
+          delivererName: orderToPrint.delivererName || orderToPrint.entregador_nome || 'Não atribuído',
+          paymentMethodName: orderToPrint.paymentMethodName || PAYMENT_METHODS.find(pm => pm.id === orderToPrint.forma_pagamento)?.name || 'Não informado',
+        };
+
+        let ticketContent;
+        try {
+          ticketContent = formatOrderTicketForPrint(completeOrderDataForPrint, allProductsData);
+        } catch (formatError) {
+          console.error('[PRINT] Erro ao formatar ticket:', formatError);
+          toast({ title: 'Erro', description: 'Erro ao formatar cupom para impressão', variant: 'destructive' });
+          return;
+        }
+        
+        // Criar iframe invisível para impressão direta
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0px';
+        iframe.style.height = '0px';
+        iframe.style.border = 'none';
+        iframe.style.left = '-9999px';
+        document.body.appendChild(iframe);
+        
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+        iframeDoc.open();
+        iframeDoc.write('<html><head><title>Cupom Mesa</title>');
+        iframeDoc.write('<style>body { font-family: monospace; font-size: 10pt; margin: 5px; } pre { white-space: pre-wrap; word-wrap: break-word; } </style>');
+        iframeDoc.write('</head><body>');
+        iframeDoc.write('<pre>' + ticketContent + '</pre>');
+        iframeDoc.write('</body></html>');
+        iframeDoc.close();
+        
+        // Aguardar o conteúdo carregar e imprimir
+        setTimeout(() => {
+          try {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            // Remover o iframe após a impressão
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+            }, 1000);
+          } catch (printError) {
+            console.error('[PRINT] Erro ao imprimir pedido de mesa:', printError);
+            document.body.removeChild(iframe);
+          }
+        }, 250);
+        
+        toast({ title: 'Impressão Mesa', description: `Cupom da mesa ${orderToPrint.numero_mesa} enviado para impressão.` });
+        return;
+      }
+      
+      // Para pedidos delivery, continuar com o comportamento normal (abrir janela)
       const completeOrderDataForPrint = {
         ...orderToPrint,
         delivererName: orderToPrint.delivererName || orderToPrint.entregador_nome || 'Não atribuído',
@@ -533,11 +588,16 @@ const OrdersPage = () => {
         return;
       }
 
-      // Se não foi fornecida uma prioridade, mostrar modal de seleção
-      if (selectedPriority === null) {
+      // Se for pedido delivery e não foi fornecida uma prioridade, mostrar modal de seleção
+      if (orderToPrint.tipo_pedido !== 'mesa' && selectedPriority === null) {
         setOrderForKitchenPrint(orderToPrint);
         setShowPriorityModal(true);
         return;
+      }
+      
+      // Para pedidos de mesa, usar prioridade padrão (normal)
+      if (orderToPrint.tipo_pedido === 'mesa' && selectedPriority === null) {
+        selectedPriority = 2; // Prioridade normal
       }
       
       const completeOrderDataForPrint = {

@@ -36,8 +36,9 @@ PIT STOP PIZZARIA
 PEDIDO: #${String(order.id || '').slice(-5).toUpperCase() || 'N/A'}
 DATA: ${formatDateTime(order.orderDate || order.createdAt)}
 CLIENTE: ${order.customerName || 'N/A'}
-TELEFONE: ${order.customerPhone || 'N/A'}
-ENDEREÇO: ${order.customerAddress || 'Rua casa'}
+TELEFONE: ${order.customerPhone || 'N/A'}${order.tipo_pedido === 'mesa' ? `
+MESA: ${order.numero_mesa || 'N/A'}` : `
+ENDEREÇO: ${order.customerAddress || 'Rua casa'}`}
 ------------------------------
 ITENS DO PEDIDO:
 
@@ -183,10 +184,16 @@ TOTAL A PAGAR: ${formatCurrency(order.totalValue || order.total)}
       }
     }
 
-    ticketContent += `
+    // Só mostrar entregador se for pedido delivery
+    if (order.tipo_pedido !== 'mesa') {
+      ticketContent += `
 ------------------------------
 ENTREGADOR: ${order.delivererName || 'Não atribuído'}
 `;
+    } else {
+      ticketContent += `
+------------------------------`;
+    }
 
     if (order.observacoes) {
       ticketContent += `OBSERVAÇÕES: ${order.observacoes}\n`;

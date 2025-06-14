@@ -59,7 +59,8 @@ const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPri
     ...order,
     actions: (
       <div className="flex items-center justify-end space-x-1">
-        {order.status !== 'entregue' && order.status !== 'cancelado' && (
+        {/* Só mostra botão "Entregue" para pedidos delivery */}
+        {order.tipo_pedido !== 'mesa' && order.status !== 'entregue' && order.status !== 'cancelado' && (
           <Button
             variant="outline"
             size="sm"
