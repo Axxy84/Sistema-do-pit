@@ -12,6 +12,8 @@ const CustomerDetailsForm = ({
   onPhoneBlur,
   isLoading,
   nameInputRef, // Accept ref from parent
+  phoneInputRef, // Nova ref para telefone
+  addressInputRef, // Nova ref para endereço
   showAddress = true // Novo prop com valor padrão
 }) => {
   return (
@@ -30,6 +32,8 @@ const CustomerDetailsForm = ({
             placeholder="Nome completo" 
             required 
             disabled={isLoading}
+            name="customerName"
+            autoComplete="name"
           />
         </div>
         <div className="grid gap-2">
@@ -37,6 +41,7 @@ const CustomerDetailsForm = ({
           <div className="flex items-center gap-2">
             <Input 
               id="customerPhone" 
+              ref={phoneInputRef}
               value={customerPhone} 
               onChange={(e) => setCustomerPhone(e.target.value)} 
               placeholder="(XX) XXXXX-XXXX" 
@@ -44,6 +49,8 @@ const CustomerDetailsForm = ({
               disabled={isLoading}
               onBlur={onPhoneBlur}
               className="flex-grow"
+              name="customerPhone"
+              autoComplete="tel"
             />
             <Button type="button" variant="outline" size="icon" onClick={onPhoneBlur} disabled={isLoading}>
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
@@ -57,11 +64,14 @@ const CustomerDetailsForm = ({
             </Label>
             <Input 
               id="customerAddress" 
+              ref={addressInputRef}
               value={customerAddress} 
               onChange={(e) => setCustomerAddress(e.target.value)} 
               placeholder="Rua, Número, Bairro, Complemento" 
               disabled={isLoading}
               required
+              name="customerAddress"
+              autoComplete="street-address"
             />
           </div>
         )}

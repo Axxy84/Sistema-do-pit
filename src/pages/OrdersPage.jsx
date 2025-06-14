@@ -186,10 +186,9 @@ const OrdersPage = () => {
       }
 
       const clienteId = await customerService.manageCustomer({
-        customerId: orderFormData.customerId,
-        customerName: orderFormData.customerName,
-        customerPhone: orderFormData.customerPhone || '', // Telefone pode estar vazio
-        customerAddress: orderFormData.customerAddress,
+        nome: orderFormData.customerName,
+        telefone: orderFormData.customerPhone || '', // Telefone pode estar vazio
+        endereco: orderFormData.customerAddress || '',
       });
       
       console.log('[OrdersPage] Cliente gerenciado com sucesso, ID:', clienteId);

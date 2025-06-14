@@ -35,7 +35,8 @@
       "Bash(./setup_db.sh:*)",
       "Bash(PGPASSWORD=8477 psql:*)",
       "Bash(npx eslint:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

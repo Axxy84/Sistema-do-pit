@@ -230,6 +230,85 @@ router.patch('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/customers/manage - Criar ou atualizar cliente
+router.post('/manage', authenticateToken, async (req, res) => {
+  console.log('[Backend] POST /api/customers/manage - Dados recebidos:', req.body);
+  try {
+    const { nome, telefone, endereco } = req.body;
+
+    // Validações básicas - apenas nome é obrigatório
+    if (!nome) {
+      console.log('[Backend] Erro: Nome é obrigatório');
+      return res.status(400).json({ 
+        error: 'Nome é obrigatório' 
+      });
+    }
+
+    // Verificar se cliente já existe
+    let existing;
+    if (telefone) {
+      // Se tem telefone, buscar por telefone (mais preciso)
+      existing = await db.query(
+        'SELECT * FROM clientes WHERE telefone = $1',
+        [telefone]
+      );
+    } else {
+      // Se não tem telefone, buscar por nome exato
+      existing = await db.query(
+        'SELECT * FROM clientes WHERE LOWER(nome) = LOWER($1) AND telefone IS NULL',
+        [nome]
+      );
+    }
+
+    if (existing.rows.length > 0) {
+      // Cliente existe - atualizar se necessário
+      const existingCustomer = existing.rows[0];
+      console.log('[Backend] Cliente encontrado:', existingCustomer);
+      
+      // Verificar se precisa atualizar
+      if (existingCustomer.nome !== nome || existingCustomer.endereco !== endereco) {
+        const updateResult = await db.query(`
+          UPDATE clientes 
+          SET nome = $1, endereco = $2, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $3
+          RETURNING *
+        `, [nome, endereco, existingCustomer.id]);
+        
+        console.log('[Backend] Cliente atualizado:', updateResult.rows[0]);
+        return res.json({ 
+          customer: updateResult.rows[0],
+          action: 'updated' 
+        });
+      } else {
+        console.log('[Backend] Cliente já existe e não precisa atualização');
+        return res.json({ 
+          customer: existingCustomer,
+          action: 'existing' 
+        });
+      }
+    } else {
+      // Cliente não existe - criar novo
+      const result = await db.query(`
+        INSERT INTO clientes (nome, telefone, endereco)
+        VALUES ($1, $2, $3)
+        RETURNING *
+      `, [nome, telefone || null, endereco || null]);
+
+      console.log('[Backend] Cliente criado com sucesso:', result.rows[0]);
+      return res.status(201).json({ 
+        customer: result.rows[0],
+        action: 'created' 
+      });
+    }
+  } catch (error) {
+    console.error('[Backend] Erro em /manage:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
 // DELETE /api/customers/:id - Deletar cliente
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {

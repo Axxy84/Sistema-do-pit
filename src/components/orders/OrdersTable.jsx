@@ -105,9 +105,8 @@ const OrdersTable = ({
         </TableHeader>
         <TableBody>
             {orders.map((order) => (
-              <motion.tr 
+              <tr 
                 key={order.id}
-                layout
                 className="hover:bg-muted/30 transition-colors"
               >
                 <TableCell className="font-mono text-xs text-foreground/80">#{String(order.id).slice(-5).toUpperCase()}</TableCell>
@@ -171,7 +170,7 @@ const OrdersTable = ({
                     </div>
                   )}
                 </TableCell>
-              </motion.tr>
+              </tr>
             ))}
         </TableBody>
         {orders.length === 0 && <TableCaption>Nenhum pedido encontrado.</TableCaption>}

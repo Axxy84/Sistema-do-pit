@@ -39,6 +39,7 @@ const ProductsTable = ({ products, onEdit, onDelete, onToggleActive, isLoading, 
       bebida: { name: 'Bebida', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
       sobremesa: { name: 'Sobremesa', color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' },
       acompanhamento: { name: 'Acompanhamento', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+      borda: { name: 'Borda Recheada', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
       outro: { name: 'Outro', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' }
     };
     return types[type] || { name: type, color: 'bg-gray-100 text-gray-800' };

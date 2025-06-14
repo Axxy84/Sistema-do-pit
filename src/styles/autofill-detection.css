@@ -1,0 +1,33 @@
+/* CSS para detectar autofill através de animação */
+@keyframes onAutoFillStart {
+  from { /* vazio */ }
+  to { /* vazio */ }
+}
+
+@keyframes onAutoFillCancel {
+  from { /* vazio */ }
+  to { /* vazio */ }
+}
+
+/* Aplicar animação quando o browser faz autofill */
+input:-webkit-autofill {
+  animation-name: onAutoFillStart;
+  animation-duration: 0.001s;
+}
+
+input:not(:-webkit-autofill) {
+  animation-name: onAutoFillCancel;
+  animation-duration: 0.001s;
+}
+
+/* Estilo visual para indicar autofill */
+input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  -webkit-text-fill-color: #000 !important;
+}
+
+/* Dark mode */
+.dark input:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 30px #1a1a1a inset !important;
+  -webkit-text-fill-color: #fff !important;
+}

@@ -65,9 +65,66 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
 
   const { toast } = useToast();
   const customerNameInputRef = useRef(null);
+  const customerPhoneInputRef = useRef(null);
+  const customerAddressInputRef = useRef(null);
 
   const PONTOS_POR_REAL = 0.1; 
   const VALOR_REAL_POR_PONTO = 0.5;
+
+  // Hook para detectar e sincronizar autofill
+  useEffect(() => {
+    const checkAutofill = () => {
+      // Verificar se os campos têm valores do autofill mas o state está vazio
+      const nameInput = customerNameInputRef.current;
+      const phoneInput = customerPhoneInputRef.current;
+      const addressInput = customerAddressInputRef.current;
+
+      if (nameInput && nameInput.value && !customerName) {
+        console.log('[Autofill Detected] Name:', nameInput.value);
+        setCustomerName(nameInput.value);
+      }
+
+      if (phoneInput && phoneInput.value && !customerPhone) {
+        console.log('[Autofill Detected] Phone:', phoneInput.value);
+        setCustomerPhone(phoneInput.value);
+      }
+
+      if (addressInput && addressInput.value && !customerAddress) {
+        console.log('[Autofill Detected] Address:', addressInput.value);
+        setCustomerAddress(addressInput.value);
+      }
+    };
+
+    // Verificar autofill após pequeno delay (dá tempo para o browser preencher)
+    const timeoutId = setTimeout(checkAutofill, 100);
+    
+    // Também verificar periodicamente para capturar autofill tardio
+    const intervalId = setInterval(checkAutofill, 500);
+
+    // Adicionar listeners para mudanças de autofill
+    const handleAutofillStart = (e) => {
+      console.log('[Autofill Animation] Started on:', e.target.name);
+      setTimeout(checkAutofill, 50);
+    };
+
+    const inputs = [customerNameInputRef.current, customerPhoneInputRef.current, customerAddressInputRef.current].filter(Boolean);
+    
+    inputs.forEach(input => {
+      if (input) {
+        input.addEventListener('animationstart', handleAutofillStart);
+      }
+    });
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+      inputs.forEach(input => {
+        if (input) {
+          input.removeEventListener('animationstart', handleAutofillStart);
+        }
+      });
+    };
+  }, [customerName, customerPhone, customerAddress]);
 
   const calculateTotals = useCallback(() => {
     // Subtotal: soma dos preços de todos os itens (pizzas e outros)
@@ -313,17 +370,42 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Sincronização final DOM -> State antes de validar (fallback para autofill)
+    const syncedCustomerName = customerNameInputRef.current?.value || customerName;
+    const syncedCustomerPhone = customerPhoneInputRef.current?.value || customerPhone;
+    const syncedCustomerAddress = customerAddressInputRef.current?.value || customerAddress;
+
+    console.log('[Submit Debug] State vs DOM:', {
+      stateName: customerName,
+      domName: customerNameInputRef.current?.value,
+      syncedName: syncedCustomerName,
+      statePhone: customerPhone,
+      domPhone: customerPhoneInputRef.current?.value,
+      syncedPhone: syncedCustomerPhone
+    });
+
+    // Atualizar state com valores sincronizados se necessário
+    if (syncedCustomerName !== customerName) {
+      setCustomerName(syncedCustomerName);
+    }
+    if (syncedCustomerPhone !== customerPhone) {
+      setCustomerPhone(syncedCustomerPhone);
+    }
+    if (syncedCustomerAddress !== customerAddress) {
+      setCustomerAddress(syncedCustomerAddress);
+    }
+
     // Validação apenas do nome como obrigatório
-    if (!customerName) {
+    if (!syncedCustomerName) {
       toast({ title: 'Erro de Validação', description: 'Nome do cliente é obrigatório.', variant: 'destructive' });
       return;
     }
     
     // Validar telefone apenas se fornecido
-    const cleanedSubmitPhone = customerPhone ? customerPhone.replace(/\D/g, '') : '';
+    const cleanedSubmitPhone = syncedCustomerPhone ? syncedCustomerPhone.replace(/\D/g, '') : '';
     
     // Validações baseadas no tipo de pedido
-    if (tipoPedido === 'delivery' && !customerAddress) {
+    if (tipoPedido === 'delivery' && !syncedCustomerAddress) {
       toast({ title: 'Erro de Validação', description: 'Endereço é obrigatório para pedidos de delivery.', variant: 'destructive' });
       return;
     }
@@ -373,9 +455,9 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
       const actualPointsRedeemed = pointsDiscountValue > 0 ? parseInt(pointsToRedeem, 10) : 0;
 
       await onSubmit({ 
-        customerName,
+        customerName: syncedCustomerName,
         customerPhone: cleanedSubmitPhone,
-        customerAddress: tipoPedido === 'delivery' ? customerAddress : null,
+        customerAddress: tipoPedido === 'delivery' ? syncedCustomerAddress : null,
         customerId, // This will be null if a new customer, or the ID if existing
         tipo_pedido: tipoPedido,
         numero_mesa: tipoPedido === 'mesa' ? parseInt(numeroMesa, 10) : null,
@@ -444,6 +526,8 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
             onPhoneBlur={fetchCustomerByPhone}
             isLoading={isCustomerLoading} 
             nameInputRef={customerNameInputRef}
+            phoneInputRef={customerPhoneInputRef}
+            addressInputRef={customerAddressInputRef}
             showAddress={tipoPedido === 'delivery'}
           />
           

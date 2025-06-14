@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Importar estilos para detecção de autofill */
+@import './styles/autofill-detection.css';
+
 @layer base {
   :root {
     --background: 0 0% 100%;
