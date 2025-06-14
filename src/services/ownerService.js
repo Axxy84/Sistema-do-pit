@@ -25,35 +25,37 @@ export const ownerService = {
     }
   },
 
+  async getProfit(startDate, endDate) {
+    try {
+      const response = await apiClient.get('/owner/profit', {
+        params: { start_date: startDate, end_date: endDate }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar dados de lucro:', error);
+      throw new Error('Erro ao carregar dados de lucro');
+    }
+  },
+
+  async getRevenue(startDate, endDate) {
+    try {
+      const response = await apiClient.get('/owner/revenue', {
+        params: { start_date: startDate, end_date: endDate }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar dados de receita:', error);
+      throw new Error('Erro ao carregar dados de receita');
+    }
+  },
+
   // Buscar dados específicos do dashboard do owner
   async getOwnerDashboard(date = null) {
     try {
-      // TEMPORÁRIO: Simular dados do dashboard owner
-      await new Promise(resolve => setTimeout(resolve, 400));
-      
-      return {
-        revenue: {
-          total: 15234.56,
-          today: 1234.56,
-          week: 8500.00,
-          month: 15234.56
-        },
-        expenses: {
-          total: 3200.00,
-          today: 150.00,
-          week: 1000.00,
-          month: 3200.00
-        },
-        profit: {
-          total: 12034.56,
-          margin: 79
-        },
-        metrics: {
-          averageTicket: 45.50,
-          ordersCount: 335,
-          customersCount: 205
-        }
-      };
+      const response = await apiClient.get('/owner/dashboard', {
+        params: { date }
+      });
+      return response.data;
     } catch (error) {
       console.error('Erro ao buscar dashboard do owner:', error);
       throw new Error('Erro ao carregar dashboard do owner');

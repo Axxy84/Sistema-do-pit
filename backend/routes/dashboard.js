@@ -23,6 +23,9 @@ router.get('/', async (req, res) => {
     // Cache miss - busca dados do banco
     const dashboardData = await fetchDashboardData(today, todayKey);
     
+    // Log para debug
+    console.log('🔍 Dados do dashboard obtidos:', JSON.stringify(dashboardData, null, 2));
+    
     // Armazena no cache por 2 minutos (dados do dashboard mudam frequentemente)
     cache.set(dashboardCacheKey, dashboardData, 120);
     
@@ -423,4 +426,6 @@ router.get('/mesas-tempo-real', authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router; 
+// Exportar o router e a função fetchDashboardData para testes
+module.exports = router;
+module.exports.fetchDashboardData = fetchDashboardData; 
