@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { LogIn, UserPlus, AlertTriangle, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -201,11 +201,8 @@ const AuthPage = () => {
   }
 
   return (
-    <motion.div 
+    <div 
       className="flex items-center justify-center min-h-[calc(100vh-10rem)] p-4"
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4 }}
     >
       <Card className="w-full max-w-md shadow-2xl bg-card/90 backdrop-blur-sm">
         <CardHeader className="text-center">
@@ -223,14 +220,12 @@ const AuthPage = () => {
         <form onSubmit={isLoginView ? handleLogin : handleSignUp}>
           <CardContent className="space-y-5 p-6">
             {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
+              <div
                 className="bg-destructive/10 border border-destructive/30 text-destructive p-3 rounded-md flex items-start space-x-2"
               >
                 <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
                 <p className="text-sm break-words">{error}</p>
-              </motion.div>
+              </div>
             )}
 
             {!isLoginView && (
@@ -320,7 +315,7 @@ const AuthPage = () => {
           </CardFooter>
         </form>
       </Card>
-    </motion.div>
+    </div>
   );
 };
 

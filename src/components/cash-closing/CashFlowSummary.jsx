@@ -1,20 +1,18 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+// Removed framer-motion dependency
 import { TrendingUp, TrendingDown, DollarSign } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 const InfoCard = ({ title, value, icon: Icon, color = "text-gray-500", isLarge = false }) => (
-  <motion.div 
-      className={`p-4 rounded-lg shadow-md bg-background/50 border ${isLarge ? 'lg:col-span-1' : ''}`}
-      whileHover={{ scale: 1.03 }}
-      transition={{ type: 'spring', stiffness: 300 }}
+  <div 
+      className={`p-4 rounded-lg shadow-md bg-background/50 border transition-transform hover:scale-105 ${isLarge ? 'lg:col-span-1' : ''}`}
   >
     <div className="flex items-center justify-between">
       <p className={`text-sm font-medium text-muted-foreground ${isLarge ? 'text-base' : ''}`}>{title}</p>
       {Icon && <Icon className={`h-5 w-5 ${color} ${isLarge ? 'h-6 w-6' : ''}`} />}
     </div>
     <p className={`text-2xl font-bold ${color} ${isLarge ? 'text-3xl mt-1' : 'mt-1'}`}>{value}</p>
-  </motion.div>
+  </div>
 );
 
 const CashFlowSummary = ({ summary }) => {

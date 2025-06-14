@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { LogIn, AlertTriangle, Loader2, Shield, Eye, EyeOff } from 'lucide-react';
-import { motion } from 'framer-motion';
+
 import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useToast } from '@/components/ui/use-toast';
 import { ownerService } from '@/services/ownerService';
@@ -91,11 +91,8 @@ const TonyLoginPage = ({ onOwnerVerified }) => {
   };
 
   return (
-    <motion.div 
+    <div 
       className="flex items-center justify-center min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-primary/30 p-4"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.7 }}
     >
       <Card className="w-full max-w-md shadow-2xl bg-card/90 backdrop-blur-md border-primary/30">
         <CardHeader className="text-center">
@@ -110,14 +107,12 @@ const TonyLoginPage = ({ onOwnerVerified }) => {
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-6 p-6">
             {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
+              <div
                 className="bg-destructive/10 border border-destructive/30 text-destructive p-3 rounded-md flex items-start space-x-2"
               >
                 <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" />
                 <p className="text-sm break-words">{error}</p>
-              </motion.div>
+              </div>
             )}
             <div className="space-y-2">
               <Label htmlFor="email-tony" className="text-foreground/90">Email do Proprietário</Label>
@@ -183,7 +178,7 @@ const TonyLoginPage = ({ onOwnerVerified }) => {
           </CardFooter>
         </form>
       </Card>
-    </motion.div>
+    </div>
   );
 };
 

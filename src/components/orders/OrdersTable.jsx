@@ -8,7 +8,7 @@ import {
   TableRow,
   TableCaption,
 } from '@/components/ui/table';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { ORDER_STATUSES_GENERAL, PAYMENT_METHODS } from '@/lib/constants'; 
 import { formatCurrency } from '@/lib/utils';
 import { Truck, Coffee, CreditCard, DollarSign, Smartphone, Layers, Edit, Printer, Trash2, ChefHat } from 'lucide-react';
@@ -104,14 +104,10 @@ const OrdersTable = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          <AnimatePresence>
             {orders.map((order) => (
               <motion.tr 
                 key={order.id}
                 layout
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
                 className="hover:bg-muted/30 transition-colors"
               >
                 <TableCell className="font-mono text-xs text-foreground/80">#{String(order.id).slice(-5).toUpperCase()}</TableCell>
@@ -177,7 +173,6 @@ const OrdersTable = ({
                 </TableCell>
               </motion.tr>
             ))}
-          </AnimatePresence>
         </TableBody>
         {orders.length === 0 && <TableCaption>Nenhum pedido encontrado.</TableCaption>}
         {orders.length > 5 && <TableCaption>Total de {orders.length} pedidos registrados.</TableCaption>}

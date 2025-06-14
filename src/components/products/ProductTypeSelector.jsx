@@ -3,7 +3,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Check } from 'lucide-react';
-import { motion } from 'framer-motion';
+
 
 const ProductTypeSelector = ({ 
   selectedType, 
@@ -43,9 +43,8 @@ const ProductTypeSelector = ({
       </Label>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {productTypes.map((type) => (
-          <motion.div
+          <div
             key={type.id}
-            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
             <Card 
@@ -78,7 +77,7 @@ const ProductTypeSelector = ({
                 )}
               </CardContent>
             </Card>
-          </motion.div>
+          </div>
         ))}
       </div>
     </div>

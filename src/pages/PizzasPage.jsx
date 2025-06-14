@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { PlusCircle, Search, AlertTriangle, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+
 import PizzaForm from '@/components/pizzas/PizzaForm';
 import PizzasTable from '@/components/pizzas/PizzasTable';
 import { pizzaService } from '@/services/pizzaService';
@@ -113,7 +113,6 @@ const PizzasPage = () => {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">Gerenciamento de Pizzas</h1>
@@ -127,7 +126,7 @@ const PizzasPage = () => {
             <PlusCircle className="mr-2 h-5 w-5" /> Adicionar Pizza
           </Button>
         </div>
-      </motion.div>
+      </div>
 
       <PizzaForm
         isOpen={isFormOpen}

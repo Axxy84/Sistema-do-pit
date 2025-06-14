@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PlusCircle, Loader2, Printer } from 'lucide-react';
-import { motion } from 'framer-motion';
+
 import OrderForm from '@/components/orders/OrderForm';
 import OrdersList from '@/components/orders/layout/OrdersList';
 import OrdersHeader from '@/components/orders/layout/OrdersHeader';
@@ -610,7 +610,6 @@ const OrdersPage = () => {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <OrdersHeader />
           <Button 
@@ -622,7 +621,6 @@ const OrdersPage = () => {
             Novo Pedido
           </Button>
         </div>
-      </motion.div>
 
       <OrderForm
         isOpen={isFormOpen}

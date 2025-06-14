@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+
 import { Loader2, AlertTriangle, RefreshCw, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -8,6 +8,10 @@ import RecentSales from '@/components/dashboard/RecentSales';
 import TopPizzas from '@/components/dashboard/TopPizzas';
 import TopPizzasChart from '@/components/dashboard/TopPizzasChart';
 import SalesOverTimeChart from '@/components/dashboard/SalesOverTimeChart';
+import SalesComparisonChart from '@/components/dashboard/SalesComparisonChart';
+import SalesHistogram from '@/components/dashboard/SalesHistogram';
+import MultiTrendChart from '@/components/dashboard/MultiTrendChart';
+import CumulativeAreaChart from '@/components/dashboard/CumulativeAreaChart';
 import { useDashboardData } from '@/hooks/useDashboardData';
 
 const DashboardPage = () => {
@@ -56,10 +60,7 @@ const DashboardPage = () => {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4 max-w-md">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+          <div
           >
             <TrendingUp className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-foreground">Nenhum Dado Encontrado</h2>
@@ -71,70 +72,100 @@ const DashboardPage = () => {
               <RefreshCw className="h-5 w-5 mr-2" />
               Tentar Novamente
             </Button>
-          </motion.div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+    <div className="space-y-8 bg-gradient-to-br from-gray-50 to-red-50 dark:from-gray-950 dark:to-red-950/20 min-h-screen p-6">
+      <div
+        className="bg-gradient-to-r from-black to-red-600 text-white p-6 rounded-lg shadow-xl"
       >
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-red-400">
-              Dashboard da Pizzaria
+            <h1 className="text-4xl font-bold tracking-tight mb-2">
+              🍕 Dashboard da Pizzaria
             </h1>
-            <p className="text-muted-foreground mt-2 text-lg">
-              Bem-vindo ao seu painel de controle. Aqui você encontra um resumo das atividades.
+            <p className="text-red-100 text-lg">
+              Painel analítico completo - Visualize o desempenho da sua pizzaria em tempo real
             </p>
           </div>
-          <Button variant="outline" onClick={handleManualRefresh}>
+          <Button 
+            variant="outline" 
+            onClick={handleManualRefresh}
+            className="bg-white text-black hover:bg-red-100 border-white"
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Atualizar
           </Button>
         </div>
-      </motion.div>
+      </div>
 
+      {/* KPIs */}
       <KpiCards kpiData={kpiRawData} isLoading={loadingKpis} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-         <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
+      {/* Gráficos de Tendências Múltiplas */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div
+        >
+          <MultiTrendChart 
+            salesData={salesOverTimeData} 
+            recentOrders={recentOrders}
+            isLoading={isLoadingSalesOverTime || isLoadingRecent} 
+          />
+        </div>
+        <div
+        >
+          <CumulativeAreaChart 
+            salesData={salesOverTimeData} 
+            isLoading={isLoadingSalesOverTime} 
+          />
+        </div>
+      </div>
+
+      {/* Gráficos de Comparação e Distribuição */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div
+        >
+          <SalesComparisonChart 
+            salesData={salesOverTimeData} 
+            isLoading={isLoadingSalesOverTime} 
+          />
+        </div>
+        <div
+        >
+          <SalesHistogram 
+            recentOrders={recentOrders} 
+            isLoading={isLoadingRecent} 
+          />
+        </div>
+      </div>
+
+      {/* Gráficos Tradicionais Atualizados */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div
         >
           <TopPizzasChart pizzas={topPizzasData} isLoading={isLoadingTopPizzas} />
-        </motion.div>
-         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
+        </div>
+        <div
         >
           <SalesOverTimeChart salesData={salesOverTimeData} isLoading={isLoadingSalesOverTime} />
-        </motion.div>
+        </div>
       </div>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="lg:col-span-2"
+      {/* Seção de Vendas Recentes e Top Pizzas */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div
+          className="xl:col-span-2"
         >
           <RecentSales orders={recentOrders} isLoading={isLoadingRecent} />
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
+        </div>
+        <div
         >
           <TopPizzas pizzas={topPizzasData.slice(0,5)} isLoading={isLoadingTopPizzas} />
-        </motion.div>
+        </div>
       </div>
     </div>
   );

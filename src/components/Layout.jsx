@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useTheme } from '@/contexts/ThemeProvider.jsx'; 
 import { useAuth } from '@/contexts/AuthContext.jsx';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { useToast } from '@/components/ui/use-toast';
 import { useRouteLogger } from '@/hooks/useRouteLogger';
 import { useAuthLogger } from '@/hooks/useAuthLogger';
@@ -203,16 +203,10 @@ const Layout = ({ children }) => {
         </header>
       )}
         <main className={`flex-1 overflow-y-auto ${showLayoutShell ? 'p-6 md:p-8' : ''} bg-gradient-to-br from-background to-muted/20 dark:from-background dark:to-slate-900/30`}>
-          <AnimatePresence mode="wait">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
+            <div
             >
               {children}
-            </motion.div>
-          </AnimatePresence>
+            </div>
         </main>
       </div>
     </div>

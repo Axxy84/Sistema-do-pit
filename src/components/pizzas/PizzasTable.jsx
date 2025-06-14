@@ -10,7 +10,7 @@ import {
   TableCaption,
 } from '@/components/ui/table';
 import { Edit2, Trash2, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { PIZZA_FLAVORS, PIZZA_SIZES } from '@/lib/constants';
 import { formatCurrency } from '@/lib/utils';
 
@@ -31,14 +31,10 @@ const PizzasTable = ({ pizzas, onEdit, onDelete, isLoading }) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          <AnimatePresence>
             {pizzas.map((pizza) => (
               <motion.tr 
                 key={pizza.id}
                 layout
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
                 className="hover:bg-muted/30 transition-colors"
               >
                 <TableCell className="font-medium text-foreground">{getFlavorName(pizza.sabor)}</TableCell>
@@ -55,7 +51,6 @@ const PizzasTable = ({ pizzas, onEdit, onDelete, isLoading }) => {
                 </TableCell>
               </motion.tr>
             ))}
-          </AnimatePresence>
         </TableBody>
         {pizzas.length > 5 && <TableCaption>Total de {pizzas.length} pizzas cadastradas.</TableCaption>}
       </Table>

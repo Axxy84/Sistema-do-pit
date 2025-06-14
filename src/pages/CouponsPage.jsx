@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Ticket, AlertTriangle, Search, PlusCircle, Edit2, Trash2, Loader2, Calendar, RotateCcw, Tag, BadgePercent, DollarSign, Users, CheckCircle, XCircle, Eye, EyeOff, Info } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { couponService } from '@/services/couponService';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
@@ -281,7 +281,6 @@ const CouponsPage = () => {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center">
@@ -297,7 +296,6 @@ const CouponsPage = () => {
             <PlusCircle className="mr-2 h-5 w-5" /> Adicionar Cupom
           </Button>
         </div>
-      </motion.div>
 
       <CouponForm
         isOpen={isFormOpen}
@@ -345,14 +343,10 @@ const CouponsPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <AnimatePresence>
                 {filteredCoupons.map((coupon) => (
                   <motion.tr 
                     key={coupon.id}
                     layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
                     className="hover:bg-muted/30 transition-colors"
                   >
                     <TableCell className="font-medium text-foreground">{coupon.codigo}</TableCell>
@@ -377,7 +371,6 @@ const CouponsPage = () => {
                     </TableCell>
                   </motion.tr>
                 ))}
-              </AnimatePresence>
             </TableBody>
             {filteredCoupons.length > 5 && <TableCaption>Total de {filteredCoupons.length} cupons.</TableCaption>}
           </Table>

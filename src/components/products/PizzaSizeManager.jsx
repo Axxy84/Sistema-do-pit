@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import { PlusCircle, Trash2, Pizza, DollarSign, Ruler } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
-import { motion, AnimatePresence } from 'framer-motion';
+
 
 const PizzaSizeManager = ({ 
   tamanhosPrecos = [], 
@@ -145,14 +145,9 @@ const PizzaSizeManager = ({
           </Button>
         </div>
 
-        <AnimatePresence>
           {sizes.map((size, index) => (
-            <motion.div
+            <div
               key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2 }}
             >
               <Card className="overflow-hidden bg-gradient-to-r from-white to-gray-50 border-2 border-dashed border-gray-200 hover:border-orange-300 transition-colors">
                 <CardContent className="p-4">
@@ -254,9 +249,8 @@ const PizzaSizeManager = ({
                   )}
                 </CardContent>
               </Card>
-            </motion.div>
+            </div>
           ))}
-        </AnimatePresence>
 
         {/* Resumo dos Tamanhos */}
         {sizes.length > 1 && (

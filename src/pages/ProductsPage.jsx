@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { PlusCircle, Loader2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+
 import { productService } from '@/services/productService';
 import ProductForm from '@/components/products/ProductForm';
 import ProductListTabs from '@/components/products/layout/ProductListTabs'; 
@@ -182,7 +182,6 @@ const ProductsPage = () => {
 
   return (
     <div className="space-y-6">
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <ProductListHeader />
           <Button 
@@ -193,7 +192,6 @@ const ProductsPage = () => {
             <PlusCircle className="mr-2 h-5 w-5" /> Adicionar Produto
           </Button>
         </div>
-      </motion.div>
 
       <ProductForm
         isOpen={isFormOpen}

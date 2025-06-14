@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Users, AlertTriangle, Search, PlusCircle, Edit2, Trash2, Loader2, History, Award, ShoppingBag } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { clientService } from '@/services/clientService';
 import { orderService } from '@/services/orderService';
 import { useToast } from '@/components/ui/use-toast';
@@ -308,11 +308,8 @@ const CustomersPage = () => {
   );
 
   return (
-    <motion.div 
+    <div 
       className="space-y-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
     >
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
@@ -381,14 +378,10 @@ const CustomersPage = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              <AnimatePresence>
                 {filteredCustomers.map((customer) => (
                   <motion.tr 
                     key={customer.id}
                     layout
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
                     className="hover:bg-muted/30 transition-colors"
                   >
                     <TableCell className="font-medium text-foreground">{customer.nome}</TableCell>
@@ -410,13 +403,12 @@ const CustomersPage = () => {
                     </TableCell>
                   </motion.tr>
                 ))}
-              </AnimatePresence>
             </TableBody>
             {filteredCustomers.length > 10 && <TableCaption>Total de {filteredCustomers.length} clientes.</TableCaption>}
           </Table>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 };
 

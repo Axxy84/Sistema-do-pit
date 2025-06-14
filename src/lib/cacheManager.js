@@ -1,40 +1,43 @@
 // Utilitário para gerenciar cache e dados temporários do frontend
 
 export const cacheManager = {
-  // Limpar todos os dados mock e cache do localStorage
+  // Limpar completamente todo cache/storage
   clearAllCache() {
     try {
-      // Limpar localStorage
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (
-          key.includes('product') || 
-          key.includes('mock') || 
-          key.includes('temp') ||
-          key.includes('cache')
-        )) {
-          keysToRemove.push(key);
-        }
-      }
+      console.log('🧹 [CacheManager] Limpando TODOS os dados em cache...');
       
-      keysToRemove.forEach(key => {
+      // Limpar localStorage
+      const localKeys = Object.keys(localStorage);
+      localKeys.forEach(key => {
         localStorage.removeItem(key);
-        console.log(`🗑️ Removido do cache: ${key}`);
+        console.log(`   🗑️ localStorage.${key} removido`);
       });
       
-      // Limpar sessionStorage também
-      sessionStorage.clear();
+      // Limpar sessionStorage
+      const sessionKeys = Object.keys(sessionStorage);
+      sessionKeys.forEach(key => {
+        sessionStorage.removeItem(key);
+        console.log(`   🗑️ sessionStorage.${key} removido`);
+      });
       
-      console.log('✅ Cache limpo com sucesso!');
-      return true;
+      // Tentar limpar cache do browser (se disponível)
+      if ('caches' in window) {
+        caches.keys().then(cacheNames => {
+          cacheNames.forEach(cacheName => {
+            caches.delete(cacheName);
+            console.log(`   🗑️ Cache ${cacheName} removido`);
+          });
+        });
+      }
+      
+      console.log('✅ [CacheManager] Cache limpo completamente');
+      
     } catch (error) {
-      console.error('❌ Erro ao limpar cache:', error);
-      return false;
+      console.error('❌ [CacheManager] Erro ao limpar cache:', error);
     }
   },
 
-  // Verificar se há dados com IDs numéricos (mock) no cache
+  // Verificar se há dados com IDs numéricos (mock) no cache - VERSÃO AGRESSIVA
   checkForMockData() {
     try {
       const mockDataFound = [];
@@ -47,58 +50,124 @@ export const cacheManager = {
             const value = localStorage.getItem(key);
             const data = JSON.parse(value);
             
-            // Verificar se há produtos com ID numérico
+            // Verificar arrays com IDs numéricos
             if (data && Array.isArray(data)) {
               const hasNumericIds = data.some(item => 
                 item.id && typeof item.id === 'number'
               );
               if (hasNumericIds) {
-                mockDataFound.push(`localStorage.${key}`);
+                mockDataFound.push(`localStorage.${key} (${data.length} items)`);
               }
             }
+            
+            // Verificar objetos individuais com ID numérico
+            if (data && typeof data === 'object' && !Array.isArray(data)) {
+              if (data.id && typeof data.id === 'number') {
+                mockDataFound.push(`localStorage.${key} (objeto único)`);
+              }
+            }
+            
+            // Verificar strings que parecem IDs numéricos
+            if (typeof data === 'string' && /^\d+$/.test(data) && data.length < 5) {
+              mockDataFound.push(`localStorage.${key} (ID numérico: ${data})`);
+            }
+            
           } catch (e) {
-            // Ignorar dados que não são JSON
+            // Ignorar dados que não são JSON válido
+          }
+        }
+      }
+      
+      // Verificar sessionStorage
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key) {
+          try {
+            const value = sessionStorage.getItem(key);
+            const data = JSON.parse(value);
+            
+            if (data && Array.isArray(data)) {
+              const hasNumericIds = data.some(item => 
+                item.id && typeof item.id === 'number'
+              );
+              if (hasNumericIds) {
+                mockDataFound.push(`sessionStorage.${key} (${data.length} items)`);
+              }
+            }
+            
+            if (data && typeof data === 'object' && !Array.isArray(data)) {
+              if (data.id && typeof data.id === 'number') {
+                mockDataFound.push(`sessionStorage.${key} (objeto único)`);
+              }
+            }
+            
+            if (typeof data === 'string' && /^\d+$/.test(data) && data.length < 5) {
+              mockDataFound.push(`sessionStorage.${key} (ID numérico: ${data})`);
+            }
+            
+          } catch (e) {
+            // Ignorar dados que não são JSON válido
           }
         }
       }
       
       if (mockDataFound.length > 0) {
-        console.warn('⚠️ Dados mock encontrados:', mockDataFound);
+        console.warn('🚨 [CacheManager] DADOS MOCK DETECTADOS:', mockDataFound);
         return mockDataFound;
       }
       
-      console.log('✅ Nenhum dado mock encontrado no cache');
+      console.log('✅ [CacheManager] Nenhum dado mock encontrado no cache');
       return [];
     } catch (error) {
-      console.error('❌ Erro ao verificar dados mock:', error);
+      console.error('❌ [CacheManager] Erro ao verificar dados mock:', error);
       return [];
     }
   },
 
-  // Forçar reload da página para garantir dados limpos
-  forceReload() {
-    console.log('🔄 Forçando reload para garantir dados limpos...');
-    window.location.reload(true);
+  // Forçar limpeza automática e recarregar página
+  forceCleanAndReload() {
+    console.log('🚨 [CacheManager] FORÇANDO LIMPEZA E RECARREGAMENTO...');
+    
+    // Limpar tudo
+    this.clearAllCache();
+    
+    // Aguardar um pouco e recarregar
+    setTimeout(() => {
+      console.log('🔄 [CacheManager] Recarregando página...');
+      window.location.reload(true);
+    }, 500);
   },
 
-  // Verificar e limpar automaticamente
-  autoCleanup() {
-    console.log('🧹 Iniciando limpeza automática...');
+  // Verificação inicial automática
+  autoCheck() {
+    console.log('🔍 [CacheManager] Verificação automática iniciada...');
     
     const mockData = this.checkForMockData();
+    
     if (mockData.length > 0) {
-      console.log('🚨 Dados mock detectados! Limpando...');
-      this.clearAllCache();
+      console.error('🚨 DADOS MOCK DETECTADOS! Limpeza automática necessária.');
+      console.log('📋 Dados encontrados:', mockData);
       
-      // Aguardar um pouco e recarregar
-      setTimeout(() => {
-        this.forceReload();
-      }, 1000);
+      // Avisar ao usuário e limpar automaticamente
+      if (typeof window !== 'undefined') {
+        const shouldClean = confirm(
+          `⚠️ ATENÇÃO: Dados obsoletos detectados no cache!\n\n` +
+          `Foram encontrados ${mockData.length} item(s) com dados antigos que podem causar erros.\n\n` +
+          `Deseja limpar automaticamente? (Recomendado)`
+        );
+        
+        if (shouldClean) {
+          this.forceCleanAndReload();
+        } else {
+          console.warn('⚠️ Usuário optou por não limpar. Erros podem ocorrer.');
+        }
+      }
       
-      return true; // Indica que limpeza foi necessária
+      return false; // Indica que há problemas
     }
     
-    return false; // Nenhuma limpeza necessária
+    console.log('✅ [CacheManager] Verificação passou - cache limpo');
+    return true; // Cache está limpo
   }
 };
 
@@ -107,9 +176,9 @@ if (typeof window !== 'undefined') {
   // Aguardar o DOM carregar
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      cacheManager.autoCleanup();
+      cacheManager.autoCheck();
     });
   } else {
-    cacheManager.autoCleanup();
+    cacheManager.autoCheck();
   }
 } 

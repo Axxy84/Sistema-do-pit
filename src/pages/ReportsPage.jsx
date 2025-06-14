@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { BarChart2, AlertTriangle, Loader2, Filter, CalendarDays, RefreshCw, Printer, Car, Store, TrendingUp, BarChart3 } from 'lucide-react';
-import { motion } from 'framer-motion';
+
 import { useToast } from '@/components/ui/use-toast';
 import reportService from '@/services/reportService';
 import { formatCurrency } from '@/lib/utils';
@@ -326,11 +326,8 @@ ${paymentMethodsSummaryText || '  Nenhuma venda registrada por forma de pag.'}
   const totalPeriodOrders = cashClosings.reduce((sum, closing) => sum + (closing.total_pedidos_dia || closing.total_pedidos || 0), 0);
 
   return (
-    <motion.div 
+    <div 
       className="space-y-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
     >
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -477,7 +474,7 @@ ${paymentMethodsSummaryText || '  Nenhuma venda registrada por forma de pag.'}
           <ComparativeReport startDate={startDate} endDate={endDate} />
         </TabsContent>
       </Tabs>
-    </motion.div>
+    </div>
   );
 };
 

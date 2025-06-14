@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { DollarSign, Printer, Calendar, Filter, FileText, Loader2, History, Car, Store, TrendingUp, BarChart3, Zap, Clock, CheckCircle, Split, ShoppingCart, UtensilsCrossed, Users, Truck } from 'lucide-react';
 import CashFlowSummary from '@/components/cash-closing/CashFlowSummary';
 import TransactionsManager from '@/components/cash-closing/TransactionsManager';
@@ -1223,11 +1223,8 @@ SALDO FINAL EM CAIXA: ${formatCurrency(dataToPrint.netRevenue || 0)}
   };
 
   return (
-    <motion.div 
+    <div 
       className="space-y-8"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
     >
       <CashClosingHeader />
 
@@ -1498,7 +1495,7 @@ SALDO FINAL EM CAIXA: ${formatCurrency(dataToPrint.netRevenue || 0)}
           </CardContent>
         )}
       </Card>
-    </motion.div>
+    </div>
   );
 };
 

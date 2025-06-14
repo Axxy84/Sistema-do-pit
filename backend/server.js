@@ -102,6 +102,7 @@ const deliveryEndpointsRoutes = require('./routes/delivery-endpoints');
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/products', productsRoutes);
+app.use('/api/bordas', require('./routes/bordas')); // Nova rota de bordas
 app.use('/api/deliverers', deliverersRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/coupons', couponsRoutes);

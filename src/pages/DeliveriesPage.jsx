@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Truck, Users, Clock, CheckCircle, MapPin, Phone } from 'lucide-react';
-import { motion } from 'framer-motion';
+
 import DeliverersManager from '@/components/deliverers/DeliverersManager';
 import DeliveriesList from '@/components/deliveries/DeliveriesList';
 import { useToast } from '@/components/ui/use-toast';
@@ -63,11 +63,8 @@ const DeliveriesPage = () => {
   }, [activeTab, fetchDeliveries]);
 
   return (
-    <motion.div 
+    <div 
       className="space-y-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
     >
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
@@ -101,7 +98,7 @@ const DeliveriesPage = () => {
           <DeliverersManager />
         </TabsContent>
       </Tabs>
-    </motion.div>
+    </div>
   );
 };
 

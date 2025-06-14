@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
-import { motion } from 'framer-motion';
+// Removed framer-motion dependency
 
 const PizzaPreview = ({ 
   nome = 'Nova Pizza', 
@@ -62,24 +62,19 @@ const PizzaPreview = ({
         {/* Preview Visual dos Tamanhos */}
         <div className="flex justify-center items-end gap-6 py-4">
           {validSizes.map((size, index) => (
-            <motion.div
+            <div
               key={index}
               className="flex flex-col items-center gap-2"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
             >
               {/* Pizza Visual */}
               <div className="relative">
-                <motion.div
+                <div
                   className="rounded-full border-4 border-yellow-600 shadow-lg relative overflow-hidden"
                   style={{
                     width: getSizePixels(size.id_tamanho),
                     height: getSizePixels(size.id_tamanho),
                     backgroundColor: getPizzaColor()
                   }}
-                  whileHover={{ scale: 1.1 }}
-                  transition={{ type: "spring", stiffness: 300 }}
                 >
                   {/* Cobertura da Pizza */}
                   <div className="absolute inset-0 bg-gradient-to-br from-transparent via-black/10 to-black/20 rounded-full"></div>
@@ -91,7 +86,7 @@ const PizzaPreview = ({
                   <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-red-600 rounded-full opacity-80"></div>
                   <div className="absolute top-1/2 right-1/4 w-1.5 h-1.5 bg-green-600 rounded-full opacity-80"></div>
                   <div className="absolute bottom-1/3 left-1/2 w-1 h-1 bg-white rounded-full opacity-90"></div>
-                </motion.div>
+                </div>
                 
                 {/* Badge de Tamanho */}
                 <Badge 
@@ -107,7 +102,7 @@ const PizzaPreview = ({
                   {formatCurrency(parseFloat(size.preco))}
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
 
