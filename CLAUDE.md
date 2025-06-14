@@ -18,6 +18,7 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 - sistema de pedidos com erro 500 - colunas faltando no banco ✅ RESOLVIDO 14/06/2025
 - autofill do browser não sincronizava com React state ✅ RESOLVIDO 14/06/2025
 - telefone agora é opcional para criar clientes ✅ IMPLEMENTADO 14/06/2025
+- erro 500 ao criar pedido mesa com múltiplos sabores ✅ RESOLVIDO 14/06/2025
 
 ## 🔥 Últimas Correções Críticas (Junho 2025)
 
@@ -117,8 +118,28 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 - ✅ Fallback no submit captura valores direto do DOM
 - ✅ Telefone agora opcional para criação de clientes
 
+### 🍕 Pedidos de Mesa com Múltiplos Sabores Corrigido
+**Data:** 14/06/2025 23:35
+**Status:** ✅ RESOLVIDO COMPLETAMENTE
+
+**Problema identificado:**
+- ❌ Erro 500 ao criar pedido de mesa com múltiplos sabores
+- ❌ Coluna `sabores_registrados` não existia na tabela `itens_pedido`
+- ❌ Validação incorreta exigia endereço para pedidos de mesa
+
+**Soluções implementadas:**
+1. **Coluna adicionada**: `sabores_registrados` (JSONB) na tabela `itens_pedido`
+2. **Validação corrigida**: Endereço só é obrigatório para delivery
+3. **Valor padrão**: Número da mesa inicia com "1"
+4. **Conversão garantida**: Número da mesa convertido para inteiro
+5. **Logs de debug**: Adicionados para rastreamento de erros
+
+**Esclarecimento importante:**
+- Pedidos de mesa com status "entregue" são considerados fechados
+- Para ver mesas em aberto no fechamento, o status deve ser diferente de "entregue" ou "cancelado"
+
 ### 🚀 Sistema 100% Operacional
-**Verificado em:** 14/06/2025 19:00
+**Verificado em:** 14/06/2025 23:35
 
 - ✅ **PostgreSQL**: Conectado localhost:5432
 - ✅ **Backend**: Rodando porta 3001
@@ -128,6 +149,7 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 - ✅ **Cache**: Sistema otimizado ativo
 - ✅ **Pedidos**: CRUD completo funcionando
 - ✅ **Autofill**: Sincronização automática
+- ✅ **Múltiplos sabores**: Funcionando para pedidos de mesa
 
 **Credenciais de acesso:**
 ```bash
