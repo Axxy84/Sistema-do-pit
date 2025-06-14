@@ -57,14 +57,24 @@ export const orderService = {
     }
   },
 
+  async updateOrder(orderId, orderData) {
+    try {
+      const data = await apiClient.patch(`/orders/${orderId}`, orderData);
+      return data.order;
+    } catch (error) {
+      console.error('Error updating order:', error.message);
+      throw error;
+    }
+  },
+
   async updateOrderStatus(orderId, newStatus) {
     try {
-      const data = await apiClient.patch(`/orders/${orderId}/status`, { 
-        status_pedido: newStatus 
+      const data = await apiClient.patch(`/orders/${orderId}/status`, {
+        status_pedido: newStatus
       });
       return data.order;
     } catch (error) {
-      console.error(`Error updating status for order ${orderId}:`, error.message);
+      console.error('Error updating order status:', error.message);
       throw error;
     }
   },

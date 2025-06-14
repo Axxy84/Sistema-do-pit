@@ -239,6 +239,7 @@ function getOrderCacheTTL(status) {
   
   switch(status.toLowerCase()) {
     case 'entregue':
+    case 'retirado':
     case 'cancelado':
       return 1800; // 30 minutos - dados não mudam mais
     case 'preparando':
@@ -677,7 +678,7 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { status_pedido } = req.body;
 
-    const validStatuses = ['pendente', 'preparando', 'pronto', 'saiu_entrega', 'entregue', 'cancelado'];
+    const validStatuses = ['pendente', 'preparando', 'pronto', 'saiu_entrega', 'entregue', 'retirado', 'cancelado'];
     
     if (!validStatuses.includes(status_pedido)) {
       return res.status(400).json({ 
