@@ -94,7 +94,7 @@ const OrdersList = ({ orders, searchTerm, setSearchTerm, onEdit, onDelete, onPri
         )}
         
         {/* Botão "Retirado" para pedidos de mesa */}
-        {order.tipo_pedido === 'mesa' && order.status !== 'entregue' && order.status !== 'retirado' && order.status !== 'cancelado' && (
+        {order.tipo_pedido === 'mesa' && order.status !== 'entregue' && order.status !== 'retirado' && order.status !== 'fechada' && order.status !== 'cancelado' && (
           <Button
             variant="outline"
             size="sm"

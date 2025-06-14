@@ -248,7 +248,7 @@ router.get('/fechamento-consolidado', authenticateToken, async (req, res) => {
         MAX(updated_at) as ultima_atividade
       FROM pedidos 
       WHERE tipo_pedido = 'mesa'
-        AND status_pedido != 'fechado'
+        AND status_pedido NOT IN ('entregue', 'fechada', 'cancelado')
         AND numero_mesa IS NOT NULL
       GROUP BY numero_mesa, status_pedido
       ORDER BY numero_mesa
@@ -374,23 +374,28 @@ router.get('/fechamento-consolidado', authenticateToken, async (req, res) => {
 // GET /api/dashboard/mesas-tempo-real - Status das mesas em tempo real
 router.get('/mesas-tempo-real', authenticateToken, async (req, res) => {
   try {
+    console.log('🔍 [Dashboard] Iniciando busca de mesas em tempo real...');
+    
+    // Log para debug
+    console.log('🔍 [Dashboard] Executando query de mesas abertas...');
+    
     const mesasResult = await db.query(`
       SELECT 
-        numero_mesa,
-        status_pedido,
+        p.numero_mesa,
+        p.status_pedido,
         COUNT(*) as total_pedidos,
-        SUM(total) as valor_total,
-        MIN(created_at) as abertura,
-        MAX(updated_at) as ultima_atividade,
-        MAX(CASE WHEN cliente_id IS NOT NULL THEN 1 ELSE 0 END) as tem_cliente,
+        SUM(p.total) as valor_total,
+        MIN(p.created_at) as abertura,
+        MAX(p.updated_at) as ultima_atividade,
+        MAX(CASE WHEN p.cliente_id IS NOT NULL THEN 1 ELSE 0 END) as tem_cliente,
         STRING_AGG(DISTINCT c.nome, ', ') as nomes_clientes
       FROM pedidos p
       LEFT JOIN clientes c ON p.cliente_id = c.id
-      WHERE tipo_pedido = 'mesa'
-        AND numero_mesa IS NOT NULL
-        AND (status_pedido != 'fechado' OR DATE(updated_at) = CURRENT_DATE)
-      GROUP BY numero_mesa, status_pedido
-      ORDER BY numero_mesa
+      WHERE p.tipo_pedido = 'mesa'
+        AND p.numero_mesa IS NOT NULL
+        AND p.status_pedido NOT IN ('entregue', 'fechada', 'cancelado')
+      GROUP BY p.numero_mesa, p.status_pedido
+      ORDER BY p.numero_mesa
     `);
 
     const mesas = mesasResult.rows.map(mesa => ({

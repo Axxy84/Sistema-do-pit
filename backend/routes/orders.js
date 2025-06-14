@@ -785,7 +785,7 @@ router.get('/mesa/:numero/resumo', authenticateToken, async (req, res) => {
       LEFT JOIN clientes c ON p.cliente_id = c.id
       WHERE p.numero_mesa = $1 
         AND p.tipo_pedido = 'mesa'
-        AND p.status_pedido != 'fechado'
+        AND p.status_pedido NOT IN ('entregue', 'fechada', 'cancelado')
       ORDER BY p.created_at DESC
       LIMIT 1
     `, [numero]);
@@ -865,7 +865,7 @@ router.post('/mesa/:numero/fechar', authenticateToken, async (req, res) => {
       SELECT id FROM pedidos 
       WHERE numero_mesa = $1 
         AND tipo_pedido = 'mesa'
-        AND status_pedido NOT IN ('entregue', 'cancelado')
+        AND status_pedido NOT IN ('entregue', 'fechada', 'cancelado')
     `, [numero]);
 
     if (mesaResult.rows.length === 0) {
@@ -921,7 +921,7 @@ router.get('/mesas/abertas', authenticateToken, async (req, res) => {
         MAX(status_pedido) as status_pedido
       FROM pedidos 
       WHERE tipo_pedido = 'mesa'
-        AND status_pedido NOT IN ('entregue', 'cancelado')
+        AND status_pedido NOT IN ('entregue', 'fechada', 'cancelado')
         AND numero_mesa IS NOT NULL
       GROUP BY numero_mesa
       ORDER BY numero_mesa
@@ -931,6 +931,75 @@ router.get('/mesas/abertas', authenticateToken, async (req, res) => {
     res.json({ mesas: mesasResult.rows });
   } catch (error) {
     console.error('Erro ao buscar mesas abertas:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// POST /api/orders/mesa/:numero/fechar-conta - Fechar conta de uma mesa
+router.post('/mesa/:numero/fechar-conta', authenticateToken, async (req, res) => {
+  try {
+    const { numero } = req.params;
+    const { forma_pagamento, observacoes = '' } = req.body;
+    
+    console.log(`💰 [Orders] Fechando conta da mesa ${numero}...`);
+    
+    // Buscar pedidos da mesa com status 'retirado'
+    const pedidosResult = await db.query(`
+      SELECT id, total, cliente_id, status_pedido
+      FROM pedidos 
+      WHERE numero_mesa = $1 
+        AND tipo_pedido = 'mesa'
+        AND status_pedido IN ('retirado', 'pronto', 'preparando', 'pendente')
+      ORDER BY created_at DESC
+    `, [numero]);
+
+    if (pedidosResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Mesa não encontrada ou já fechada' 
+      });
+    }
+
+    console.log(`📋 [Orders] Encontrados ${pedidosResult.rows.length} pedidos para fechar`);
+
+    // Atualizar todos os pedidos da mesa para 'fechada'
+    const updatePromises = pedidosResult.rows.map(pedido => 
+      db.query(`
+        UPDATE pedidos 
+        SET 
+          status_pedido = 'fechada',
+          forma_pagamento = COALESCE(forma_pagamento, $2),
+          observacoes = COALESCE(observacoes, '') || CASE WHEN $3 != '' THEN E'\\n' || $3 ELSE '' END,
+          updated_at = NOW()
+        WHERE id = $1
+        RETURNING *
+      `, [pedido.id, forma_pagamento, observacoes])
+    );
+
+    const updatedPedidos = await Promise.all(updatePromises);
+    
+    // Calcular total da mesa
+    const totalMesa = pedidosResult.rows.reduce((sum, pedido) => sum + parseFloat(pedido.total || 0), 0);
+    
+    console.log(`✅ [Orders] Mesa ${numero} fechada. Total: R$ ${totalMesa.toFixed(2)}`);
+
+    // Limpar cache relacionado
+    cache.clearKeysByPattern(CacheKeys.DASHBOARD);
+    cache.clearKey(CacheKeys.ACTIVE_ORDERS);
+    
+    res.json({ 
+      success: true,
+      mesa: numero,
+      total: totalMesa,
+      pedidos_fechados: updatedPedidos.length,
+      forma_pagamento,
+      message: `Mesa ${numero} fechada com sucesso!`
+    });
+
+  } catch (error) {
+    console.error('❌ [Orders] Erro ao fechar conta da mesa:', error);
     res.status(500).json({ 
       error: 'Erro interno do servidor',
       message: error.message 

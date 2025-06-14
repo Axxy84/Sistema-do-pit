@@ -382,6 +382,33 @@ const SeparateClosingComponent = ({ selectedDate }) => {
       fetchSummaryData(selectedDate);
     }
   }, [selectedDate, activeTab]);
+  
+  // Escutar eventos de mudança de status de pedidos
+  useEffect(() => {
+    const handleOrderStatusChanged = (event) => {
+      console.log('💰 [CashClosing] Evento de mudança de status recebido:', event.detail);
+      // Recarregar dados quando status mudar (especialmente importante para mesas)
+      if (selectedDate && activeTab !== 'history') {
+        fetchSummaryData(selectedDate);
+      }
+    };
+    
+    const handleOrderSaved = () => {
+      console.log('💰 [CashClosing] Evento de pedido salvo recebido');
+      // Recarregar dados quando pedido for salvo
+      if (selectedDate && activeTab !== 'history') {
+        fetchSummaryData(selectedDate);
+      }
+    };
+    
+    window.addEventListener('orderStatusChanged', handleOrderStatusChanged);
+    window.addEventListener('orderSaved', handleOrderSaved);
+    
+    return () => {
+      window.removeEventListener('orderStatusChanged', handleOrderStatusChanged);
+      window.removeEventListener('orderSaved', handleOrderSaved);
+    };
+  }, [selectedDate, activeTab]);
 
   const fetchSummaryData = async (date) => {
     try {

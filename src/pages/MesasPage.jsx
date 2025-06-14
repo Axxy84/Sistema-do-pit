@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/components/ui/use-toast';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { 
   UtensilsCrossed, 
   Receipt, 
@@ -32,12 +34,36 @@ const MesasPage = () => {
   const [pixConfig, setPixConfig] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMesas, setIsLoadingMesas] = useState(true);
+  const [showFecharContaModal, setShowFecharContaModal] = useState(false);
+  const [mesaParaFechar, setMesaParaFechar] = useState(null);
+  const [formaPagamentoSelecionada, setFormaPagamentoSelecionada] = useState('dinheiro');
   const { toast } = useToast();
 
   // Carregar mesas abertas e configurações PIX
   useEffect(() => {
     loadMesasAbertas();
     loadPixConfig();
+    
+    // Escutar eventos de mudança de status de pedidos
+    const handleOrderStatusChanged = (event) => {
+      console.log('📡 Evento de mudança de status recebido:', event.detail);
+      // Recarregar mesas quando status mudar
+      loadMesasAbertas();
+    };
+    
+    const handleOrderSaved = () => {
+      console.log('📡 Evento de pedido salvo recebido');
+      // Recarregar mesas quando pedido for salvo
+      loadMesasAbertas();
+    };
+    
+    window.addEventListener('orderStatusChanged', handleOrderStatusChanged);
+    window.addEventListener('orderSaved', handleOrderSaved);
+    
+    return () => {
+      window.removeEventListener('orderStatusChanged', handleOrderStatusChanged);
+      window.removeEventListener('orderSaved', handleOrderSaved);
+    };
   }, []);
 
   const loadMesasAbertas = async () => {
@@ -211,6 +237,58 @@ const MesasPage = () => {
     }
   };
 
+  const abrirModalFecharConta = (mesa) => {
+    setMesaParaFechar(mesa);
+    setFormaPagamentoSelecionada('dinheiro');
+    setShowFecharContaModal(true);
+  };
+
+  const fecharConta = async () => {
+    if (!mesaParaFechar) return;
+
+    try {
+      setIsLoading(true);
+      
+      // Imprimir cupom antes de fechar
+      await imprimirCupomMesa({ ...mesaParaFechar, observacoes });
+      
+      // Fechar conta
+      await mesaService.fecharConta(
+        mesaParaFechar.numero_mesa, 
+        formaPagamentoSelecionada,
+        observacoes
+      );
+      
+      toast({
+        title: 'Conta Fechada!',
+        description: `Mesa ${mesaParaFechar.numero_mesa} foi fechada com sucesso`,
+        duration: 5000
+      });
+
+      // Limpar e recarregar
+      setShowFecharContaModal(false);
+      setMesaParaFechar(null);
+      setMesaSelecionada(null);
+      setNumeroMesaBusca('');
+      setObservacoes('');
+      await loadMesasAbertas();
+      
+      // Disparar evento para atualizar outras telas
+      window.dispatchEvent(new CustomEvent('orderStatusChanged', { 
+        detail: { numeroMesa: mesaParaFechar.numero_mesa, newStatus: 'fechada' } 
+      }));
+      
+    } catch (error) {
+      toast({
+        title: 'Erro ao Fechar Conta',
+        description: error.response?.data?.error || 'Erro ao fechar conta da mesa',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fecharMesa = async (numeroMesa) => {
     if (!numeroMesa) return;
 
@@ -364,12 +442,12 @@ const MesasPage = () => {
                 </div>
 
                 <Button 
-                  onClick={() => fecharMesa(mesaSelecionada.numero_mesa)}
+                  onClick={() => abrirModalFecharConta(mesaSelecionada)}
                   className="w-full"
                   disabled={isLoading}
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  {isLoading ? 'Fechando...' : 'Fechar Mesa'}
+                  {isLoading ? 'Fechando...' : 'Fechar Conta'}
                 </Button>
               </div>
             )}
@@ -465,6 +543,65 @@ const MesasPage = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal para Fechar Conta */}
+      <Dialog open={showFecharContaModal} onOpenChange={setShowFecharContaModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Fechar Conta - Mesa {mesaParaFechar?.numero_mesa}</DialogTitle>
+            <DialogDescription>
+              Selecione a forma de pagamento para fechar a conta desta mesa.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Total da Mesa</Label>
+              <div className="text-2xl font-bold text-green-600">
+                {formatCurrency(mesaParaFechar?.valor_total || 0)}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Forma de Pagamento</Label>
+              <RadioGroup 
+                value={formaPagamentoSelecionada} 
+                onValueChange={setFormaPagamentoSelecionada}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="dinheiro" id="dinheiro" />
+                  <Label htmlFor="dinheiro">Dinheiro</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="cartao" id="cartao" />
+                  <Label htmlFor="cartao">Cartão</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="pix" id="pix" />
+                  <Label htmlFor="pix">PIX</Label>
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowFecharContaModal(false)}
+              disabled={isLoading}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={fecharConta}
+              disabled={isLoading}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              {isLoading ? 'Fechando...' : 'Confirmar e Fechar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
