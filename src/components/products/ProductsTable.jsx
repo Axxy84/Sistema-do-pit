@@ -18,19 +18,26 @@ import { formatCurrency } from '@/lib/utils';
 const ProductsTable = ({ products, onEdit, onDelete, onToggleActive, isLoading, pizzaSizes }) => {
 
   const getDisplayPrice = (product) => {
+    console.log(`Produto: ${product.nome}, tipo: ${product.tipo_produto}, preço: ${product.preco_unitario}, tipo do preço: ${typeof product.preco_unitario}`);
+    
     if (product.tipo_produto === 'pizza' && product.tamanhos_precos && product.tamanhos_precos.length > 0) {
       const prices = product.tamanhos_precos.map(tp => {
-        const preco = Number.isFinite(tp.preco) ? tp.preco : 0;
+        const preco = Number.isFinite(Number(tp.preco)) ? Number(tp.preco) : 0;
         const sizeName = pizzaSizes.find(s => s.id === tp.id_tamanho)?.name || tp.tamanho || tp.id_tamanho;
         return `${sizeName.split(' ')[0]}: ${formatCurrency(preco)}`;
       });
       return prices.join(' / ');
     }
+    
     if (product.preco_unitario !== null && product.preco_unitario !== undefined) {
-      const preco = Number.isFinite(product.preco_unitario) ? product.preco_unitario : 0;
-      return formatCurrency(preco);
+      // Garantir que o preço seja convertido para número mesmo que seja string
+      const precoNumerico = Number(product.preco_unitario);
+      if (!isNaN(precoNumerico)) {
+        return formatCurrency(precoNumerico);
+      }
     }
-    return 'N/A';
+    
+    return 'R$ 0,00';
   };
 
   const getProductTypeDisplayName = (type) => {

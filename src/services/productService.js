@@ -33,6 +33,13 @@ export const productService = {
       const products = response.products;
       console.log(`📊 [ProductService] API retornou ${products.length} produtos`);
       
+      // Verificar os produtos do tipo borda
+      const bordas = products.filter(p => p.tipo_produto === 'borda');
+      console.log('🔍 [ProductService] Bordas encontradas:', bordas.length);
+      bordas.forEach(borda => {
+        console.log(`   • ${borda.nome}: R$ ${borda.preco_unitario} (${typeof borda.preco_unitario})`);
+      });
+      
       // VALIDAÇÃO RIGOROSA: Verificar se todos os produtos têm UUIDs válidos
       const validProducts = [];
       const invalidProducts = [];

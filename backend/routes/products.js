@@ -11,7 +11,33 @@ router.get('/', authenticateToken, async (req, res) => {
       SELECT * FROM produtos 
       ORDER BY created_at DESC
     `);
-    res.json({ products: result.rows });
+    
+    // Converter preços para números
+    const products = result.rows.map(product => {
+      // Converter preco_unitario para número se existir
+      if (product.preco_unitario !== null && product.preco_unitario !== undefined) {
+        product.preco_unitario = parseFloat(product.preco_unitario);
+      }
+      
+      // Converter preços em tamanhos_precos para números se existir
+      if (product.tamanhos_precos && Array.isArray(product.tamanhos_precos)) {
+        product.tamanhos_precos = product.tamanhos_precos.map(tp => ({
+          ...tp,
+          preco: tp.preco !== null && tp.preco !== undefined ? parseFloat(tp.preco) : tp.preco
+        }));
+      }
+      
+      return product;
+    });
+    
+    // Verificar os produtos do tipo borda
+    const bordas = products.filter(p => p.tipo_produto === 'borda');
+    console.log(`[API] Retornando ${bordas.length} bordas:`);
+    bordas.forEach(borda => {
+      console.log(`   • ${borda.nome}: R$ ${borda.preco_unitario} (${typeof borda.preco_unitario})`);
+    });
+    
+    res.json({ products });
   } catch (error) {
     console.error('Erro ao buscar produtos:', error);
     res.status(500).json({ 
