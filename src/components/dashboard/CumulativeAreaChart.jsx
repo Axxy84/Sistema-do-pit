@@ -17,11 +17,14 @@ const CustomTooltip = ({ active, payload, label }) => {
     return (
       <div className="bg-background/95 backdrop-blur-sm p-4 rounded-lg shadow-xl border border-red-200 dark:border-red-800">
         <p className="label font-bold text-red-600 dark:text-red-400 mb-2">{`Data: ${label}`}</p>
-        {payload.map((entry, index) => (
-          <p key={index} className="text-sm" style={{ color: entry.color }}>
-            {`${entry.name}: ${formatCurrency(entry.value)}`}
-          </p>
-        ))}
+        {payload.map((entry, index) => {
+          const safeValue = Number.isFinite(entry.value) ? entry.value : 0;
+          return (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              {`${entry.name}: ${formatCurrency(safeValue)}`}
+            </p>
+          );
+        })}
       </div>
     );
   }
@@ -39,15 +42,16 @@ const CumulativeAreaChart = ({ salesData, isLoading }) => {
     
     return data.map((item, index) => {
       const dailySales = parseFloat(item.total_vendas_dia);
-      cumulativeTotal += dailySales;
+      const safeDailySales = Number.isFinite(dailySales) ? dailySales : 0;
+      cumulativeTotal += safeDailySales;
       
       // Reset semanal (a cada 7 dias)
       if (index % 7 === 0) weeklyTotal = 0;
-      weeklyTotal += dailySales;
+      weeklyTotal += safeDailySales;
       
       // Reset mensal (a cada 30 dias)
       if (index % 30 === 0) monthlyTotal = 0;
-      monthlyTotal += dailySales;
+      monthlyTotal += safeDailySales;
       
       return {
         data: new Date(item.data_pedido).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),

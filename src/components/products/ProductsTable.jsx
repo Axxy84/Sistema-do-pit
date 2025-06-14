@@ -10,8 +10,9 @@ import {
   TableCaption,
 } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
-import { Edit2, Trash2, Loader2, Eye, EyeOff } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Badge } from '@/components/ui/badge';
+import { Edit2, Trash2, Loader2, Package, AlertTriangle } from 'lucide-react';
+
 import { formatCurrency } from '@/lib/utils';
 
 const ProductsTable = ({ products, onEdit, onDelete, onToggleActive, isLoading, pizzaSizes }) => {
@@ -19,26 +20,45 @@ const ProductsTable = ({ products, onEdit, onDelete, onToggleActive, isLoading, 
   const getDisplayPrice = (product) => {
     if (product.tipo_produto === 'pizza' && product.tamanhos_precos && product.tamanhos_precos.length > 0) {
       const prices = product.tamanhos_precos.map(tp => {
+        const preco = Number.isFinite(tp.preco) ? tp.preco : 0;
         const sizeName = pizzaSizes.find(s => s.id === tp.id_tamanho)?.name || tp.tamanho || tp.id_tamanho;
-        return `${sizeName.split(' ')[0]}: ${formatCurrency(tp.preco)}`;
+        return `${sizeName.split(' ')[0]}: ${formatCurrency(preco)}`;
       });
       return prices.join(' / ');
     }
     if (product.preco_unitario !== null && product.preco_unitario !== undefined) {
-      return formatCurrency(product.preco_unitario);
+      const preco = Number.isFinite(product.preco_unitario) ? product.preco_unitario : 0;
+      return formatCurrency(preco);
     }
     return 'N/A';
   };
 
   const getProductTypeDisplayName = (type) => {
     const types = {
-      pizza: 'Pizza',
-      bebida: 'Bebida',
-      sobremesa: 'Sobremesa',
-      acompanhamento: 'Acompanhamento',
-      outro: 'Outro'
+      pizza: { name: 'Pizza', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+      bebida: { name: 'Bebida', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+      sobremesa: { name: 'Sobremesa', color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' },
+      acompanhamento: { name: 'Acompanhamento', color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+      outro: { name: 'Outro', color: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' }
     };
-    return types[type] || type;
+    return types[type] || { name: type, color: 'bg-gray-100 text-gray-800' };
+  };
+
+  const getStockStatus = (estoque) => {
+    if (estoque === null || estoque === undefined) return { text: 'N/A', color: 'bg-gray-100 text-gray-800' };
+    if (estoque <= 0) return { text: 'Sem estoque', color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' };
+    if (estoque <= 5) return { text: `${estoque} unidades`, color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' };
+    return { text: `${estoque} unidades`, color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' };
+  };
+
+  if (!products || products.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <Package className="h-12 w-12 text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">Nenhum produto encontrado</h3>
+        <p className="text-muted-foreground">Adicione produtos para começar a gerenciar seu catálogo.</p>
+      </div>
+    );
   }
 
   return (
@@ -56,21 +76,29 @@ const ProductsTable = ({ products, onEdit, onDelete, onToggleActive, isLoading, 
           </TableRow>
         </TableHeader>
         <TableBody>
-          <AnimatePresence>
             {products.map((product) => (
-              <motion.tr 
+              <TableRow 
                 key={product.id}
-                layout
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
                 className={`hover:bg-muted/30 transition-colors ${!product.ativo ? 'opacity-60 bg-muted/20 dark:bg-muted/10' : ''}`}
               >
-                <TableCell className="font-medium text-foreground">{product.nome}</TableCell>
-                <TableCell className="text-foreground/90">{getProductTypeDisplayName(product.tipo_produto)}</TableCell>
+                <TableCell className="font-medium text-foreground">
+                  <div className="flex items-center gap-2">
+                    <Package className="h-4 w-4 text-muted-foreground" />
+                    {product.nome}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={getProductTypeDisplayName(product.tipo_produto).color}>
+                    {getProductTypeDisplayName(product.tipo_produto).name}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-foreground/80">{product.categoria || 'N/A'}</TableCell>
-                <TableCell className="text-foreground/90 text-xs">{getDisplayPrice(product)}</TableCell>
-                <TableCell className="text-foreground/90">{product.estoque_disponivel !== null ? product.estoque_disponivel : 'N/A'}</TableCell>
+                <TableCell className="text-foreground/90 text-sm font-mono">{getDisplayPrice(product)}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={getStockStatus(product.estoque_disponivel).color}>
+                    {getStockStatus(product.estoque_disponivel).text}
+                  </Badge>
+                </TableCell>
                 <TableCell className="text-center">
                   <Switch
                     checked={product.ativo}
@@ -80,17 +108,35 @@ const ProductsTable = ({ products, onEdit, onDelete, onToggleActive, isLoading, 
                     disabled={isLoading}
                   />
                 </TableCell>
-                <TableCell className="text-right space-x-1">
-                  <Button variant="ghost" size="icon" onClick={() => onEdit(product)} className="text-blue-500 hover:text-blue-700 hover:bg-blue-100/50 dark:hover:bg-blue-700/20" disabled={isLoading}>
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => onDelete(product.id)} className="text-red-500 hover:text-red-700 hover:bg-red-100/50 dark:hover:bg-red-700/20" disabled={isLoading}>
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  </Button>
+                <TableCell className="text-right">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => onEdit(product)} 
+                      className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-100/50 dark:hover:bg-blue-700/20" 
+                      disabled={isLoading}
+                      title="Editar produto"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => onDelete(product.id)} 
+                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-100/50 dark:hover:bg-red-700/20" 
+                      disabled={isLoading}
+                      title="Excluir produto"
+                    >
+                      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </Button>
+                    {!product.ativo && (
+                      <AlertTriangle className="h-4 w-4 text-amber-500 ml-1" title="Produto inativo" />
+                    )}
+                  </div>
                 </TableCell>
-              </motion.tr>
+              </TableRow>
             ))}
-          </AnimatePresence>
         </TableBody>
         {products.length > 5 && <TableCaption>Total de {products.length} produtos cadastrados.</TableCaption>}
       </Table>

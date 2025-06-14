@@ -9,11 +9,14 @@ const CustomTooltip = ({ active, payload, label }) => {
     return (
       <div className="bg-background/95 backdrop-blur-sm p-4 rounded-lg shadow-xl border border-red-200 dark:border-red-800">
         <p className="label font-bold text-red-600 dark:text-red-400 mb-2">{`Período: ${label}`}</p>
-        {payload.map((entry, index) => (
-          <p key={index} className="text-sm" style={{ color: entry.color }}>
-            {`${entry.name}: ${formatCurrency(entry.value)}`}
-          </p>
-        ))}
+        {payload.map((entry, index) => {
+          const safeValue = Number.isFinite(entry.value) ? entry.value : 0;
+          return (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              {`${entry.name}: ${formatCurrency(safeValue)}`}
+            </p>
+          );
+        })}
       </div>
     );
   }

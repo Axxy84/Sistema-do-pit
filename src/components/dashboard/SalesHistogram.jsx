@@ -5,14 +5,15 @@ import { Loader2, AlertTriangle, Clock } from 'lucide-react';
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
+    const safeValue = Number.isFinite(payload[0].value) ? payload[0].value : 0;
     return (
       <div className="bg-background/95 backdrop-blur-sm p-4 rounded-lg shadow-xl border border-red-200 dark:border-red-800">
         <p className="label font-bold text-red-600 dark:text-red-400 mb-2">{`Horário: ${label}:00h`}</p>
         <p className="text-sm text-foreground">
-          {`Pedidos: ${payload[0].value}`}
+          {`Pedidos: ${safeValue}`}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          {payload[0].value > 20 ? 'Horário de pico' : payload[0].value > 10 ? 'Movimento moderado' : 'Movimento baixo'}
+          {safeValue > 20 ? 'Horário de pico' : safeValue > 10 ? 'Movimento moderado' : 'Movimento baixo'}
         </p>
       </div>
     );

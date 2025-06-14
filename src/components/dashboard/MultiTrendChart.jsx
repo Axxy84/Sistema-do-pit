@@ -20,18 +20,26 @@ const CustomTooltip = ({ active, payload, label }) => {
     return (
       <div className="bg-background/95 backdrop-blur-sm p-4 rounded-lg shadow-xl border border-red-200 dark:border-red-800">
         <p className="label font-bold text-red-600 dark:text-red-400 mb-2">{`Data: ${label}`}</p>
-        {payload.map((entry, index) => (
-          <div key={index} className="flex items-center gap-2 text-sm mb-1">
-            <div 
-              className="w-3 h-3 rounded-full" 
-              style={{ backgroundColor: entry.color }}
-            ></div>
-            <span className="font-medium">{entry.name}:</span>
-            <span style={{ color: entry.color }}>
-              {entry.name.includes('Vendas') ? formatCurrency(entry.value) : entry.value}
-            </span>
-          </div>
-        ))}
+        {payload.map((entry, index) => {
+          // Validação robusta para evitar NaN
+          const safeValue = Number.isFinite(entry.value) ? entry.value : 0;
+          const displayValue = entry.name.includes('Vendas') || entry.name.includes('Ticket') 
+            ? formatCurrency(safeValue) 
+            : safeValue.toString();
+            
+          return (
+            <div key={index} className="flex items-center gap-2 text-sm mb-1">
+              <div 
+                className="w-3 h-3 rounded-full" 
+                style={{ backgroundColor: entry.color }}
+              ></div>
+              <span className="font-medium">{entry.name}:</span>
+              <span style={{ color: entry.color }}>
+                {displayValue}
+              </span>
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -45,12 +53,13 @@ const MultiTrendChart = ({ salesData, recentOrders, isLoading }) => {
     
     const dataMap = {};
     
-    // Processa dados de vendas
+    // Processa dados de vendas com validação
     salesData.forEach(item => {
       const date = new Date(item.data_pedido).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      const vendas = parseFloat(item.total_vendas_dia);
       dataMap[date] = {
         data: date,
-        vendas: parseFloat(item.total_vendas_dia),
+        vendas: Number.isFinite(vendas) ? vendas : 0,
         pedidos: 0,
         ticketMedio: 0
       };
@@ -72,9 +81,10 @@ const MultiTrendChart = ({ salesData, recentOrders, isLoading }) => {
         if (dataMap[date]) {
           const dayOrders = ordersByDay[date];
           dataMap[date].pedidos = dayOrders.length;
-          dataMap[date].ticketMedio = dataMap[date].pedidos > 0 
+          const ticketMedio = dataMap[date].pedidos > 0 
             ? dataMap[date].vendas / dataMap[date].pedidos 
             : 0;
+          dataMap[date].ticketMedio = Number.isFinite(ticketMedio) ? ticketMedio : 0;
         }
       });
     }
@@ -84,12 +94,13 @@ const MultiTrendChart = ({ salesData, recentOrders, isLoading }) => {
 
   const multiTrendData = processMultiTrendData(salesData, recentOrders);
   
-  // Calcula tendências
+  // Calcula tendências com validação
   const calculateTrend = (data, key) => {
     if (data.length < 2) return 0;
-    const recent = data.slice(-3).reduce((sum, item) => sum + item[key], 0) / 3;
-    const previous = data.slice(-6, -3).reduce((sum, item) => sum + item[key], 0) / 3;
-    return ((recent - previous) / previous) * 100;
+    const recent = data.slice(-3).reduce((sum, item) => sum + (Number.isFinite(item[key]) ? item[key] : 0), 0) / 3;
+    const previous = data.slice(-6, -3).reduce((sum, item) => sum + (Number.isFinite(item[key]) ? item[key] : 0), 0) / 3;
+    const trend = previous > 0 ? ((recent - previous) / previous) * 100 : 0;
+    return Number.isFinite(trend) ? trend : 0;
   };
 
   const vendasTrend = calculateTrend(multiTrendData, 'vendas');
