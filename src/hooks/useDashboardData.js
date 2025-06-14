@@ -108,9 +108,24 @@ export const useDashboardData = () => {
     const handleCashClosed = () => {
       fetchAllDashboardData(true);
     };
+    
+    // Novos eventos para atualização quando mesa é fechada
+    const handleCashUpdate = (event) => {
+      console.log('📊 [Dashboard] Evento cashUpdated recebido:', event.detail);
+      setTimeout(() => fetchAllDashboardData(true), 1000);
+    };
+
+    const handleOrderUpdate = (event) => {
+      console.log('📊 [Dashboard] Evento orderStatusChanged recebido:', event.detail);
+      if (event.detail?.newStatus === 'fechada') {
+        setTimeout(() => fetchAllDashboardData(true), 1000);
+      }
+    };
 
     window.addEventListener('orderSaved', handleOrderSaved);
     window.addEventListener('cashClosed', handleCashClosed);
+    window.addEventListener('cashUpdated', handleCashUpdate);
+    window.addEventListener('orderStatusChanged', handleOrderUpdate);
 
     // Atualização periódica a cada 2 minutos
     const interval = setInterval(() => {
@@ -120,6 +135,8 @@ export const useDashboardData = () => {
     return () => {
       window.removeEventListener('orderSaved', handleOrderSaved);
       window.removeEventListener('cashClosed', handleCashClosed);
+      window.removeEventListener('cashUpdated', handleCashUpdate);
+      window.removeEventListener('orderStatusChanged', handleOrderUpdate);
       clearInterval(interval);
     };
 

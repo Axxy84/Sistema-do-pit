@@ -260,15 +260,22 @@ const MesasPage = () => {
     try {
       setIsLoading(true);
       
-      // Imprimir cupom antes de fechar
-      await imprimirCupomMesa({ ...mesaParaFechar, observacoes });
-      
-      // Fechar conta
-      await mesaService.fecharConta(
+      // PRIMEIRO: Fechar conta no backend (registra no caixa)
+      const response = await mesaService.fecharConta(
         mesaParaFechar.numero_mesa, 
         formaPagamentoSelecionada,
         observacoes
       );
+      
+      // SEGUNDO: Após sucesso, imprimir cupom
+      if (response && response.success) {
+        await imprimirCupomMesa({ 
+          ...mesaParaFechar, 
+          observacoes,
+          forma_pagamento: formaPagamentoSelecionada,
+          data_fechamento: new Date().toISOString()
+        });
+      }
       
       toast({
         title: 'Conta Fechada!',
@@ -282,11 +289,19 @@ const MesasPage = () => {
       setMesaSelecionada(null);
       setNumeroMesaBusca('');
       setObservacoes('');
+      
+      // Aguardar um momento para garantir que o backend processou
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       await loadMesasAbertas();
       
-      // Disparar evento para atualizar outras telas
+      // Disparar eventos para atualizar dashboard e fechamento de caixa
       window.dispatchEvent(new CustomEvent('orderStatusChanged', { 
         detail: { numeroMesa: mesaParaFechar.numero_mesa, newStatus: 'fechada' } 
+      }));
+      
+      window.dispatchEvent(new CustomEvent('cashUpdated', { 
+        detail: { source: 'mesa_fechamento' } 
       }));
       
     } catch (error) {

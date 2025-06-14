@@ -592,95 +592,82 @@ export const formatTableClosingTicketForPrint = (mesa, pixConfig) => {
     };
 
     const formatDateTime = (dateString) => {
-      if (!dateString) return 'N/A';
+      if (!dateString) return new Date().toLocaleString('pt-BR');
       const date = new Date(dateString);
-      return date.toLocaleString('pt-BR');
+      return date.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     };
 
-    let ticketContent = `
-${pixConfig?.empresa_nome || 'PIT STOP PIZZARIA'}
+    // Cabeçalho simplificado
+    let ticketContent = `PIT STOP PIZZARIA
 ==============================
-FECHAMENTO DE MESA ${mesa.numero_mesa}
-==============================
-Data: ${formatDateTime(mesa.created_at)}
 Mesa: ${mesa.numero_mesa}
-${mesa.cliente ? `Cliente: ${mesa.cliente.nome}` : ''}
-${mesa.cliente?.telefone ? `Telefone: ${mesa.cliente.telefone}` : ''}
-==============================
-CONSUMO DA MESA:
-
+Data: ${formatDateTime(mesa.data_fechamento || new Date())}
 `;
 
-    // Processar itens consumidos
+    // Cliente (apenas nome)
+    if (mesa.cliente_nome || mesa.cliente?.nome) {
+      ticketContent += `Cliente: ${mesa.cliente_nome || mesa.cliente.nome}\n`;
+    }
+    ticketContent += `==============================\n`;
+
+    // Itens consumidos (formato simples)
     if (mesa.itens && mesa.itens.length > 0) {
-      let totalItens = 0;
+      ticketContent += `ITENS CONSUMIDOS:\n\n`;
       
       mesa.itens.forEach((item) => {
-        const itemTotal = parseFloat(item.quantidade) * parseFloat(item.valor_unitario);
-        totalItens += itemTotal;
+        const quantidade = parseInt(item.quantidade) || 1;
+        const nome = item.sabor_registrado || item.produto_nome || 'Item';
+        const tamanho = item.tamanho_registrado ? ` (${item.tamanho_registrado})` : '';
+        const valorUnit = parseFloat(item.valor_unitario || 0);
+        const valorTotal = valorUnit * quantidade;
         
-        ticketContent += `${item.quantidade}x ${item.sabor_registrado || item.produto_nome}\n`;
-        ticketContent += `   Unit.: ${formatCurrency(item.valor_unitario)}  Total: ${formatCurrency(itemTotal)}\n`;
+        // Formato compacto: quantidade, nome, valor unitário e total
+        ticketContent += `${quantidade}x ${nome}${tamanho}\n`;
+        ticketContent += `   Unit: ${formatCurrency(valorUnit)} | Total: ${formatCurrency(valorTotal)}\n\n`;
       });
       
-      ticketContent += `\n==============================\n`;
-      ticketContent += `SUBTOTAL: ${formatCurrency(totalItens)}\n`;
+      ticketContent += `------------------------------\n`;
       
-      if (mesa.desconto_aplicado > 0) {
-        ticketContent += `DESCONTO: -${formatCurrency(mesa.desconto_aplicado)}\n`;
-        if (mesa.cupom_codigo) {
-          ticketContent += `CUPOM: ${mesa.cupom_codigo}\n`;
-        }
+      // Descontos se houver
+      if (mesa.desconto_aplicado && mesa.desconto_aplicado > 0) {
+        ticketContent += `Subtotal: ${formatCurrency((parseFloat(mesa.total) + parseFloat(mesa.desconto_aplicado)))}\n`;
+        ticketContent += `Desconto: -${formatCurrency(mesa.desconto_aplicado)}\n`;
+        ticketContent += `------------------------------\n`;
       }
       
-      ticketContent += `\nTOTAL A PAGAR: ${formatCurrency(mesa.total)}\n`;
+      // Total destacado
+      ticketContent += `TOTAL: ${formatCurrency(mesa.total)}\n`;
       ticketContent += `==============================\n`;
-    } else {
-      ticketContent += 'Nenhum item registrado\n==============================\n';
     }
 
-    // Informações de pagamento
-    if (mesa.multiplos_pagamentos && mesa.pagamentos && mesa.pagamentos.length > 0) {
-      ticketContent += `FORMAS DE PAGAMENTO ACEITAS:\n`;
+    // Forma de pagamento escolhida (se já foi definida)
+    if (mesa.forma_pagamento) {
+      const formaPagamento = mesa.forma_pagamento === 'dinheiro' ? 'Dinheiro' :
+                            mesa.forma_pagamento === 'cartao' ? 'Cartão' :
+                            mesa.forma_pagamento === 'pix' ? 'PIX' :
+                            mesa.forma_pagamento;
       
-      mesa.pagamentos.forEach((pagamento, index) => {
-        const valor = parseFloat(pagamento.valor || 0);
-        if (valor > 0) {
-          const metodoPagamento = pagamento.forma_pagamento === 'dinheiro' ? 'DINHEIRO' :
-                                 pagamento.forma_pagamento === 'cartao' ? 'CARTÃO' :
-                                 pagamento.forma_pagamento === 'pix' ? 'PIX' :
-                                 pagamento.forma_pagamento.toUpperCase();
-          
-          ticketContent += `${index + 1}. ${metodoPagamento}: ${formatCurrency(valor)}\n`;
-        }
-      });
-    } else {
-      ticketContent += `FORMAS DE PAGAMENTO ACEITAS:\n`;
-      ticketContent += `💵 DINHEIRO\n`;
-      ticketContent += `💳 CARTÃO\n`;
-      ticketContent += `📱 PIX (QR Code abaixo)\n`;
+      ticketContent += `\nForma de Pagamento: ${formaPagamento}\n`;
+      
+      // Se for PIX, mostrar dados
+      if (mesa.forma_pagamento === 'pix' && pixConfig?.pix_chave) {
+        ticketContent += `\n------------------------------\n`;
+        ticketContent += `PAGAMENTO PIX:\n`;
+        ticketContent += `Chave: ${pixConfig.pix_chave}\n`;
+        ticketContent += `Valor: ${formatCurrency(mesa.total)}\n`;
+        ticketContent += `------------------------------\n`;
+      }
     }
 
-    // QR Code PIX
-    if (pixConfig?.pix_chave) {
-      ticketContent += `\n==============================\n`;
-      ticketContent += `💰 PAGAMENTO VIA PIX:\n`;
-      ticketContent += `Chave PIX: ${pixConfig.pix_chave}\n`;
-      ticketContent += `Valor: ${formatCurrency(mesa.total)}\n`;
-      ticketContent += `\n📱 ESCANEIE O QR CODE ABAIXO:\n`;
-      ticketContent += `[QR CODE PIX SERÁ EXIBIDO AQUI]\n`;
-      ticketContent += `\n⚠️  Após o pagamento, informe o\n`;
-      ticketContent += `    garçom para confirmar o recebimento.\n`;
-    }
-
-    // Observações
-    if (mesa.observacoes) {
-      ticketContent += `\n📝 OBSERVAÇÕES:\n${mesa.observacoes}\n`;
-    }
-
+    // Mensagem de agradecimento
     ticketContent += `\n==============================\n`;
     ticketContent += `Obrigado pela preferência!\n`;
-    ticketContent += `${pixConfig?.empresa_nome || 'PIT STOP PIZZARIA'}\n`;
     ticketContent += `==============================\n`;
 
     return ticketContent;

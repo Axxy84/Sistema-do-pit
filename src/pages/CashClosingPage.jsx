@@ -749,6 +749,41 @@ const CashClosingPage = () => {
     }
   }, [showHistory, fetchClosingsHistory]);
 
+  // Escutar eventos de atualização de caixa e pedidos
+  useEffect(() => {
+    const handleCashUpdate = (event) => {
+      console.log('💰 [CashClosing] Evento cashUpdated recebido:', event.detail);
+      // Recarregar dados atuais após pequeno delay
+      const today = new Date().toISOString().split('T')[0];
+      if (filterDate === today) {
+        setTimeout(() => {
+          fetchAndSetCurrentData();
+        }, 1000);
+      }
+    };
+
+    const handleOrderUpdate = (event) => {
+      console.log('💰 [CashClosing] Evento orderStatusChanged recebido:', event.detail);
+      if (event.detail?.newStatus === 'fechada') {
+        // Recarregar dados quando mesa é fechada
+        const today = new Date().toISOString().split('T')[0];
+        if (filterDate === today) {
+          setTimeout(() => {
+            fetchAndSetCurrentData();
+          }, 1000);
+        }
+      }
+    };
+
+    window.addEventListener('cashUpdated', handleCashUpdate);
+    window.addEventListener('orderStatusChanged', handleOrderUpdate);
+
+    return () => {
+      window.removeEventListener('cashUpdated', handleCashUpdate);
+      window.removeEventListener('orderStatusChanged', handleOrderUpdate);
+    };
+  }, [filterDate, fetchAndSetCurrentData]);
+
   const dailySummary = useMemo(() => {
     return calculateDailySummary(dailyData.orders, dailyData.transactions);
   }, [dailyData]);
