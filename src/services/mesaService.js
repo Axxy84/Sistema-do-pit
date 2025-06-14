@@ -28,13 +28,18 @@ export const mesaService = {
   // Fechar conta da mesa (novo fluxo)
   async fecharConta(numeroMesa, formaPagamento, observacoes = '') {
     try {
+      console.log('🧾 Tentando fechar conta:', { numeroMesa, formaPagamento, observacoes });
       const response = await apiClient.post(`/orders/mesa/${numeroMesa}/fechar-conta`, {
         forma_pagamento: formaPagamento,
         observacoes
       });
+      console.log('✅ Conta fechada com sucesso:', response);
       return response;
     } catch (error) {
-      console.error('Erro ao fechar conta da mesa:', error);
+      console.error('❌ Erro ao fechar conta da mesa:', error);
+      console.error('   URL tentada:', `/orders/mesa/${numeroMesa}/fechar-conta`);
+      console.error('   Tipo de erro:', error.name);
+      console.error('   Mensagem:', error.message);
       throw error;
     }
   },
@@ -46,6 +51,20 @@ export const mesaService = {
       return response;
     } catch (error) {
       console.error('Erro ao buscar mesas abertas:', error);
+      throw error;
+    }
+  },
+
+  // Adicionar item a uma mesa
+  async adicionarItemMesa(numeroMesa, produto_id, quantidade) {
+    try {
+      const response = await apiClient.post(`/orders/mesa/${numeroMesa}/adicionar-item`, {
+        produto_id,
+        quantidade
+      });
+      return response;
+    } catch (error) {
+      console.error('Erro ao adicionar item à mesa:', error);
       throw error;
     }
   }

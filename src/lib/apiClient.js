@@ -23,6 +23,8 @@ export const apiClient = {
 
     try {
       console.log(`🔗 [API] Fazendo requisição para: ${endpoint}`);
+      console.log(`📍 [API] URL completa: ${url}`);
+      console.log(`🔑 [API] Token presente: ${!!token}`);
       
       const response = await fetch(url, config);
       

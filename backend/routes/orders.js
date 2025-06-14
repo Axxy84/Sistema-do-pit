@@ -986,8 +986,8 @@ router.post('/mesa/:numero/fechar-conta', authenticateToken, async (req, res) =>
     console.log(`✅ [Orders] Mesa ${numero} fechada. Total: R$ ${totalMesa.toFixed(2)}`);
 
     // Limpar cache relacionado
-    cache.clearKeysByPattern(CacheKeys.DASHBOARD);
-    cache.clearKey(CacheKeys.ACTIVE_ORDERS);
+    cache.deletePattern(CacheKeys.DASHBOARD);
+    cache.delete(CacheKeys.ACTIVE_ORDERS);
     
     res.json({ 
       success: true,
@@ -1000,6 +1000,105 @@ router.post('/mesa/:numero/fechar-conta', authenticateToken, async (req, res) =>
 
   } catch (error) {
     console.error('❌ [Orders] Erro ao fechar conta da mesa:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// Adicionar item a uma mesa existente
+router.post('/mesa/:numero/adicionar-item', authenticateToken, async (req, res) => {
+  try {
+    const numero = parseInt(req.params.numero);
+    const { produto_id, quantidade = 1 } = req.body;
+
+    console.log(`📝 [Orders] Adicionando item à mesa ${numero}:`, { produto_id, quantidade });
+
+    if (!produto_id || !quantidade) {
+      return res.status(400).json({ 
+        error: 'Produto e quantidade são obrigatórios' 
+      });
+    }
+
+    // Buscar produto para validar e obter informações
+    const produtoResult = await db.query(`
+      SELECT id, nome, preco_unitario, tipo_produto 
+      FROM produtos 
+      WHERE id = $1 AND ativo = true
+    `, [produto_id]);
+
+    if (produtoResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Produto não encontrado ou inativo' 
+      });
+    }
+
+    const produto = produtoResult.rows[0];
+
+    // Buscar pedido ativo da mesa (status 'retirado' = mesa consumindo)
+    const pedidoResult = await db.query(`
+      SELECT id, total, cliente_id, status_pedido
+      FROM pedidos 
+      WHERE numero_mesa = $1 
+        AND tipo_pedido = 'mesa'
+        AND status_pedido IN ('retirado', 'pronto', 'preparando', 'pendente')
+      ORDER BY created_at DESC
+      LIMIT 1
+    `, [numero]);
+
+    if (pedidoResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Mesa não encontrada ou não está em consumo' 
+      });
+    }
+
+    const pedido = pedidoResult.rows[0];
+    const valor_unitario = parseFloat(produto.preco_unitario || 0);
+    const valor_total_item = valor_unitario * quantidade;
+
+    // Adicionar item ao pedido
+    await db.query(`
+      INSERT INTO itens_pedido (
+        pedido_id, produto_id_ref, sabor_registrado, 
+        quantidade, valor_unitario
+      ) VALUES ($1, $2, $3, $4, $5)
+    `, [
+      pedido.id,
+      produto.id,
+      produto.nome,
+      parseInt(quantidade),
+      valor_unitario
+    ]);
+
+    // Atualizar total do pedido
+    const novo_total = parseFloat(pedido.total) + valor_total_item;
+    await db.query(`
+      UPDATE pedidos 
+      SET total = $1, updated_at = NOW()
+      WHERE id = $2
+    `, [novo_total, pedido.id]);
+
+    console.log(`✅ [Orders] Item adicionado à mesa ${numero}. Novo total: R$ ${novo_total.toFixed(2)}`);
+
+    // Limpar cache relacionado
+    cache.deletePattern(CacheKeys.DASHBOARD);
+    cache.delete(CacheKeys.ACTIVE_ORDERS);
+    
+    res.json({ 
+      success: true,
+      item: {
+        produto_nome: produto.nome,
+        quantidade,
+        valor_unitario,
+        valor_total: valor_total_item
+      },
+      novo_total_pedido: novo_total,
+      message: `${quantidade}x ${produto.nome} adicionado à mesa ${numero}`
+    });
+
+  } catch (error) {
+    console.error('❌ [Orders] Erro ao adicionar item à mesa:', error);
     res.status(500).json({ 
       error: 'Erro interno do servidor',
       message: error.message 

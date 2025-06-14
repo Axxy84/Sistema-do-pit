@@ -20,9 +20,11 @@ import {
   Search,
   CheckCircle,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Plus
 } from 'lucide-react';
 import { mesaService, configurationService } from '@/services/mesaService';
+import { productService } from '@/services/productService';
 import { formatTableClosingTicketForPrint, generatePixQrCodeHTML } from '@/lib/printerUtils';
 import { formatCurrency } from '@/lib/utils';
 
@@ -37,6 +39,11 @@ const MesasPage = () => {
   const [showFecharContaModal, setShowFecharContaModal] = useState(false);
   const [mesaParaFechar, setMesaParaFechar] = useState(null);
   const [formaPagamentoSelecionada, setFormaPagamentoSelecionada] = useState('dinheiro');
+  const [showAdicionarItemModal, setShowAdicionarItemModal] = useState(false);
+  const [produtos, setProdutos] = useState([]);
+  const [produtoSelecionado, setProdutoSelecionado] = useState(null);
+  const [quantidadeItem, setQuantidadeItem] = useState(1);
+  const [isLoadingProdutos, setIsLoadingProdutos] = useState(false);
   const { toast } = useToast();
 
   // Carregar mesas abertas e configurações PIX
@@ -119,6 +126,8 @@ const MesasPage = () => {
       console.log('🔍 Resumo da mesa', numeroMesa, ':', data);
       
       if (data && data.mesa) {
+        console.log('📊 Mesa carregada:', data.mesa);
+        console.log('💵 Total:', data.mesa.total);
         setMesaSelecionada(data.mesa);
         toast({
           title: 'Mesa encontrada',
@@ -238,6 +247,8 @@ const MesasPage = () => {
   };
 
   const abrirModalFecharConta = (mesa) => {
+    console.log('🧾 Abrindo modal fechar conta:', mesa);
+    console.log('💰 Total da mesa:', mesa?.total || mesa?.valor_total);
     setMesaParaFechar(mesa);
     setFormaPagamentoSelecionada('dinheiro');
     setShowFecharContaModal(true);
@@ -322,6 +333,139 @@ const MesasPage = () => {
     return new Date(dateString).toLocaleString('pt-BR');
   };
 
+  const loadProdutos = async () => {
+    try {
+      setIsLoadingProdutos(true);
+      const produtosAtivos = await productService.getAllActiveProducts();
+      console.log('🔍 Produtos carregados:', produtosAtivos.length);
+      
+      // Filtrar apenas bebidas e outros itens rápidos (não pizzas)
+      const produtosFiltrados = produtosAtivos.filter(p => 
+        p.tipo_produto !== 'pizza' && p.tipo_produto !== 'borda'
+      );
+      
+      console.log('🥤 Produtos filtrados (bebidas):', produtosFiltrados.length);
+      console.log('📋 Exemplos:', produtosFiltrados.slice(0, 3).map(p => ({
+        nome: p.nome,
+        tipo: p.tipo_produto,
+        preco_unitario: p.preco_unitario,
+        preco_base: p.preco_base
+      })));
+      
+      setProdutos(produtosFiltrados);
+    } catch (error) {
+      console.error('Erro ao carregar produtos:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro ao carregar produtos disponíveis',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoadingProdutos(false);
+    }
+  };
+
+  const abrirModalAdicionarItem = async () => {
+    if (!mesaSelecionada) {
+      toast({
+        title: 'Atenção',
+        description: 'Selecione uma mesa primeiro',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Verificar se a mesa está no status correto
+    const statusPermitidos = ['retirado', 'pronto', 'preparando', 'pendente'];
+    if (!statusPermitidos.includes(mesaSelecionada.status_pedido)) {
+      toast({
+        title: 'Atenção',
+        description: 'Só é possível adicionar itens em mesas abertas',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setProdutoSelecionado(null);
+    setQuantidadeItem(1);
+    setShowAdicionarItemModal(true);
+    
+    // Carregar produtos se ainda não foram carregados
+    if (produtos.length === 0) {
+      await loadProdutos();
+    }
+  };
+
+  const adicionarItemNaMesa = async () => {
+    if (!produtoSelecionado || !mesaSelecionada) return;
+
+    try {
+      setIsLoading(true);
+      
+      const response = await mesaService.adicionarItemMesa(
+        mesaSelecionada.numero_mesa,
+        produtoSelecionado.id,
+        quantidadeItem
+      );
+
+      toast({
+        title: 'Item Adicionado!',
+        description: response.message || `Item adicionado à mesa ${mesaSelecionada.numero_mesa}`,
+        duration: 3000
+      });
+
+      // Fechar modal e recarregar dados da mesa
+      setShowAdicionarItemModal(false);
+      setProdutoSelecionado(null);
+      setQuantidadeItem(1);
+      
+      // Recarregar dados da mesa
+      await buscarMesa(mesaSelecionada.numero_mesa);
+      
+    } catch (error) {
+      toast({
+        title: 'Erro ao Adicionar Item',
+        description: error.response?.data?.error || 'Erro ao adicionar item à mesa',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const imprimirCupomMesa = async (mesa) => {
+    if (!mesa) return;
+    
+    try {
+      // Usar iframe invisível para impressão sem abrir janela
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+      
+      const cupomContent = formatTableClosingTicketForPrint(mesa, pixConfig);
+      
+      iframe.contentDocument.write('<html><head><title>Cupom Mesa ' + mesa.numero_mesa + '</title>');
+      iframe.contentDocument.write('<style>body { font-family: monospace; font-size: 10pt; margin: 5px; } pre { white-space: pre-wrap; word-wrap: break-word; } </style>');
+      iframe.contentDocument.write('</head><body>');
+      iframe.contentDocument.write('<pre>' + cupomContent + '</pre>');
+      iframe.contentDocument.write('</body></html>');
+      iframe.contentDocument.close();
+      
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      
+      // Remover iframe após impressão
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Erro ao imprimir cupom:', error);
+      // Fallback para janela de impressão
+      imprimirCupom(mesa);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -379,7 +523,7 @@ const MesasPage = () => {
                   <div>
                     <p className="text-sm text-muted-foreground">Total</p>
                     <p className="text-lg font-semibold text-green-600">
-                      {formatCurrency(mesaSelecionada.total)}
+                      {formatCurrency(parseFloat(mesaSelecionada.total || 0))}
                     </p>
                   </div>
                   <div className="col-span-2">
@@ -441,6 +585,17 @@ const MesasPage = () => {
                   </Button>
                 </div>
 
+                {['retirado', 'pronto', 'preparando', 'pendente'].includes(mesaSelecionada.status_pedido) && (
+                  <Button 
+                    onClick={abrirModalAdicionarItem}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Adicionar Item
+                  </Button>
+                )}
+
                 <Button 
                   onClick={() => abrirModalFecharConta(mesaSelecionada)}
                   className="w-full"
@@ -483,7 +638,7 @@ const MesasPage = () => {
                         </Badge>
                       </div>
                       <span className="text-lg font-semibold text-green-600">
-                        {formatCurrency(mesa.valor_total)}
+                        {formatCurrency(parseFloat(mesa.valor_total || mesa.total || 0))}
                       </span>
                     </div>
                     
@@ -558,7 +713,7 @@ const MesasPage = () => {
             <div className="space-y-2">
               <Label>Total da Mesa</Label>
               <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(mesaParaFechar?.valor_total || 0)}
+                {formatCurrency(parseFloat(mesaParaFechar?.total || mesaParaFechar?.valor_total || 0))}
               </div>
             </div>
 
@@ -598,6 +753,110 @@ const MesasPage = () => {
             >
               <CheckCircle className="h-4 w-4 mr-2" />
               {isLoading ? 'Fechando...' : 'Confirmar e Fechar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para Adicionar Item */}
+      <Dialog open={showAdicionarItemModal} onOpenChange={setShowAdicionarItemModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Item - Mesa {mesaSelecionada?.numero_mesa}</DialogTitle>
+            <DialogDescription>
+              Selecione um produto para adicionar à mesa.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Selecione o Produto</Label>
+              {isLoadingProdutos ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  Carregando produtos...
+                </div>
+              ) : produtos.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  Nenhum produto disponível
+                </div>
+              ) : (
+                <select
+                  className="w-full p-2 border rounded-md bg-white text-black"
+                  style={{ backgroundColor: 'white', color: 'black' }}
+                  value={produtoSelecionado?.id || ''}
+                  onChange={(e) => {
+                    const produto = produtos.find(p => p.id === e.target.value);
+                    setProdutoSelecionado(produto);
+                  }}
+                >
+                  <option value="">Selecione um produto</option>
+                  {produtos.map(produto => {
+                    const preco = produto.preco_unitario || produto.preco_base || 0;
+                    return (
+                      <option 
+                        key={produto.id} 
+                        value={produto.id}
+                        style={{ color: 'black', backgroundColor: 'white' }}
+                      >
+                        {produto.nome} - {formatCurrency(preco)}
+                        {preco === 0 && ' (Sem preço)'}
+                      </option>
+                    );
+                  })}
+                </select>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="quantidade">Quantidade</Label>
+              <Input
+                id="quantidade"
+                type="number"
+                min="1"
+                value={quantidadeItem}
+                onChange={(e) => setQuantidadeItem(parseInt(e.target.value) || 1)}
+              />
+            </div>
+
+            {produtoSelecionado && (
+              <div className="space-y-2 p-3 bg-gray-50 rounded-md">
+                <div className="flex justify-between text-sm">
+                  <span>Produto:</span>
+                  <span className="font-medium">{produtoSelecionado.nome}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Valor unitário:</span>
+                  <span>{formatCurrency(produtoSelecionado.preco_unitario || produtoSelecionado.preco_base || 0)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Quantidade:</span>
+                  <span>{quantidadeItem}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-semibold">
+                  <span>Total:</span>
+                  <span className="text-green-600">
+                    {formatCurrency((produtoSelecionado.preco_unitario || produtoSelecionado.preco_base || 0) * quantidadeItem)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setShowAdicionarItemModal(false)}
+              disabled={isLoading}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={adicionarItemNaMesa}
+              disabled={isLoading || !produtoSelecionado || quantidadeItem < 1}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {isLoading ? 'Adicionando...' : 'Adicionar Item'}
             </Button>
           </DialogFooter>
         </DialogContent>
