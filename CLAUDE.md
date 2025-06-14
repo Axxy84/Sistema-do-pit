@@ -13,6 +13,7 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 
 ## Memories
 - organize o layout ponha vermelho e preto que nem as outras paginas ✅ IMPLEMENTADO
+- bordas não aparecem no frontend - resolver problema de dados ✅ RESOLVIDO 14/06/2025
 
 ## 🔥 Últimas Correções Críticas (Junho 2025)
 
@@ -44,8 +45,32 @@ This is a complete restaurant/pizzeria management system (ERP) with:
   - `SalesComparisonChart.jsx`: Comparação de períodos  
   - `SalesHistogram.jsx`: Histograma de distribuição
 
+### 🥖 Problema de Bordas Resolvido
+**Data:** 14/06/2025 16:30
+**Status:** ✅ RESOLVIDO COMPLETAMENTE
+
+**Problema identificado:**
+- ❌ Aba "Bordas" no frontend mostrava "0 itens" quando deveria mostrar 6 bordas
+- ❌ Bordas existiam na tabela `bordas` mas frontend buscava na tabela `produtos`
+- ❌ Constraint `produtos_tipo_produto_check` não incluía 'borda'
+
+**Diagnóstico sistemático executado:**
+1. ✅ **Backend API**: Endpoint `/api/bordas` funcionando (6 bordas disponíveis)  
+2. ✅ **Frontend Components**: `RealBorderSelector` e `ProductsTable` configurados
+3. ❌ **Root Cause**: Dois sistemas separados para bordas (tabela `bordas` vs `produtos`)
+
+**Solução implementada:**
+1. **Constraint atualizada**: Adicionado 'borda' ao check constraint de `produtos.tipo_produto`
+2. **Migração de dados**: 6 bordas transferidas de `bordas` → `produtos` com `tipo_produto = 'borda'`
+3. **Bordas migradas**: Beijinho (R$8), Brigadeiro (R$8), Doce de Leite (R$8), Goiabada (R$7), Nutella (R$10), Romeu e Julieta (R$10)
+
+**Resultado final:**
+- ✅ Aba "Bordas" agora mostra 6 itens ao invés de 0
+- ✅ Badge amarelo "Borda Recheada" exibido corretamente
+- ✅ Sistema unificado para gerenciamento de bordas
+
 ### 🚀 Sistema 100% Operacional
-**Verificado em:** 14/06/2025 12:06
+**Verificado em:** 14/06/2025 16:30
 
 - ✅ **PostgreSQL**: Conectado localhost:5432
 - ✅ **Backend**: Rodando porta 3001
