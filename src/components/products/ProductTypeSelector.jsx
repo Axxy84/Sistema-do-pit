@@ -45,7 +45,7 @@ const ProductTypeSelector = ({
         {productTypes.map((type) => (
           <div
             key={type.id}
-            whileTap={{ scale: 0.98 }}
+            className="transform transition-transform duration-150 active:scale-95"
           >
             <Card 
               className={`cursor-pointer transition-all duration-200 hover:shadow-md ${

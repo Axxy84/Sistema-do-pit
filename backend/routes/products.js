@@ -93,6 +93,11 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('=== UPDATE PRODUCT DEBUG ===');
+    console.log('Product ID:', id);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('User:', req.user?.id);
+    
     const {
       nome,
       tipo_produto,
