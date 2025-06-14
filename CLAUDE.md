@@ -23,6 +23,7 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 - botão 'Entregue' oculto para pedidos de mesa ✅ IMPLEMENTADO 14/06/2025
 - impressão direta para pedidos de mesa sem abrir janela ✅ IMPLEMENTADO 14/06/2025
 - cupom de mesa não mostra informações de delivery ✅ IMPLEMENTADO 14/06/2025
+- novo fluxo de mesas: retirado = consumindo, fechada = paga ✅ IMPLEMENTADO 14/06/2025
 
 ## 🔥 Últimas Correções Críticas (Junho 2025)
 
@@ -166,6 +167,42 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 **Nota de debug:**
 - Se erro 400 ao clicar "Retirado", verificar se servidor recarregou
 - Logs de debug adicionados em `routes/orders.js`
+
+### 🔄 Novo Fluxo de Mesas com Status "Fechada"
+**Data:** 14/06/2025 19:30
+**Status:** ✅ IMPLEMENTADO COMPLETAMENTE
+
+**BREAKING CHANGE: Mudança conceitual importante**
+- **ANTES**: Status "retirado" = mesa fechada/paga (não aparecia em Mesas Abertas)
+- **AGORA**: Status "retirado" = mesa em consumo (aparece em Mesas Abertas)
+- **NOVO**: Status "fechada" = mesa paga e liberada
+
+**Problemas resolvidos:**
+1. **Ambiguidade SQL**: `column reference "created_at" is ambiguous`
+   - Causa: LEFT JOIN sem prefixo de tabela
+   - Solução: Adicionar prefixo `p.` em todas as colunas
+
+2. **Conflito conceitual**: "Retirado" significava mesa paga
+   - Solução: Criar status "fechada" para mesas pagas
+   - "Retirado" agora = cliente consumindo
+
+3. **Sincronização de telas**: Mesas não atualizavam em tempo real
+   - Solução: Eventos `orderStatusChanged` e `orderSaved`
+   - MesasPage e CashClosingPage escutam eventos
+
+**Implementações técnicas:**
+- Novo endpoint: `POST /orders/mesa/:numero/fechar-conta`
+- Modal de seleção de forma de pagamento
+- Queries atualizadas: `NOT IN ('entregue', 'fechada', 'cancelado')`
+- Migration: `add_status_fechada.sql`
+- Sincronização via CustomEvent
+
+**Fluxo atual de mesa:**
+1. `pendente` → Pedido criado
+2. `preparando` → Em preparação
+3. `pronto` → Pronto para servir
+4. `retirado` → Cliente consumindo (mesa ativa)
+5. `fechada` → Conta paga, mesa liberada
 
 ### 🚀 Sistema 100% Operacional
 **Verificado em:** 14/06/2025 23:35
@@ -561,10 +598,11 @@ The system includes Jest support in package.json but uses primarily custom Node.
 
 ### Order Status Flow
 - **Delivery**: `pendente` → `preparando` → `saiu_para_entrega` → `entregue`
-- **Mesa**: `pendente` → `preparando` → `pronto` → `retirado`
+- **Mesa**: `pendente` → `preparando` → `pronto` → `retirado` → `fechada`
 - Special handling for delivery orders with entregador assignment
 - Complex payment methods (cash, card, pix, multiple payments)
-- Status `retirado` used for table orders that have been paid and picked up
+- Status `retirado` = table active/consuming
+- Status `fechada` = table paid and closed
 
 ### Product System
 - Multi-size pizzas with different pricing per size
