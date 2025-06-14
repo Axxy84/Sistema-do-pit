@@ -677,13 +677,22 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { status_pedido } = req.body;
+    
+    // Debug logs
+    console.log('[PATCH /orders/:id/status] Recebido:', { id, status_pedido, body: req.body });
 
     const validStatuses = ['pendente', 'preparando', 'pronto', 'saiu_entrega', 'entregue', 'retirado', 'cancelado'];
     
+    console.log('[PATCH /orders/:id/status] Status válidos:', validStatuses);
+    console.log('[PATCH /orders/:id/status] Status é válido?', validStatuses.includes(status_pedido));
+    
     if (!validStatuses.includes(status_pedido)) {
+      console.log('[PATCH /orders/:id/status] Status inválido:', status_pedido);
       return res.status(400).json({ 
         error: 'Status inválido',
-        message: `Status deve ser um dos: ${validStatuses.join(', ')}` 
+        message: `Status deve ser um dos: ${validStatuses.join(', ')}`,
+        receivedStatus: status_pedido,
+        receivedBody: req.body
       });
     }
 

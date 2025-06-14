@@ -19,6 +19,10 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 - autofill do browser não sincronizava com React state ✅ RESOLVIDO 14/06/2025
 - telefone agora é opcional para criar clientes ✅ IMPLEMENTADO 14/06/2025
 - erro 500 ao criar pedido mesa com múltiplos sabores ✅ RESOLVIDO 14/06/2025
+- implementar status 'retirado' para pedidos de mesa ✅ IMPLEMENTADO 14/06/2025
+- botão 'Entregue' oculto para pedidos de mesa ✅ IMPLEMENTADO 14/06/2025
+- impressão direta para pedidos de mesa sem abrir janela ✅ IMPLEMENTADO 14/06/2025
+- cupom de mesa não mostra informações de delivery ✅ IMPLEMENTADO 14/06/2025
 
 ## 🔥 Últimas Correções Críticas (Junho 2025)
 
@@ -137,6 +141,31 @@ This is a complete restaurant/pizzeria management system (ERP) with:
 **Esclarecimento importante:**
 - Pedidos de mesa com status "entregue" são considerados fechados
 - Para ver mesas em aberto no fechamento, o status deve ser diferente de "entregue" ou "cancelado"
+
+### 🏷️ Sistema de Status "Retirado" para Pedidos de Mesa
+**Data:** 14/06/2025 17:00
+**Status:** ✅ IMPLEMENTADO COMPLETAMENTE
+
+**Funcionalidades implementadas:**
+1. **Novo status "retirado"**: Cor roxa (`bg-purple-500`) para pedidos de mesa pagos
+2. **Botão condicional**: 
+   - Pedidos delivery: Botão "Entregue" (verde)
+   - Pedidos mesa: Botão "Retirado" (roxo)
+3. **Fechamento de caixa**: Pedidos com status "retirado" são incluídos
+4. **Impressão direta**: Pedidos de mesa imprimem sem abrir janela (iframe invisível)
+5. **Cupom adaptativo**: 
+   - Mesa: Mostra número da mesa, oculta entregador
+   - Delivery: Mostra endereço e entregador
+
+**Alterações técnicas:**
+- Constraint do banco atualizada: `pedidos_status_pedido_check`
+- API `/orders/:id/status` aceita "retirado"
+- Cache TTL configurado para status finalizado
+- Migração SQL: `update_status_pedido_constraint.sql`
+
+**Nota de debug:**
+- Se erro 400 ao clicar "Retirado", verificar se servidor recarregou
+- Logs de debug adicionados em `routes/orders.js`
 
 ### 🚀 Sistema 100% Operacional
 **Verificado em:** 14/06/2025 23:35
@@ -531,9 +560,11 @@ The system includes Jest support in package.json but uses primarily custom Node.
 ## Key Business Logic
 
 ### Order Status Flow
-- `pendente` → `preparando` → `saiu_para_entrega` → `entregue`
+- **Delivery**: `pendente` → `preparando` → `saiu_para_entrega` → `entregue`
+- **Mesa**: `pendente` → `preparando` → `pronto` → `retirado`
 - Special handling for delivery orders with entregador assignment
 - Complex payment methods (cash, card, pix, multiple payments)
+- Status `retirado` used for table orders that have been paid and picked up
 
 ### Product System
 - Multi-size pizzas with different pricing per size
