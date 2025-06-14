@@ -289,6 +289,16 @@ router.post('/', authenticateToken, async (req, res) => {
       multiplos_pagamentos = false,
       pagamentos = []
     } = req.body;
+    
+    // Debug log para entender o payload recebido
+    console.log('[POST /api/orders] Payload recebido:', {
+      tipo_pedido,
+      endereco_entrega,
+      numero_mesa,
+      cliente_id,
+      items: items.length,
+      total
+    });
 
     // Validações básicas
     if (!total || items.length === 0) {
@@ -297,6 +307,11 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Validações específicas por tipo de pedido
     if (tipo_pedido === 'delivery' && !endereco_entrega) {
+      console.error('[POST /api/orders] Erro: Endereço de entrega faltando para delivery', {
+        tipo_pedido,
+        endereco_entrega,
+        req_body_keys: Object.keys(req.body)
+      });
       throw new Error('Endereço de entrega é obrigatório para pedidos de delivery');
     }
 
@@ -367,6 +382,13 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Criar itens do pedido com suporte a múltiplos sabores
     for (const item of items) {
+      console.log('[POST /api/orders] Processando item:', {
+        itemType: item.itemType,
+        sabores_registrados: item.sabores_registrados,
+        sabor_registrado: item.sabor_registrado,
+        tamanho_registrado: item.tamanho_registrado
+      });
+      
       // Verificar se é uma pizza com múltiplos sabores
       if (item.itemType === 'pizza' && item.sabores_registrados && item.sabores_registrados.length > 1) {
         // Pizza com múltiplos sabores - salvar no campo sabores_registrados
@@ -455,6 +477,8 @@ router.post('/', authenticateToken, async (req, res) => {
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Erro ao criar pedido:', error);
+    console.error('Stack trace:', error.stack);
+    console.error('Payload recebido:', req.body);
     res.status(500).json({ 
       error: 'Erro interno do servidor',
       message: error.message 

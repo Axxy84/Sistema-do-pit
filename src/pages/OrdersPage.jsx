@@ -216,8 +216,8 @@ const OrdersPage = () => {
         pontos_resgatados: orderFormData.pontos_resgatados,
         updated_at: new Date().toISOString(),
         tipo_pedido: orderFormData.tipo_pedido,
-        numero_mesa: orderFormData.numero_mesa,
-        endereco_entrega: orderFormData.customerAddress,
+        numero_mesa: orderFormData.tipo_pedido === 'mesa' && orderFormData.numero_mesa ? parseInt(orderFormData.numero_mesa, 10) : null,
+        endereco_entrega: orderFormData.tipo_pedido === 'delivery' ? orderFormData.customerAddress : null,
         taxa_entrega: orderFormData.taxa_entrega || 0,
         // Dados de múltiplos pagamentos
         multiplos_pagamentos: orderFormData.multiplos_pagamentos || false,
@@ -277,6 +277,9 @@ const OrdersPage = () => {
       });
 
       console.log('[OrdersPage] Salvando pedido:', pedidoToSave);
+      console.log('[OrdersPage] Itens a persistir:', itensToPersist);
+      console.log('[OrdersPage] Tipo de pedido:', pedidoToSave.tipo_pedido);
+      console.log('[OrdersPage] Número da mesa:', pedidoToSave.numero_mesa);
       const savedOrder = await orderService.saveOrder(pedidoToSave, itensToPersist, currentOrder);
       console.log('[OrdersPage] Pedido salvo com sucesso:', savedOrder);
       

@@ -36,8 +36,8 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
   const [isNewCustomer, setIsNewCustomer] = useState(false);
   
   // Novos estados para tipo de pedido
-  const [tipoPedido, setTipoPedido] = useState('delivery');
-  const [numeroMesa, setNumeroMesa] = useState('');
+  const [tipoPedido, setTipoPedido] = useState('mesa');
+  const [numeroMesa, setNumeroMesa] = useState('1');
 
   const [items, setItems] = useState([{ itemType: 'pizza', flavor: '', size: '', border: 'none', borderPrice: 0, quantity: 1, unitPrice: 0, totalPrice: 0, productId: null }]);
   
@@ -409,7 +409,7 @@ const OrderForm = ({ isOpen, onOpenChange, onSubmit, initialOrderData, allProduc
       toast({ title: 'Erro de Validação', description: 'Endereço é obrigatório para pedidos de delivery.', variant: 'destructive' });
       return;
     }
-    if (tipoPedido === 'mesa' && !numeroMesa) {
+    if (tipoPedido === 'mesa' && (!numeroMesa || numeroMesa === '')) {
       toast({ title: 'Erro de Validação', description: 'Número da mesa é obrigatório para pedidos de mesa.', variant: 'destructive' });
       return;
     }

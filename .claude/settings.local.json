@@ -36,7 +36,8 @@
       "Bash(PGPASSWORD=8477 psql:*)",
       "Bash(npx eslint:*)",
       "Bash(git commit:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(npm ls:*)"
     ],
     "deny": []
   }

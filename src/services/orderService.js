@@ -37,6 +37,7 @@ export const orderService = {
           ...orderPayload,
           items: itemsData
         };
+        console.log('[orderService] Criando novo pedido com payload:', JSON.stringify(createPayload, null, 2));
         const data = await apiClient.post('/orders', createPayload);
         return data.order;
       }
