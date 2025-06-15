@@ -92,8 +92,8 @@ export const orderService = {
   // Métodos auxiliares para clientes e cupons
   async getCustomers() {
     try {
-      const data = await apiClient.get('/clients');
-      return data.clients || [];
+      const data = await apiClient.get('/customers');
+      return data.customers || [];
     } catch (error) {
       console.error('Error fetching customers:', error.message);
       throw error;

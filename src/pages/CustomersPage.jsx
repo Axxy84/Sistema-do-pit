@@ -5,6 +5,7 @@ import { Users, AlertTriangle, Search, PlusCircle, Edit2, Trash2, Loader2, Histo
 import { clientService } from '@/services/clientService';
 import { orderService } from '@/services/orderService';
 import { useToast } from '@/components/ui/use-toast';
+import { useCustomers } from '@/hooks/useCustomers';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -54,8 +55,8 @@ const CustomerForm = ({ isOpen, onOpenChange, onSubmit, initialCustomerData, isL
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!nome || !telefone) {
-      toast({ title: 'Erro de Validação', description: 'Nome e Telefone são obrigatórios.', variant: 'destructive' });
+    if (!nome) {
+      toast({ title: 'Erro de Validação', description: 'Nome é obrigatório.', variant: 'destructive' });
       return;
     }
     onSubmit({ nome, telefone, endereco });
@@ -74,8 +75,8 @@ const CustomerForm = ({ isOpen, onOpenChange, onSubmit, initialCustomerData, isL
             <Input id="customer-name" value={nome} onChange={(e) => setNome(e.target.value)} required />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="customer-phone">Telefone</Label>
-            <Input id="customer-phone" type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} required />
+            <Label htmlFor="customer-phone">Telefone (opcional)</Label>
+            <Input id="customer-phone" type="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="customer-address">Endereço (opcional)</Label>
@@ -186,7 +187,7 @@ const CustomerDetailsModal = ({ isOpen, onOpenChange, customer, orders, points, 
 
 
 const CustomersPage = () => {
-  const [customers, setCustomers] = useState([]);
+  const { customers, isLoading, createCustomer, updateCustomer, deleteCustomer } = useCustomers();
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
@@ -194,25 +195,9 @@ const CustomersPage = () => {
   const [selectedCustomerDetails, setSelectedCustomerDetails] = useState(null);
   const [selectedCustomerOrders, setSelectedCustomerOrders] = useState([]);
   const [selectedCustomerPoints, setSelectedCustomerPoints] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [isFormLoading, setIsFormLoading] = useState(false);
   const { toast } = useToast();
-
-  const fetchCustomers = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const clientsData = await clientService.getAllClients();
-      setCustomers(clientsData);
-    } catch (error) {
-      toast({ 
-        title: 'Erro ao carregar clientes', 
-        description: error.message, 
-        variant: 'destructive' 
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [toast]);
 
   const fetchCustomerDetails = useCallback(async (customer) => {
     setIsLoadingDetails(true);
@@ -241,36 +226,26 @@ const CustomersPage = () => {
     }
   }, [toast]);
 
-  useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
-
   const resetForm = () => {
     setCurrentCustomer(null);
   };
 
   const handleSaveCustomer = async (customerData) => {
-    setIsLoading(true);
+    setIsFormLoading(true);
     try {
       if (currentCustomer && currentCustomer.id) {
-        await clientService.updateClient(currentCustomer.id, customerData);
-        toast({ title: 'Sucesso!', description: 'Cliente atualizado com sucesso.' });
+        await updateCustomer(currentCustomer.id, customerData);
       } else {
-        await clientService.createClient(customerData);
-        toast({ title: 'Sucesso!', description: 'Cliente adicionado com sucesso.' });
+        await createCustomer(customerData);
       }
       
-      fetchCustomers();
+      // Fechar modal e resetar formulário
       setIsFormOpen(false);
       resetForm();
     } catch (error) {
-      toast({ 
-        title: `Erro ao ${currentCustomer ? 'atualizar' : 'adicionar'} cliente`, 
-        description: error.message, 
-        variant: 'destructive' 
-      });
+      // Erro já foi tratado no hook
     } finally {
-      setIsLoading(false);
+      setIsFormLoading(false);
     }
   };
 
@@ -280,19 +255,10 @@ const CustomersPage = () => {
   }, []);
 
   const handleDelete = async (id) => {
-    setIsLoading(true);
     try {
-      await clientService.deleteClient(id);
-      toast({ title: 'Sucesso!', description: 'Cliente removido com sucesso.' });
-      fetchCustomers();
+      await deleteCustomer(id);
     } catch (error) {
-      toast({ 
-        title: 'Erro ao remover cliente', 
-        description: error.message, 
-        variant: 'destructive' 
-      });
-    } finally {
-      setIsLoading(false);
+      // Erro já foi tratado no hook
     }
   };
 
@@ -332,7 +298,7 @@ const CustomersPage = () => {
         onOpenChange={setIsFormOpen}
         onSubmit={handleSaveCustomer}
         initialCustomerData={currentCustomer}
-        isLoading={isLoading}
+        isLoading={isFormLoading}
       />
 
       <CustomerDetailsModal
@@ -379,7 +345,7 @@ const CustomersPage = () => {
             </TableHeader>
             <TableBody>
                 {filteredCustomers.map((customer) => (
-                  <tr 
+                  <TableRow 
                     key={customer.id}
                     className="hover:bg-muted/30 transition-colors"
                   >
@@ -387,7 +353,7 @@ const CustomersPage = () => {
                     <TableCell className="text-foreground/90">{customer.telefone}</TableCell>
                     <TableCell className="text-foreground/90 text-sm max-w-xs truncate">{customer.endereco || '-'}</TableCell>
                     <TableCell className="text-right text-foreground/90 font-semibold text-amber-500">
-                      {customer.clientes_pontos && customer.clientes_pontos.length > 0 ? customer.clientes_pontos[0].pontos_atuais : 0}
+                      {customer.pontos_atuais || 0}
                     </TableCell>
                     <TableCell className="text-right space-x-1">
                       <Button variant="ghost" size="icon" onClick={() => openDetailsModal(customer)} className="text-green-500 hover:text-green-700 hover:bg-green-100/50 dark:hover:bg-green-700/20" disabled={isLoading}>
@@ -400,7 +366,7 @@ const CustomersPage = () => {
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       </Button>
                     </TableCell>
-                  </tr>
+                  </TableRow>
                 ))}
             </TableBody>
             {filteredCustomers.length > 10 && <TableCaption>Total de {filteredCustomers.length} clientes.</TableCaption>}

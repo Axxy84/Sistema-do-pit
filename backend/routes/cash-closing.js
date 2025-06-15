@@ -69,6 +69,7 @@ router.get('/current', authenticateToken, async (req, res) => {
     console.log(`📊 Calculando dados do dia ${today}...`);
 
     // Buscar pedidos do dia - resumo geral
+    // Usar COALESCE e timezone para garantir que pegamos pedidos corretamente
     const pedidosResult = await db.query(`
       SELECT 
         COUNT(*) as total_pedidos,
@@ -81,9 +82,9 @@ router.get('/current', authenticateToken, async (req, res) => {
         COALESCE(SUM(CASE WHEN forma_pagamento = 'cartao' THEN total ELSE 0 END), 0) as vendas_cartao,
         COALESCE(SUM(CASE WHEN forma_pagamento = 'pix' THEN total ELSE 0 END), 0) as vendas_pix
       FROM pedidos 
-      WHERE DATE(data_pedido) = $1 
-        AND status_pedido IN ('entregue', 'retirado')
-    `, [today]);
+      WHERE DATE(COALESCE(data_pedido, created_at) AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
+        AND status_pedido IN ('entregue', 'retirado', 'fechada')
+    `);
 
     console.log(`📦 Pedidos encontrados: ${pedidosResult.rows[0]?.total_pedidos || 0}`);
 
@@ -91,17 +92,17 @@ router.get('/current', authenticateToken, async (req, res) => {
     const despesasResult = await db.query(`
       SELECT COALESCE(SUM(valor), 0) as total_despesas
       FROM despesas_receitas 
-      WHERE DATE(data_transacao) = $1 
+      WHERE DATE(COALESCE(data_transacao, created_at) AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
         AND tipo = 'despesa'
-    `, [today]);
+    `);
 
     // Buscar receitas extras do dia
     const receitasResult = await db.query(`
       SELECT COALESCE(SUM(valor), 0) as receitas_extras
       FROM despesas_receitas 
-      WHERE DATE(data_transacao) = $1 
+      WHERE DATE(COALESCE(data_transacao, created_at) AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
         AND tipo = 'receita'
-    `, [today]);
+    `);
 
     // Análise detalhada por tipo de pedido (mesa vs delivery)
     const detailsByTypeResult = await db.query(`
@@ -119,10 +120,10 @@ router.get('/current', authenticateToken, async (req, res) => {
         COALESCE(SUM(CASE WHEN forma_pagamento = 'cartao' THEN total ELSE 0 END), 0) as vendas_cartao,
         COALESCE(SUM(CASE WHEN forma_pagamento = 'pix' THEN total ELSE 0 END), 0) as vendas_pix
       FROM pedidos 
-      WHERE DATE(data_pedido) = $1 
-        AND status_pedido IN ('entregue', 'retirado')
+      WHERE DATE(COALESCE(data_pedido, created_at) AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
+        AND status_pedido IN ('entregue', 'retirado', 'fechada')
       GROUP BY tipo_pedido
-    `, [today]);
+    `);
 
     console.log(`📊 Tipos de pedidos encontrados: ${detailsByTypeResult.rows.length}`);
 
@@ -271,7 +272,7 @@ router.post('/', authenticateToken, async (req, res) => {
           COALESCE(SUM(CASE WHEN forma_pagamento = 'pix' THEN total ELSE 0 END), 0) as vendas_pix
         FROM pedidos 
         WHERE DATE(data_pedido) = $1 
-          AND status_pedido = 'entregue'
+          AND status_pedido IN ('entregue', 'fechada')
       `, [today]);
 
       const despesasResult = await db.query(`
@@ -296,7 +297,7 @@ router.post('/', authenticateToken, async (req, res) => {
           COALESCE(SUM(taxa_entrega), 0) as total_taxas_entrega
         FROM pedidos 
         WHERE DATE(data_pedido) = $1 
-          AND status_pedido = 'entregue'
+          AND status_pedido IN ('entregue', 'fechada')
         GROUP BY tipo_pedido
       `, [today]);
 
@@ -521,7 +522,7 @@ router.get('/separate/summary/:date', authenticateToken, async (req, res) => {
         COALESCE(SUM(CASE WHEN forma_pagamento = 'pix' THEN total ELSE 0 END), 0) as vendas_pix
       FROM pedidos 
       WHERE DATE(COALESCE(data_pedido, created_at)) = $1 
-        AND status_pedido = 'entregue'
+        AND status_pedido IN ('entregue', 'fechada')
         AND tipo_pedido = 'delivery'
     `, [date]);
 
@@ -539,7 +540,7 @@ router.get('/separate/summary/:date', authenticateToken, async (req, res) => {
         COALESCE(SUM(CASE WHEN forma_pagamento = 'pix' THEN total ELSE 0 END), 0) as vendas_pix
       FROM pedidos 
       WHERE DATE(COALESCE(data_pedido, created_at)) = $1 
-        AND status_pedido = 'entregue'
+        AND status_pedido IN ('entregue', 'fechada')
         AND tipo_pedido = 'mesa'
     `, [date]);
 

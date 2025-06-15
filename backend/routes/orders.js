@@ -267,7 +267,11 @@ function invalidateOrderCaches(orderId, clienteId) {
   cache.deletePattern(CacheKeys.PATTERNS.DASHBOARD);
   cache.deletePattern(CacheKeys.PATTERNS.REPORTS);
   
+  // IMPORTANTE: Invalidar cache do fechamento de caixa
+  cache.deletePattern(CacheKeys.PATTERNS.CASH_CLOSING);
+  
   console.log(`🧹 Invalidated order caches for order: ${orderId}, client: ${clienteId}`);
+  console.log(`💰 Also invalidated cash closing cache for real-time sync`);
 }
 
 // POST /api/orders - Criar novo pedido
