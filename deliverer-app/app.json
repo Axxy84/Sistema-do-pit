@@ -3,6 +3,7 @@
     "name": "Entregador PIT",
     "slug": "deliverer-app",
     "version": "1.0.0",
+    "platforms": ["android"],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -14,10 +15,6 @@
     "assetBundlePatterns": [
       "**/*"
     ],
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.pitstop.delivererapp"
-    },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -30,18 +27,6 @@
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE"
       ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/notification-icon.png",
-          "color": "#d32f2f"
-        }
-      ]
-    ]
+    }
   }
 }

@@ -1,6 +1,6 @@
 // Configurações da API
-export const API_BASE_URL = 'http://192.168.0.105:3001/api'; // Altere para o IP do seu servidor
-export const WS_BASE_URL = 'ws://192.168.0.105:3001'; // WebSocket URL
+export const API_BASE_URL = 'http://192.168.223.24:3001/api'; // IP atual da máquina WSL
+export const WS_BASE_URL = 'ws://192.168.223.24:3001'; // WebSocket URL
 
 // Status de pedidos
 export const ORDER_STATUS = {
@@ -74,8 +74,8 @@ export const UI_CONFIG = {
 // URLs para desenvolvimento e produção
 export const ENVIRONMENT = {
   development: {
-    API_BASE_URL: 'http://192.168.0.105:3001/api',
-    WS_BASE_URL: 'ws://192.168.0.105:3001'
+    API_BASE_URL: 'http://192.168.223.24:3001/api',
+    WS_BASE_URL: 'ws://192.168.223.24:3001'
   },
   production: {
     API_BASE_URL: 'https://seu-servidor.com/api',
