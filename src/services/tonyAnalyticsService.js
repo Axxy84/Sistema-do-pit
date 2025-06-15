@@ -4,28 +4,66 @@ export const tonyAnalyticsService = {
   // Buscar analytics completos do dia
   async getTodayAnalytics(date = new Date().toISOString().split('T')[0]) {
     try {
-      const [ordersResponse, deliverersResponse, dashboardResponse] = await Promise.all([
-        // Pedidos do dia
-        apiClient.get('/orders', {
+      // Fazer as chamadas individualmente com tratamento de erro
+      let ordersResponse, deliverersResponse, dashboardResponse;
+      
+      try {
+        ordersResponse = await apiClient.get('/orders', {
           params: {
             data_inicio: date,
             data_fim: date
           }
-        }),
-        // Entregadores ativos
-        apiClient.get('/deliverers/active'),
-        // Dados consolidados
-        apiClient.get('/dashboard/fechamento-consolidado', {
+        });
+      } catch (err) {
+        console.warn('Erro ao buscar pedidos:', err.message);
+        ordersResponse = { data: [] };
+      }
+      
+      try {
+        deliverersResponse = await apiClient.get('/deliverers/active');
+      } catch (err) {
+        console.warn('Erro ao buscar entregadores:', err.message);
+        deliverersResponse = { data: [] };
+      }
+      
+      try {
+        dashboardResponse = await apiClient.get('/dashboard/fechamento-consolidado', {
           params: {
             data_inicio: date,
             data_fim: date
           }
-        })
-      ]);
+        });
+      } catch (err) {
+        console.warn('Erro ao buscar dashboard consolidado:', err.message);
+        dashboardResponse = { data: {} };
+      }
 
-      const orders = ordersResponse?.data?.orders || ordersResponse?.data || [];
-      const deliverers = deliverersResponse?.data?.deliverers || deliverersResponse?.data || [];
-      const consolidated = dashboardResponse?.data || {};
+      // Tratamento robusto das respostas
+      let orders = [];
+      if (ordersResponse && ordersResponse.data !== undefined) {
+        if (Array.isArray(ordersResponse.data)) {
+          orders = ordersResponse.data;
+        } else if (ordersResponse.data && ordersResponse.data.orders) {
+          orders = ordersResponse.data.orders;
+        } else if (ordersResponse.data && ordersResponse.data.pedidos) {
+          orders = ordersResponse.data.pedidos;
+        }
+      }
+      // Adicionar tratamento para resposta do tipo { orders: [...] }
+      if (ordersResponse && ordersResponse.orders && Array.isArray(ordersResponse.orders)) {
+        orders = ordersResponse.orders;
+      }
+      
+      let deliverers = [];
+      if (deliverersResponse && deliverersResponse.data !== undefined) {
+        if (Array.isArray(deliverersResponse.data)) {
+          deliverers = deliverersResponse.data;
+        } else if (deliverersResponse.data && deliverersResponse.data.deliverers) {
+          deliverers = deliverersResponse.data.deliverers;
+        }
+      }
+      
+      const consolidated = (dashboardResponse && dashboardResponse.data) || {};
 
       return {
         orders,

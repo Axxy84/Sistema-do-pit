@@ -60,6 +60,7 @@ router.get('/summary', authenticateToken, async (req, res) => {
       params.push(data_fim);
     }
 
+    // Buscar despesas e receitas extras
     const result = await db.query(`
       SELECT 
         tipo,
@@ -70,14 +71,40 @@ router.get('/summary', authenticateToken, async (req, res) => {
       GROUP BY tipo
     `, params);
 
+    // Buscar vendas (transações)
+    let vendasQuery = `
+      SELECT 
+        COUNT(*) as quantidade,
+        COALESCE(SUM(valor), 0) as total
+      FROM transacoes 
+      WHERE tipo = 'venda' AND categoria IN ('venda', 'taxa_entrega')
+    `;
+    
+    const vendasParams = [];
+    if (data_inicio && data_fim) {
+      vendasQuery += ' AND data_transacao BETWEEN $1 AND $2';
+      vendasParams.push(data_inicio, data_fim);
+    } else if (data_inicio) {
+      vendasQuery += ' AND data_transacao >= $1';
+      vendasParams.push(data_inicio);
+    } else if (data_fim) {
+      vendasQuery += ' AND data_transacao <= $1';
+      vendasParams.push(data_fim);
+    }
+    
+    const vendasResult = await db.query(vendasQuery, vendasParams);
+
     const summary = {
       total_despesas: 0,
       total_receitas: 0,
+      total_vendas: 0,
       quantidade_despesas: 0,
       quantidade_receitas: 0,
+      quantidade_vendas: 0,
       saldo: 0
     };
 
+    // Processar despesas e receitas extras
     result.rows.forEach(row => {
       if (row.tipo === 'despesa') {
         summary.total_despesas = parseFloat(row.total);
@@ -88,7 +115,15 @@ router.get('/summary', authenticateToken, async (req, res) => {
       }
     });
 
-    summary.saldo = summary.total_receitas - summary.total_despesas;
+    // Adicionar vendas
+    if (vendasResult.rows.length > 0) {
+      summary.total_vendas = parseFloat(vendasResult.rows[0].total);
+      summary.quantidade_vendas = parseInt(vendasResult.rows[0].quantidade);
+    }
+
+    // Calcular saldo incluindo vendas
+    summary.total_receitas_geral = summary.total_receitas + summary.total_vendas;
+    summary.saldo = summary.total_receitas_geral - summary.total_despesas;
 
     res.json({ summary });
   } catch (error) {

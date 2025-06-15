@@ -39,26 +39,54 @@ const TonyDashboardPage = () => {
       const cacheBreaker = forceRefresh ? `&_t=${Date.now()}` : '';
       
       // Buscar despesas, resumo financeiro E dados de vendas
-      const [expenses, summary, analytics] = await Promise.all([
-        expenseService.getAllExpenses({
+      let expenses = [], summary = {}, analytics = {};
+      
+      try {
+        expenses = await expenseService.getAllExpenses({
           tipo: 'despesa',
           data_inicio: date,
           data_fim: date
-        }),
-        expenseService.getExpensesSummary({
+        });
+      } catch (err) {
+        console.warn('Erro ao buscar despesas:', err);
+        expenses = [];
+      }
+      
+      try {
+        summary = await expenseService.getExpensesSummary({
           data_inicio: date,
           data_fim: date
-        }),
-        tonyAnalyticsService.getTodayAnalytics(date)
-      ]);
+        });
+      } catch (err) {
+        console.warn('Erro ao buscar resumo:', err);
+        summary = {};
+      }
+      
+      try {
+        analytics = await tonyAnalyticsService.getTodayAnalytics(date);
+      } catch (err) {
+        console.warn('Erro ao buscar analytics:', err);
+        analytics = {
+          orders: [],
+          deliverers: [],
+          consolidated: {},
+          analytics: {
+            totalRevenue: 0,
+            totalOrders: 0,
+            averageTicket: 0,
+            deliveryCount: 0,
+            tableCount: 0
+          }
+        };
+      }
 
       console.log('📊 TonyDashboardPage - Despesas:', expenses);
       console.log('📊 TonyDashboardPage - Resumo:', summary);
       console.log('📊 TonyDashboardPage - Vendas:', analytics);
       
-      setExpensesData(expenses);
-      setFinancialSummary(summary);
-      setSalesData(analytics);
+      setExpensesData(expenses || []);
+      setFinancialSummary(summary || {});
+      setSalesData(analytics || {});
       
       console.log('✅ TonyDashboardPage - Dados financeiros carregados');
     } catch (error) {
@@ -223,8 +251,13 @@ const TonyDashboardPage = () => {
     }
     
     // Calcular receitas reais dos pedidos
-    const vendasBrutas = salesData?.consolidated?.totais_gerais?.vendas_brutas || 0;
-    const totalPedidos = salesData?.consolidated?.totais_gerais?.total_pedidos || 0;
+    // Verificar estrutura dos dados antes de acessar
+    const vendasBrutas = financialSummary.total_vendas || 
+                        (salesData && salesData.consolidated && salesData.consolidated.totais_gerais && salesData.consolidated.totais_gerais.vendas_brutas) || 
+                        (salesData && salesData.analytics && salesData.analytics.totalSales) || 0;
+    const totalPedidos = financialSummary.quantidade_vendas ||
+                        (salesData && salesData.consolidated && salesData.consolidated.totais_gerais && salesData.consolidated.totais_gerais.total_pedidos) || 
+                        (salesData && salesData.orders && salesData.orders.length) || 0;
     const receitasExtras = financialSummary.total_receitas || 0;
     const receitaTotal = vendasBrutas + receitasExtras;
     const saldoReal = receitaTotal - financialSummary.total_despesas;

@@ -28,18 +28,18 @@ export const profitCalculatorService = {
 
       // Calcular vendas brutas do dia
       const vendas_brutas = orders
-        .filter(order => order.status === 'entregue' || order.status === 'concluido')
+        .filter(order => order.status_pedido === 'entregue' || order.status_pedido === 'fechada' || order.status_pedido === 'retirado')
         .reduce((sum, order) => sum + parseFloat(order.total || 0), 0);
 
       // Calcular taxas de entrega
       const taxas_entrega = orders
-        .filter(order => order.tipo_pedido === 'delivery' && (order.status === 'entregue' || order.status === 'concluido'))
+        .filter(order => order.tipo_pedido === 'delivery' && (order.status_pedido === 'entregue' || order.status_pedido === 'fechada' || order.status_pedido === 'retirado'))
         .reduce((sum, order) => sum + parseFloat(order.taxa_entrega || 0), 0);
 
       // Calcular descontos aplicados
       const descontos = orders
-        .filter(order => order.status === 'entregue' || order.status === 'concluido')
-        .reduce((sum, order) => sum + parseFloat(order.desconto || 0), 0);
+        .filter(order => order.status_pedido === 'entregue' || order.status_pedido === 'fechada' || order.status_pedido === 'retirado')
+        .reduce((sum, order) => sum + parseFloat(order.desconto_aplicado || 0), 0);
 
       // Separar despesas por tipo
       const despesas = expenses.filter(exp => exp.tipo === 'despesa');
@@ -107,7 +107,7 @@ export const profitCalculatorService = {
       // Calcular média diária
       const totalDays = days;
       const vendas_media = orders
-        .filter(order => order.status === 'entregue' || order.status === 'concluido')
+        .filter(order => order.status_pedido === 'entregue' || order.status_pedido === 'fechada' || order.status_pedido === 'retirado')
         .reduce((sum, order) => sum + parseFloat(order.total || 0), 0) / totalDays;
 
       const despesas_media = expenses
