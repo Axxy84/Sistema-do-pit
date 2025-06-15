@@ -107,7 +107,7 @@ const ProductForm = ({
       categoria,
       tamanhos_precos: tipoProduto === 'pizza' ? tamanhosPrecos.map(tp => ({...tp, preco: parseFloat(tp.preco)})) : null,
       ingredientes: tipoProduto === 'pizza' ? ingredientes : null,
-      preco_unitario: (tipoProduto !== 'pizza' && tipoProduto !== 'borda') ? parseFloat(precoUnitario) : (tipoProduto === 'borda' ? parseFloat(precoUnitario) : null),
+      preco_unitario: tipoProduto === 'pizza' ? null : parseFloat(precoUnitario),
       estoque_disponivel: (tipoProduto !== 'pizza' && tipoProduto !== 'borda') && estoqueDisponivel ? parseInt(estoqueDisponivel, 10) : null,
       ativo
     };
