@@ -20,7 +20,6 @@ const navItems = [
   { href: '/fechamento-caixa', icon: DollarSign, label: 'Fechamento de Caixa', adminOnly: false, allowedRoles: ['admin', 'atendente'] },
   { href: '/relatorios', icon: BarChart2, label: 'Relatórios', adminOnly: true, allowedRoles: ['admin'] },
   { href: '/cupons', icon: TicketPercent, label: 'Cupons', adminOnly: true, allowedRoles: ['admin'] },
-  { href: '/tony', icon: ShieldCheck, label: 'Área do Dono', adminOnly: true, allowedRoles: ['admin'] },
 ];
 
 const Layout = ({ children }) => {
@@ -73,7 +72,7 @@ const Layout = ({ children }) => {
     });
   };
   
-  const isAdminRoute = location.pathname.startsWith('/tony') || location.pathname.startsWith('/cupons') || location.pathname.startsWith('/relatorios');
+  const isAdminRoute = location.pathname.startsWith('/cupons') || location.pathname.startsWith('/relatorios');
   
   const SidebarContent = () => {
     console.log('📋 Layout - Renderizando SidebarContent');

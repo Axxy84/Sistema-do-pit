@@ -18,8 +18,6 @@ export const useRouteLogger = () => {
     // Log adicional para rotas específicas que podem ter problemas
     if (location.pathname === '/dashboard') {
       console.log('📊 Navegando para Dashboard - verificar se dados carregam');
-    } else if (location.pathname === '/tony') {
-      console.log('👑 Navegando para Área do Dono - verificar autenticação admin');
     } else if (location.pathname.startsWith('/pedidos')) {
       console.log('🛒 Navegando para Pedidos - verificar rate limiting');
     }

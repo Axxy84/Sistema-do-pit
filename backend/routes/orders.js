@@ -749,6 +749,9 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     // Deletar pagamentos múltiplos se existirem
     await client.query('DELETE FROM pagamentos_pedido WHERE pedido_id = $1', [id]);
     
+    // Deletar transações relacionadas ao pedido
+    await client.query('DELETE FROM transacoes WHERE pedido_id = $1', [id]);
+    
     // Deletar o pedido
     await client.query('DELETE FROM pedidos WHERE id = $1', [id]);
 

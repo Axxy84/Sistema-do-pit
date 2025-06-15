@@ -97,7 +97,6 @@ const migrateRoutes = require('./routes/migrate');
 const cacheAdminRoutes = require('./routes/cache-admin');
 const configurationsRoutes = require('./routes/configurations');
 const profitCalculatorRoutes = require('./routes/profit-calculator');
-const ownerRoutes = require('./routes/owner');
 const deliveryEndpointsRoutes = require('./routes/delivery-endpoints');
 const delivererAppRoutes = require('./routes/deliverer-app');
 
@@ -117,7 +116,6 @@ app.use('/api/migrate', migrateRoutes);
 app.use('/api/cache-admin', cacheAdminRoutes);
 app.use('/api/configurations', configurationsRoutes);
 app.use('/api/profit-calculator', profitCalculatorRoutes);
-app.use('/api/owner', ownerRoutes);
 app.use('/api/delivery', deliveryEndpointsRoutes);
 app.use('/api/deliverer-app', delivererAppRoutes);
 
