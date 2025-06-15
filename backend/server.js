@@ -2,10 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const http = require('http');
 require('dotenv').config();
 
 const config = require('./config/env');
 const db = require('./config/database');
+const delivererWS = require('./routes/deliverer-websocket');
 
 const app = express();
 
@@ -97,6 +99,7 @@ const configurationsRoutes = require('./routes/configurations');
 const profitCalculatorRoutes = require('./routes/profit-calculator');
 const ownerRoutes = require('./routes/owner');
 const deliveryEndpointsRoutes = require('./routes/delivery-endpoints');
+const delivererAppRoutes = require('./routes/deliverer-app');
 
 // Registrar rotas
 app.use('/api/auth', authRoutes);
@@ -116,6 +119,7 @@ app.use('/api/configurations', configurationsRoutes);
 app.use('/api/profit-calculator', profitCalculatorRoutes);
 app.use('/api/owner', ownerRoutes);
 app.use('/api/delivery', deliveryEndpointsRoutes);
+app.use('/api/deliverer-app', delivererAppRoutes);
 
 // Ignorar requisições para favicon.ico
 app.get('/favicon.ico', (req, res) => res.status(204).end());
@@ -525,10 +529,17 @@ async function runAllMigrations() {
   }
 }
 
-app.listen(PORT, '0.0.0.0', async () => {
+// Criar servidor HTTP para suportar WebSocket
+const server = http.createServer(app);
+
+// Inicializar WebSocket para entregadores
+delivererWS.initialize(server);
+
+server.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
   console.log(`🌐 Environment: ${config.NODE_ENV}`);
   console.log(`🔗 CORS habilitado para: ${config.CORS_ORIGIN}`);
+  console.log(`📱 WebSocket para entregadores: ws://localhost:${PORT}/ws/deliverer`);
   
   // Executar migrações
   await runAllMigrations();
