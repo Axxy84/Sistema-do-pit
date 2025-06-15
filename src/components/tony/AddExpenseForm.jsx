@@ -80,6 +80,15 @@ const AddExpenseForm = ({ onExpenseAdded }) => {
       if (onExpenseAdded) {
         onExpenseAdded();
       }
+      
+      // Disparar evento para atualização em tempo real
+      window.dispatchEvent(new CustomEvent('expenseAdded', { 
+        detail: { 
+          expenseId: result.id,
+          tipo: formData.tipo,
+          valor: formData.valor 
+        } 
+      }));
 
     } catch (error) {
       console.error('Erro ao adicionar despesa:', error);

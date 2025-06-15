@@ -1,17 +1,26 @@
 const express = require('express');
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const cache = require('../cache/cache-manager');
+const { CacheKeys } = require('../cache/cache-keys');
 
 const router = express.Router();
 
-// GET /api/deliverers - Listar todos os entregadores
+// GET /api/deliverers - Listar todos os entregadores (COM CACHE)
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const result = await db.query(`
-      SELECT * FROM entregadores 
-      ORDER BY nome ASC
-    `);
-    res.json({ deliverers: result.rows });
+    const cacheKey = CacheKeys.DELIVERERS_LIST;
+    
+    // Cache-Aside pattern para lista de entregadores
+    const deliverers = await cache.getOrFetch(cacheKey, async () => {
+      const result = await db.query(`
+        SELECT * FROM entregadores 
+        ORDER BY nome ASC
+      `);
+      return result.rows;
+    }, 600); // TTL: 10 minutos - dados mudam pouco
+    
+    res.json({ deliverers });
   } catch (error) {
     console.error('Erro ao buscar entregadores:', error);
     res.status(500).json({ 
@@ -21,15 +30,22 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/deliverers/active - Listar apenas entregadores ativos
+// GET /api/deliverers/active - Listar apenas entregadores ativos (COM CACHE)
 router.get('/active', authenticateToken, async (req, res) => {
   try {
-    const result = await db.query(`
-      SELECT * FROM entregadores 
-      WHERE ativo = true
-      ORDER BY nome ASC
-    `);
-    res.json({ deliverers: result.rows });
+    const cacheKey = CacheKeys.DELIVERERS_ACTIVE;
+    
+    // Cache-Aside pattern para entregadores ativos (muito usado)
+    const deliverers = await cache.getOrFetch(cacheKey, async () => {
+      const result = await db.query(`
+        SELECT * FROM entregadores 
+        WHERE ativo = true
+        ORDER BY nome ASC
+      `);
+      return result.rows;
+    }, 900); // TTL: 15 minutos - entregadores ativos mudam raramente
+    
+    res.json({ deliverers });
   } catch (error) {
     console.error('Erro ao buscar entregadores ativos:', error);
     res.status(500).json({ 
@@ -39,17 +55,23 @@ router.get('/active', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/deliverers/:id - Buscar entregador por ID
+// GET /api/deliverers/:id - Buscar entregador por ID (COM CACHE)
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await db.query('SELECT * FROM entregadores WHERE id = $1', [id]);
+    const cacheKey = CacheKeys.DELIVERERS_BY_ID(id);
     
-    if (result.rows.length === 0) {
+    // Cache-Aside pattern para entregador individual
+    const deliverer = await cache.getOrFetch(cacheKey, async () => {
+      const result = await db.query('SELECT * FROM entregadores WHERE id = $1', [id]);
+      return result.rows.length > 0 ? result.rows[0] : null;
+    }, 1200); // TTL: 20 minutos - dados individuais mudam muito pouco
+    
+    if (!deliverer) {
       return res.status(404).json({ error: 'Entregador não encontrado' });
     }
     
-    res.json({ deliverer: result.rows[0] });
+    res.json({ deliverer });
   } catch (error) {
     console.error('Erro ao buscar entregador:', error);
     res.status(500).json({ 
@@ -91,6 +113,10 @@ router.post('/', authenticateToken, async (req, res) => {
       RETURNING *
     `, [nome, telefone, ativo]);
 
+    // Invalidar cache após criação
+    cache.deletePattern('deliverers:.*');
+    console.log('💥 Cache invalidated: deliverers patterns (CREATE)');
+    
     res.status(201).json({ deliverer: result.rows[0] });
   } catch (error) {
     console.error('Erro ao criar entregador:', error);
@@ -158,6 +184,12 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     `;
 
     const result = await db.query(query, values);
+    
+    // Invalidar cache após atualização
+    cache.delete(CacheKeys.DELIVERERS_BY_ID(id));
+    cache.deletePattern('deliverers:.*');
+    console.log(`💥 Cache invalidated: deliverer ${id} and patterns (UPDATE)`);
+    
     res.json({ deliverer: result.rows[0] });
 
   } catch (error) {
@@ -195,6 +227,12 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 
     await db.query('DELETE FROM entregadores WHERE id = $1', [id]);
+    
+    // Invalidar cache após deleção
+    cache.delete(CacheKeys.DELIVERERS_BY_ID(id));
+    cache.deletePattern('deliverers:.*');
+    console.log(`💥 Cache invalidated: deliverer ${id} and patterns (DELETE)`);
+    
     res.json({ message: 'Entregador removido com sucesso' });
 
   } catch (error) {

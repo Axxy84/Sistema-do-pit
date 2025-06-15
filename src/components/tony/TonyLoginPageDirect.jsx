@@ -4,18 +4,14 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { LogIn, AlertTriangle, Loader2, Shield, Eye, EyeOff } from 'lucide-react';
-
-import { useAuth } from '@/contexts/AuthContext.jsx';
 import { useToast } from '@/components/ui/use-toast';
-import { ownerService } from '@/services/ownerService';
 
-const TonyLoginPage = ({ onOwnerVerified }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const TonyLoginPageDirect = ({ onOwnerVerified }) => {
+  const [email, setEmail] = useState('admin@pizzaria.com'); // Pre-filled
+  const [password, setPassword] = useState('admin123'); // Pre-filled
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { signInWithPassword } = useAuth();
   const { toast } = useToast();
 
   const handleLogin = async (e) => {
@@ -30,59 +26,72 @@ const TonyLoginPage = ({ onOwnerVerified }) => {
       setIsLoading(true);
       setError('');
 
-      // Primeiro fazer login normal
-      const { error: signInError } = await signInWithPassword(email, password);
-      
-      if (signInError) {
-        setError(signInError.message || 'Credenciais inválidas.');
-        return;
+      console.log('🔄 Fazendo login direto...');
+
+      // Login direto via fetch
+      const response = await fetch('http://localhost:3001/api/auth/signin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro no login');
       }
 
-      // Aguardar um pouco para o token ser salvo
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Salvar token
+      const { token, user } = data;
+      localStorage.setItem('authToken', token);
+      localStorage.setItem('userProfile', JSON.stringify(user));
 
-      // Verificar se tem acesso de owner
-      const ownerCheck = await ownerService.verifyOwnerAccess();
-      
-      if (!ownerCheck.success || !ownerCheck.isOwner) {
-        // Fazer logout se não for owner
-        localStorage.removeItem('authToken');
-        
-        if (ownerCheck.userLevel === 'employee') {
-          setError('❌ Acesso negado. Esta área é restrita ao proprietário da pizzaria.');
-          toast({
-            title: 'Acesso Negado',
-            description: 'Esta área é exclusiva do proprietário.',
-            variant: 'destructive'
-          });
-        } else {
-          setError('❌ Erro de autenticação. Verifique suas credenciais.');
-          toast({
-            title: 'Erro de Autenticação',
-            description: 'Verifique suas credenciais.',
-            variant: 'destructive'
-          });
+      console.log('✅ Login realizado, verificando acesso owner...');
+
+      // Verificar acesso owner
+      const ownerResponse = await fetch('http://localhost:3001/api/owner/verify', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
         }
+      });
+
+      const ownerData = await ownerResponse.json();
+
+      if (!ownerResponse.ok || !ownerData.success || !ownerData.isOwner) {
+        // Limpar token se não for owner
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userProfile');
+        
+        setError('❌ Acesso negado. Esta área é restrita ao proprietário da pizzaria.');
+        toast({
+          title: 'Acesso Negado',
+          description: 'Esta área é exclusiva do proprietário.',
+          variant: 'destructive'
+        });
         return;
       }
 
-      // Sucesso - notificar componente pai
+      // Sucesso!
       toast({
         title: '🎉 Acesso Autorizado!',
-        description: `Bem-vindo ao Centro Financeiro, ${ownerCheck.user?.name || 'Proprietário'}!`,
+        description: `Bem-vindo ao Centro Financeiro, ${user?.name || 'Proprietário'}!`,
         variant: 'default'
       });
 
       if (onOwnerVerified) {
-        onOwnerVerified(ownerCheck.user);
+        onOwnerVerified(user);
       }
 
     } catch (error) {
-      console.error('Erro no login de owner:', error);
-      setError('❌ Erro inesperado. Tente novamente.');
+      console.error('❌ Erro no login de owner:', error);
+      setError(`❌ Erro: ${error.message}`);
       toast({
-        title: 'Erro Inesperado',
-        description: 'Tente novamente em alguns instantes.',
+        title: 'Erro no Login',
+        description: error.message,
         variant: 'destructive'
       });
     } finally {
@@ -92,9 +101,9 @@ const TonyLoginPage = ({ onOwnerVerified }) => {
 
   return (
     <div 
-      className="flex items-center justify-center min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-primary/30 p-4"
+      className="flex items-center justify-center min-h-screen w-full bg-gradient-to-br from-slate-900 via-slate-800 to-red-900/30 p-4"
     >
-      <Card className="w-full max-w-md shadow-2xl bg-card/90 backdrop-blur-md border-primary/30">
+      <Card className="w-full max-w-md shadow-2xl bg-card/90 backdrop-blur-md border-red-500/30">
         <CardHeader className="text-center">
           <div className="inline-block p-4 bg-red-500/10 rounded-full mx-auto mb-4 border-2 border-red-500/50">
             <Shield className="h-12 w-12 text-red-500" />
@@ -156,6 +165,11 @@ const TonyLoginPage = ({ onOwnerVerified }) => {
                 </Button>
               </div>
             </div>
+            <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950/30 p-3 rounded-md border border-blue-200 dark:border-blue-800">
+              <p>✅ <strong>Credenciais pré-preenchidas</strong></p>
+              <p>• Email: admin@pizzaria.com</p>  
+              <p>• Senha: admin123</p>
+            </div>
           </CardContent>
           <CardFooter className="p-6">
             <Button 
@@ -182,4 +196,4 @@ const TonyLoginPage = ({ onOwnerVerified }) => {
   );
 };
 
-export default TonyLoginPage;
+export default TonyLoginPageDirect;

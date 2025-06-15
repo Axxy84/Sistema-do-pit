@@ -1,25 +1,34 @@
 const express = require('express');
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const cache = require('../cache/cache-manager');
+const { CacheKeys } = require('../cache/cache-keys');
 
 const router = express.Router();
 
-// GET /api/customers - Listar todos os clientes
+// GET /api/customers - Listar todos os clientes (COM CACHE)
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const result = await db.query(`
-      SELECT 
-        c.*,
-        COALESCE(
-          (SELECT SUM(p.pontos_ganhos - p.pontos_resgatados) 
-           FROM pedidos p 
-           WHERE p.cliente_id = c.id), 
-          0
-        ) as pontos_atuais
-      FROM clientes c
-      ORDER BY c.created_at DESC
-    `);
-    res.json({ customers: result.rows });
+    const cacheKey = CacheKeys.CUSTOMERS_WITH_POINTS;
+    
+    // Cache-Aside pattern para clientes com cálculo de pontos (query complexa)
+    const customers = await cache.getOrFetch(cacheKey, async () => {
+      const result = await db.query(`
+        SELECT 
+          c.*,
+          COALESCE(
+            (SELECT SUM(p.pontos_ganhos - p.pontos_resgatados) 
+             FROM pedidos p 
+             WHERE p.cliente_id = c.id), 
+            0
+          ) as pontos_atuais
+        FROM clientes c
+        ORDER BY c.created_at DESC
+      `);
+      return result.rows;
+    }, 300); // TTL: 5 minutos - pontos podem mudar com novos pedidos
+    
+    res.json({ customers });
   } catch (error) {
     console.error('Erro ao buscar clientes:', error);
     res.status(500).json({ 
@@ -29,30 +38,36 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/customers/phone/:phone - Buscar cliente por telefone
+// GET /api/customers/phone/:phone - Buscar cliente por telefone (COM CACHE)
 router.get('/phone/:phone', authenticateToken, async (req, res) => {
-  console.log('[DEBUG] Rota /api/customers/phone/:phone alcançada. Telefone:', req.params.phone, 'Decodificado:', decodeURIComponent(req.params.phone)); // Log de depuração
+  console.log('[DEBUG] Rota /api/customers/phone/:phone alcançada. Telefone:', req.params.phone, 'Decodificado:', decodeURIComponent(req.params.phone));
   try {
     const { phone } = req.params;
+    const cacheKey = CacheKeys.CUSTOMERS_BY_PHONE(phone);
     
-    const result = await db.query(`
-      SELECT 
-        c.*,
-        COALESCE(
-          (SELECT SUM(p.pontos_ganhos - p.pontos_resgatados) 
-           FROM pedidos p 
-           WHERE p.cliente_id = c.id), 
-          0
-        ) as pontos_atuais
-      FROM clientes c
-      WHERE c.telefone = $1
-    `, [phone]);
+    // Cache-Aside pattern para busca por telefone (muito freqüente)
+    const customer = await cache.getOrFetch(cacheKey, async () => {
+      const result = await db.query(`
+        SELECT 
+          c.*,
+          COALESCE(
+            (SELECT SUM(p.pontos_ganhos - p.pontos_resgatados) 
+             FROM pedidos p 
+             WHERE p.cliente_id = c.id), 
+            0
+          ) as pontos_atuais
+        FROM clientes c
+        WHERE c.telefone = $1
+      `, [phone]);
+      
+      return result.rows.length > 0 ? result.rows[0] : null;
+    }, 600); // TTL: 10 minutos - dados de cliente mudam pouco
     
-    if (result.rows.length === 0) {
+    if (!customer) {
       return res.status(404).json({ error: 'Cliente não encontrado' });
     }
     
-    res.json({ customer: result.rows[0] });
+    res.json({ customer });
   } catch (error) {
     console.error('Erro ao buscar cliente por telefone:', error);
     res.status(500).json({ 
@@ -62,29 +77,35 @@ router.get('/phone/:phone', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/customers/:id - Buscar cliente por ID
+// GET /api/customers/:id - Buscar cliente por ID (COM CACHE)
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const cacheKey = CacheKeys.CUSTOMERS_BY_ID(id);
     
-    const result = await db.query(`
-      SELECT 
-        c.*,
-        COALESCE(
-          (SELECT SUM(p.pontos_ganhos - p.pontos_resgatados) 
-           FROM pedidos p 
-           WHERE p.cliente_id = c.id), 
-          0
-        ) as pontos_atuais
-      FROM clientes c
-      WHERE c.id = $1
-    `, [id]);
+    // Cache-Aside pattern para cliente por ID
+    const customer = await cache.getOrFetch(cacheKey, async () => {
+      const result = await db.query(`
+        SELECT 
+          c.*,
+          COALESCE(
+            (SELECT SUM(p.pontos_ganhos - p.pontos_resgatados) 
+             FROM pedidos p 
+             WHERE p.cliente_id = c.id), 
+            0
+          ) as pontos_atuais
+        FROM clientes c
+        WHERE c.id = $1
+      `, [id]);
+      
+      return result.rows.length > 0 ? result.rows[0] : null;
+    }, 900); // TTL: 15 minutos - dados de cliente individual mudam pouco
     
-    if (result.rows.length === 0) {
+    if (!customer) {
       return res.status(404).json({ error: 'Cliente não encontrado' });
     }
     
-    res.json({ customer: result.rows[0] });
+    res.json({ customer });
   } catch (error) {
     console.error('Erro ao buscar cliente:', error);
     res.status(500).json({ 
@@ -149,6 +170,10 @@ router.post('/', authenticateToken, async (req, res) => {
       RETURNING *
     `, [nome, telefone, endereco]);
 
+    // Invalidar cache após criação
+    cache.deletePattern('customers:.*');
+    console.log('💥 Cache invalidated: customers patterns (CREATE)');
+    
     console.log('[Backend] Cliente criado com sucesso:', result.rows[0]);
     res.status(201).json({ customer: result.rows[0] });
   } catch (error) {
@@ -219,6 +244,15 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     `;
 
     const result = await db.query(query, values);
+    
+    // Invalidar cache após atualização
+    cache.delete(CacheKeys.CUSTOMERS_BY_ID(id));
+    if (telefone) {
+      cache.delete(CacheKeys.CUSTOMERS_BY_PHONE(telefone));
+    }
+    cache.deletePattern('customers:.*');
+    console.log(`💥 Cache invalidated: customer ${id} and patterns (UPDATE)`);
+    
     res.json({ customer: result.rows[0] });
 
   } catch (error) {
@@ -274,6 +308,14 @@ router.post('/manage', authenticateToken, async (req, res) => {
           RETURNING *
         `, [nome, endereco, existingCustomer.id]);
         
+        // Invalidar cache após atualização no /manage
+        cache.delete(CacheKeys.CUSTOMERS_BY_ID(existingCustomer.id));
+        if (telefone) {
+          cache.delete(CacheKeys.CUSTOMERS_BY_PHONE(telefone));
+        }
+        cache.deletePattern('customers:.*');
+        console.log(`💥 Cache invalidated: customer ${existingCustomer.id} and patterns (MANAGE UPDATE)`);
+        
         console.log('[Backend] Cliente atualizado:', updateResult.rows[0]);
         return res.json({ 
           customer: updateResult.rows[0],
@@ -294,6 +336,10 @@ router.post('/manage', authenticateToken, async (req, res) => {
         RETURNING *
       `, [nome, telefone || null, endereco || null]);
 
+      // Invalidar cache após criação no /manage
+      cache.deletePattern('customers:.*');
+      console.log('💥 Cache invalidated: customers patterns (MANAGE CREATE)');
+      
       console.log('[Backend] Cliente criado com sucesso:', result.rows[0]);
       return res.status(201).json({ 
         customer: result.rows[0],
@@ -334,6 +380,12 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 
     await db.query('DELETE FROM clientes WHERE id = $1', [id]);
+    
+    // Invalidar cache após deleção
+    cache.delete(CacheKeys.CUSTOMERS_BY_ID(id));
+    cache.deletePattern('customers:.*');
+    console.log(`💥 Cache invalidated: customer ${id} and patterns (DELETE)`);
+    
     res.json({ message: 'Cliente removido com sucesso' });
 
   } catch (error) {

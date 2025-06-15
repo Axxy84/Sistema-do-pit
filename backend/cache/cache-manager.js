@@ -3,6 +3,8 @@
  * Sistema de cache em memória local para otimizar consultas pesadas do ERP
  */
 
+const cacheMetrics = require('./cache-metrics');
+
 class CacheManager {
   constructor() {
     this.cache = new Map();
@@ -25,8 +27,10 @@ class CacheManager {
     
     // Verifica se o item existe e não expirou
     if (this.cache.has(key) && expiry && now < expiry) {
+      const value = this.cache.get(key);
+      cacheMetrics.recordHit(key, 1); // 1ms para cache hit
       console.log(`🎯 Cache HIT: ${key}`);
-      return this.cache.get(key);
+      return value;
     }
     
     // Remove item expirado
@@ -36,6 +40,7 @@ class CacheManager {
       console.log(`⏰ Cache EXPIRED: ${key}`);
     }
     
+    cacheMetrics.recordMiss(key, 0); // Will be updated with actual DB time
     console.log(`❌ Cache MISS: ${key}`);
     return null;
   }
@@ -52,6 +57,7 @@ class CacheManager {
     this.cache.set(key, value);
     this.ttlMap.set(key, expiry);
     
+    cacheMetrics.recordSet(key);
     console.log(`💾 Cache SET: ${key} (TTL: ${ttlSeconds}s)`);
   }
 
@@ -62,6 +68,7 @@ class CacheManager {
   delete(key) {
     this.cache.delete(key);
     this.ttlMap.delete(key);
+    cacheMetrics.recordDelete(key);
     console.log(`🗑️ Cache DELETE: ${key}`);
   }
 
@@ -80,6 +87,7 @@ class CacheManager {
     }
     
     keysToDelete.forEach(key => this.delete(key));
+    cacheMetrics.recordInvalidation(pattern, keysToDelete.length);
     console.log(`🗑️ Cache DELETE PATTERN: ${pattern} (${keysToDelete.length} items)`);
   }
 
@@ -121,12 +129,27 @@ class CacheManager {
   getStats() {
     return {
       totalItems: this.cache.size,
-      keys: Array.from(this.cache.keys())
+      keys: Array.from(this.cache.keys()),
+      metrics: cacheMetrics.getMetrics()
     };
   }
 
   /**
-   * Função helper para Cache-Aside pattern
+   * Gera relatório de performance
+   */
+  generatePerformanceReport() {
+    return cacheMetrics.generateReport();
+  }
+
+  /**
+   * Reseta métricas
+   */
+  resetMetrics() {
+    cacheMetrics.reset();
+  }
+
+  /**
+   * Função helper para Cache-Aside pattern com métricas
    * Verifica cache primeiro, se não encontrar executa a função e armazena o resultado
    * @param {string} key - Chave do cache
    * @param {Function} dataFetcher - Função que busca os dados
@@ -140,9 +163,15 @@ class CacheManager {
       return cachedData;
     }
     
-    // Cache miss - busca os dados
+    // Cache miss - busca os dados e mede tempo
     try {
+      const startTime = Date.now();
       const data = await dataFetcher();
+      const dbResponseTime = Date.now() - startTime;
+      
+      // Atualiza métricas com tempo real de DB
+      cacheMetrics.recordMiss(key, dbResponseTime);
+      
       this.set(key, data, ttlSeconds);
       return data;
     } catch (error) {

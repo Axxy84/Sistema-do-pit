@@ -370,7 +370,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 - **Routes**: Modular route files in `backend/routes/`
 - **Cache System**: In-memory cache-aside pattern in `backend/cache/`
 - **Migrations**: Database setup scripts in `backend/scripts/migrate.js`
-- **Special Routes**: Flutter delivery endpoints in `backend/routes/delivery-endpoints.js`
+- **Special Routes**: Delivery management endpoints in `backend/routes/delivery-endpoints.js`
 
 ### Frontend Architecture
 - **API Client**: `src/lib/apiClient.js` - Centralized HTTP client with auth handling
@@ -446,7 +446,7 @@ CORS_ORIGIN=http://localhost:5173
 - `/api/cash-closing` - Cash register operations
 - `/api/reports` - Business reports
 - `/api/deliverers` - Delivery personnel management
-- `/api/delivery/*` - Flutter app endpoints for delivery drivers
+- `/api/delivery/*` - Delivery management endpoints
 - `/api/cache-admin` - Cache management panel
 - `/api/owner` - Tony's analytics dashboard
 - `/api/profit-calculator` - Profit analysis endpoints
@@ -478,7 +478,7 @@ CORS_ORIGIN=http://localhost:5173
 3. **Error Handling**: API client automatically handles 401/403 and redirects to login
 4. **Database Connection**: Uses connection pool with 20 max connections
 5. **Security**: Helmet.js for security headers, rate limiting on sensitive endpoints
-6. **Flutter Integration**: Ready-made endpoints for delivery app at `/api/delivery/*`
+6. **Delivery Integration**: Ready-made endpoints for delivery management at `/api/delivery/*`
 7. **Owner Dashboard**: Special analytics dashboard for Tony accessible via special login
 8. **Multi-flavor Pizzas**: Complex pizza customization system with half/half support
 9. **ESLint Configuration**: Console statements allowed in both frontend and backend
@@ -493,13 +493,6 @@ Default admin user (created by migration):
 
 ⚠️ Change this password immediately in production!
 
-## Flutter Delivery App
-
-System includes complete Flutter delivery app support:
-- 5 dedicated endpoints in `/api/delivery/*`
-- Ready for immediate Flutter integration
-- Documentation in `FLUTTER_DELIVERY_APP.md`
-- Test scripts: `test-delivery-endpoints.cjs`, `test-delivery-simple.cjs`
 
 ## Testing & Debugging
 
@@ -530,7 +523,7 @@ node populate-menu.js            # Populate complete menu
 node populate-pitstop-menu.js    # Populate Pit Stop specific menu
 node add-bebidas-exemplo.js      # Add example beverages
 
-# Flutter/Delivery endpoints testing
+# Delivery endpoints testing
 node test-delivery-endpoints.cjs # Comprehensive delivery API test
 node test-delivery-simple.cjs    # Simple delivery endpoint test
 ```
@@ -616,7 +609,7 @@ The system includes Jest support in package.json but uses primarily custom Node.
 - API endpoint testing  
 - Business logic verification
 - Integration testing between frontend and backend
-- Flutter delivery app endpoint testing
+- Delivery API endpoint testing
 
 **Note**: No formal Jest test suites are currently implemented - the system relies on the comprehensive custom testing scripts above for validation and debugging.
 

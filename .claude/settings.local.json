@@ -42,7 +42,13 @@
       "Bash(cat:*)",
       "Bash(touch:*)",
       "Bash(nc:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(hostname:*)",
+      "Bash(ip route:*)",
+      "Bash(ss:*)",
+      "Bash(./build_apk.sh:*)",
+      "Bash(rg:*)",
+      "Bash(awk:*)"
     ],
     "deny": []
   }

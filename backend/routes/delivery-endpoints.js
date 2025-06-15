@@ -29,7 +29,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// 📱 ENDPOINTS PARA APP FLUTTER - ENTREGADORES
+// 📱 ENDPOINTS PARA APP DE ENTREGA - ENTREGADORES
 
 // 1. Listar todos os pedidos de delivery (sem filtro de aceito/não aceito)
 router.get('/pedidos-delivery', authenticateToken, async (req, res) => {
@@ -56,7 +56,7 @@ router.get('/pedidos-delivery', authenticateToken, async (req, res) => {
     
     const result = await pool.query(query);
     
-    // Formatar dados para o Flutter
+    // Formatar dados para o app
     const pedidos = result.rows.map(pedido => ({
       id: pedido.id,
       total: parseFloat(pedido.total),
@@ -97,8 +97,7 @@ router.get('/pedido/:id', authenticateToken, async (req, res) => {
         p.*,
         c.nome as cliente_nome,
         c.telefone as cliente_telefone,
-        c.endereco as cliente_endereco_completo,
-        c.email as cliente_email
+        c.endereco as cliente_endereco_completo
       FROM pedidos p 
       LEFT JOIN clientes c ON p.cliente_id = c.id 
       WHERE p.id = $1 AND p.tipo_pedido = 'delivery'
@@ -137,8 +136,7 @@ router.get('/pedido/:id', authenticateToken, async (req, res) => {
       forma_pagamento: pedido.forma_pagamento,
       cliente: {
         nome: pedido.cliente_nome,
-        telefone: pedido.cliente_telefone,
-        email: pedido.cliente_email
+        telefone: pedido.cliente_telefone
       },
       itens: itensResult.rows.map(item => ({
         id: item.id,

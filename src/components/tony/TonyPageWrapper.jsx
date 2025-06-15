@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ownerService } from '@/services/ownerService';
-import TonyLoginPage from './TonyLoginPage';
+import TonyLoginPageDirect from './TonyLoginPageDirect';
 import TonyDashboardPage from './TonyDashboardPage';
 import { Loader2, Shield } from 'lucide-react';
 
@@ -65,7 +65,7 @@ const TonyPageWrapper = () => {
 
   // Se não é owner ou não tem sessão, mostrar login
   if (!isOwnerVerified) {
-    return <TonyLoginPage onOwnerVerified={handleOwnerVerified} />;
+    return <TonyLoginPageDirect onOwnerVerified={handleOwnerVerified} />;
   }
 
   // Se é owner verificado, mostrar dashboard

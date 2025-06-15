@@ -45,12 +45,31 @@ const CacheKeys = {
   PRODUCTS_LIST: 'products:list',
   PRODUCTS_BY_TYPE: (type) => `products:type:${type}`,
   PRODUCTS_BY_ID: (id) => `products:${id}`,
+  PRODUCTS_ACTIVE: 'products:active',
+  PRODUCTS_BORDERS: 'products:borders',
 
   // Clientes
   CUSTOMERS_LIST: 'customers:list',
   CUSTOMERS_BY_ID: (id) => `customers:${id}`,
+  CUSTOMERS_BY_PHONE: (phone) => `customers:phone:${phone}`,
   CUSTOMERS_TOP: (startDate, endDate) => `customers:top:${startDate}:${endDate}`,
   CUSTOMERS_BY_TYPE_PREFERENCE: (startDate, endDate) => `customers:by_type_preference:${startDate}:${endDate}`,
+  CUSTOMERS_WITH_POINTS: 'customers:with_points',
+
+  // Entregadores
+  DELIVERERS_LIST: 'deliverers:list',
+  DELIVERERS_ACTIVE: 'deliverers:active',
+  DELIVERERS_BY_ID: (id) => `deliverers:${id}`,
+
+  // Cupons
+  COUPONS_LIST: 'coupons:list',
+  COUPONS_ACTIVE: 'coupons:active',
+  COUPONS_BY_CODE: (code) => `coupons:code:${code}`,
+  COUPONS_VALIDATE: (code, valor) => `coupons:validate:${code}:${valor}`,
+
+  // Configurações
+  CONFIGURATIONS_ALL: 'configurations:all',
+  CONFIGURATIONS_ACTIVE: 'configurations:active',
 
   // Padrões para invalidação
   PATTERNS: {
@@ -60,6 +79,9 @@ const CacheKeys = {
     ORDERS: 'orders:.*',
     PRODUCTS: 'products:.*',
     CUSTOMERS: 'customers:.*',
+    DELIVERERS: 'deliverers:.*',
+    COUPONS: 'coupons:.*',
+    CONFIGURATIONS: 'configurations:.*',
     // Novos padrões específicos
     REPORTS_BY_TYPE: 'reports:.*_by_type:.*',
     CASH_CLOSING_DETAILED: 'cash_closing:.*detailed.*'

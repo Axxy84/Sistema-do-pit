@@ -12,7 +12,7 @@ let authToken = '';
 async function login() {
   try {
     console.log('🔐 Fazendo login como admin...');
-    const response = await axios.post(`${BASE_URL}/api/auth/login`, adminCredentials);
+    const response = await axios.post(`${BASE_URL}/api/auth/signin`, adminCredentials);
     authToken = response.data.token;
     console.log('✅ Login realizado com sucesso!');
     return true;
@@ -23,7 +23,7 @@ async function login() {
 }
 
 async function testDeliveryEndpoints() {
-  console.log('\n🚚 TESTANDO ENDPOINTS DE DELIVERY PARA APP FLUTTER');
+  console.log('\n🚚 TESTANDO ENDPOINTS DE DELIVERY PARA APP DE ENTREGA');
   console.log('=====================================================');
 
   const headers = {
@@ -112,18 +112,18 @@ async function testDeliveryEndpoints() {
     console.error('❌ Erro ao atualizar status:', error.response?.data || error.message);
   }
 
-  console.log('\n🎯 RESUMO DOS ENDPOINTS PARA APP FLUTTER:');
+  console.log('\n🎯 RESUMO DOS ENDPOINTS PARA APP DE ENTREGA:');
   console.log('==========================================');
   console.log('📱 GET /api/delivery/pedidos-delivery - Listar todos os pedidos');
   console.log('📱 GET /api/delivery/pedido/{id} - Buscar pedido específico');
   console.log('📱 GET /api/delivery/pedidos-por-status/{status} - Filtrar por status');
   console.log('📱 PUT /api/delivery/pedido/{id}/status - Atualizar status');
   console.log('📱 GET /api/delivery/estatisticas - Estatísticas do dia');
-  console.log('\n💡 Estes endpoints são simples e diretos para o app Flutter!');
+  console.log('\n💡 Estes endpoints são simples e diretos para o app de entrega!');
 }
 
 async function main() {
-  console.log('🧪 TESTE DOS ENDPOINTS DE DELIVERY FLUTTER');
+  console.log('🧪 TESTE DOS ENDPOINTS DE DELIVERY APP');
   console.log('==========================================');
   
   const loginSuccess = await login();

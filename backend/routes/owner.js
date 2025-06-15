@@ -8,12 +8,12 @@ router.get('/verify', authenticateOwner, async (req, res) => {
   try {
     res.json({
       success: true,
+      isOwner: true,
       message: 'Acesso de owner verificado',
       user: {
         id: req.user.id,
         email: req.user.email,
-        name: req.user.name,
-        isOwner: true
+        name: req.user.name || 'Proprietário'
       }
     });
   } catch (error) {

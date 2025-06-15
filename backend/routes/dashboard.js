@@ -82,7 +82,7 @@ async function fetchKPIs(todayStart, todayEnd, todayKey) {
       db.query(`
         SELECT COALESCE(SUM(total), 0) as total_sales
         FROM pedidos 
-        WHERE status_pedido = 'entregue' 
+        WHERE status_pedido IN ('entregue', 'fechada')
         AND data_pedido >= $1 AND data_pedido <= $2
       `, [todayStart, todayEnd]),
       
@@ -101,7 +101,7 @@ async function fetchKPIs(todayStart, todayEnd, todayKey) {
         JOIN produtos pr ON ip.produto_id_ref = pr.id
         WHERE pr.tipo_produto = 'pizza'
         AND p.data_pedido >= $1 AND p.data_pedido <= $2
-        AND p.status_pedido = 'entregue'
+        AND p.status_pedido IN ('entregue', 'fechada')
       `, [todayStart, todayEnd]),
       
       // Pedidos pendentes
@@ -233,8 +233,11 @@ router.get('/fechamento-consolidado', authenticateToken, async (req, res) => {
         MIN(DATE(data_pedido)) as data_inicio,
         MAX(DATE(data_pedido)) as data_fim
       FROM pedidos 
-      WHERE DATE(data_pedido) BETWEEN $1 AND $2
-        AND status_pedido = 'entregue'
+      WHERE data_pedido::date BETWEEN $1::date AND $2::date
+        AND (
+          (tipo_pedido = 'delivery' AND status_pedido = 'entregue') OR
+          (tipo_pedido = 'mesa' AND status_pedido IN ('entregue', 'fechada'))
+        )
         AND tipo_pedido IN ('mesa', 'delivery')
       GROUP BY tipo_pedido
       ORDER BY tipo_pedido
@@ -266,7 +269,7 @@ router.get('/fechamento-consolidado', authenticateToken, async (req, res) => {
         vendas_por_metodo,
         created_at
       FROM fechamento_caixa 
-      WHERE DATE(data_fechamento) BETWEEN $1 AND $2
+      WHERE data_fechamento::date BETWEEN $1::date AND $2::date
       ORDER BY data_fechamento DESC
     `, [startDate, endDate]);
 
@@ -279,8 +282,8 @@ router.get('/fechamento-consolidado', authenticateToken, async (req, res) => {
         p.tipo_pedido
       FROM itens_pedido ip
       JOIN pedidos p ON ip.pedido_id = p.id
-      WHERE DATE(p.data_pedido) BETWEEN $1 AND $2
-        AND p.status_pedido = 'entregue'
+      WHERE p.data_pedido::date BETWEEN $1::date AND $2::date
+        AND p.status_pedido IN ('entregue', 'fechada')
         AND ip.sabor_registrado IS NOT NULL
       GROUP BY ip.sabor_registrado, p.tipo_pedido
       ORDER BY quantidade_vendida DESC

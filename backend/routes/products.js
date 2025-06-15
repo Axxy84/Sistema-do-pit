@@ -1,38 +1,54 @@
 const express = require('express');
 const db = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
+const cache = require('../cache/cache-manager');
+const { CacheKeys } = require('../cache/cache-keys');
 
 const router = express.Router();
 
-// GET /api/products - Listar todos os produtos
+// GET /api/products - Listar todos os produtos (COM CACHE)
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const result = await db.query(`
-      SELECT * FROM produtos 
-      ORDER BY created_at DESC
-    `);
+    const { tipo_produto } = req.query;
     
-    // Converter preços para números
-    const products = result.rows.map(product => {
-      // Converter preco_unitario para número se existir
-      if (product.preco_unitario !== null && product.preco_unitario !== undefined) {
-        product.preco_unitario = parseFloat(product.preco_unitario);
-      }
-      
-      // Converter preços em tamanhos_precos para números se existir
-      if (product.tamanhos_precos && Array.isArray(product.tamanhos_precos)) {
-        product.tamanhos_precos = product.tamanhos_precos.map(tp => ({
-          ...tp,
-          preco: tp.preco !== null && tp.preco !== undefined ? parseFloat(tp.preco) : tp.preco
-        }));
-      }
-      
-      return product;
-    });
+    // Gerar chave de cache baseada no filtro
+    const cacheKey = tipo_produto ? 
+      CacheKeys.PRODUCTS_BY_TYPE(tipo_produto) : 
+      CacheKeys.PRODUCTS_LIST;
     
-    // Verificar os produtos do tipo borda
+    // Implementar Cache-Aside pattern
+    const products = await cache.getOrFetch(cacheKey, async () => {
+      const whereClause = tipo_produto ? 'WHERE tipo_produto = $1' : '';
+      const queryParams = tipo_produto ? [tipo_produto] : [];
+      
+      const result = await db.query(`
+        SELECT * FROM produtos 
+        ${whereClause}
+        ORDER BY created_at DESC
+      `, queryParams);
+      
+      // Converter preços para números
+      return result.rows.map(product => {
+        // Converter preco_unitario para número se existir
+        if (product.preco_unitario !== null && product.preco_unitario !== undefined) {
+          product.preco_unitario = parseFloat(product.preco_unitario);
+        }
+        
+        // Converter preços em tamanhos_precos para números se existir
+        if (product.tamanhos_precos && Array.isArray(product.tamanhos_precos)) {
+          product.tamanhos_precos = product.tamanhos_precos.map(tp => ({
+            ...tp,
+            preco: tp.preco !== null && tp.preco !== undefined ? parseFloat(tp.preco) : tp.preco
+          }));
+        }
+        
+        return product;
+      });
+    }, 900); // TTL: 15 minutos - dados mudam raramente
+    
+    // Verificar os produtos do tipo borda para debug
     const bordas = products.filter(p => p.tipo_produto === 'borda');
-    console.log(`[API] Retornando ${bordas.length} bordas:`);
+    console.log(`[API] Retornando ${bordas.length} bordas (cache: ${cacheKey}):`);
     bordas.forEach(borda => {
       console.log(`   • ${borda.nome}: R$ ${borda.preco_unitario} (${typeof borda.preco_unitario})`);
     });
@@ -47,17 +63,23 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/products/:id - Buscar produto por ID
+// GET /api/products/:id - Buscar produto por ID (COM CACHE)
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await db.query('SELECT * FROM produtos WHERE id = $1', [id]);
+    const cacheKey = CacheKeys.PRODUCTS_BY_ID(id);
     
-    if (result.rows.length === 0) {
+    // Cache-Aside pattern para produto individual
+    const product = await cache.getOrFetch(cacheKey, async () => {
+      const result = await db.query('SELECT * FROM produtos WHERE id = $1', [id]);
+      return result.rows.length > 0 ? result.rows[0] : null;
+    }, 1800); // TTL: 30 minutos - produto individual muda raramente
+    
+    if (!product) {
       return res.status(404).json({ error: 'Produto não encontrado' });
     }
     
-    res.json({ product: result.rows[0] });
+    res.json({ product });
   } catch (error) {
     console.error('Erro ao buscar produto:', error);
     res.status(500).json({ 
@@ -104,6 +126,10 @@ router.post('/', authenticateToken, async (req, res) => {
       estoque_disponivel,
       ativo
     ]);
+
+    // Invalidar cache após criação
+    cache.deletePattern('products:.*');
+    console.log('💥 Cache invalidated: products patterns (CREATE)');
 
     res.status(201).json({ product: result.rows[0] });
   } catch (error) {
@@ -192,6 +218,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
     `;
 
     const result = await db.query(query, values);
+    
+    // Invalidar cache após atualização (PUT)
+    cache.delete(CacheKeys.PRODUCTS_BY_ID(id));
+    cache.deletePattern('products:.*');
+    console.log(`💥 Cache invalidated: product ${id} and patterns (PUT)`);
+    
     res.json({ product: result.rows[0] });
 
   } catch (error) {
@@ -275,6 +307,12 @@ router.patch('/:id', authenticateToken, async (req, res) => {
     `;
 
     const result = await db.query(query, values);
+    
+    // Invalidar cache após atualização (PATCH)
+    cache.delete(CacheKeys.PRODUCTS_BY_ID(id));
+    cache.deletePattern('products:.*');
+    console.log(`💥 Cache invalidated: product ${id} and patterns (PATCH)`);
+    
     res.json({ product: result.rows[0] });
 
   } catch (error) {
@@ -312,6 +350,12 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 
     await db.query('DELETE FROM produtos WHERE id = $1', [id]);
+    
+    // Invalidar cache após deleção
+    cache.delete(CacheKeys.PRODUCTS_BY_ID(id));
+    cache.deletePattern('products:.*');
+    console.log(`💥 Cache invalidated: product ${id} and patterns (DELETE)`);
+    
     res.json({ message: 'Produto removido com sucesso' });
 
   } catch (error) {

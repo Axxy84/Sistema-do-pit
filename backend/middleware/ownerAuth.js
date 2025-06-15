@@ -25,23 +25,25 @@ const authenticateOwner = async (req, res, next) => {
       });
     }
 
-    // Buscar usuário no banco e verificar owner_access
+    // Buscar usuário no banco (estrutura simples)
     const userResult = await db.query(
-      'SELECT id, email, name, owner_access FROM users WHERE id = $1 AND active = true',
+      'SELECT id, email FROM users WHERE id = $1',
       [decoded.userId]
     );
 
     if (userResult.rows.length === 0) {
       return res.status(401).json({ 
-        error: 'Usuário não encontrado ou inativo',
+        error: 'Usuário não encontrado',
         ownerRequired: true 
       });
     }
 
     const user = userResult.rows[0];
 
-    // Verificar se tem acesso de owner
-    if (!user.owner_access) {
+    // Por enquanto, admin@pizzaria.com tem acesso de owner
+    const isOwner = user.email === 'admin@pizzaria.com';
+    
+    if (!isOwner) {
       return res.status(403).json({ 
         error: 'Acesso negado. Área restrita ao proprietário.',
         ownerRequired: true,
@@ -50,7 +52,12 @@ const authenticateOwner = async (req, res, next) => {
     }
 
     // Adicionar informações do owner ao request
-    req.user = user;
+    req.user = {
+      id: user.id,
+      email: user.email,
+      name: 'Proprietário', // Nome padrão
+      owner_access: true
+    };
     req.isOwner = true;
     
     console.log(`✅ Acesso de owner autorizado para: ${user.email}`);
@@ -85,7 +92,7 @@ const checkOwnerStatus = async (req, res, next) => {
     }
 
     const userResult = await db.query(
-      'SELECT id, email, name, owner_access FROM users WHERE id = $1 AND active = true',
+      'SELECT id, email FROM users WHERE id = $1',
       [decoded.userId]
     );
 
@@ -95,8 +102,15 @@ const checkOwnerStatus = async (req, res, next) => {
     }
 
     const user = userResult.rows[0];
-    req.user = user;
-    req.isOwner = !!user.owner_access;
+    const isOwner = user.email === 'admin@pizzaria.com';
+    
+    req.user = {
+      id: user.id,
+      email: user.email,
+      name: 'Proprietário',
+      owner_access: isOwner
+    };
+    req.isOwner = isOwner;
     
     next();
 

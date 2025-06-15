@@ -8,15 +8,18 @@ const router = express.Router();
 const cache = require('../cache/cache-manager');
 const { authenticateToken } = require('../middleware/auth');
 
-// GET /api/cache-admin/stats - Estatísticas do cache
+// GET /api/cache-admin/stats - Estatísticas completas do cache com métricas
 router.get('/stats', authenticateToken, (req, res) => {
   try {
     const stats = cache.getStats();
     
     res.json({
-      totalItems: stats.totalItems,
-      keys: stats.keys,
-      message: `Cache contém ${stats.totalItems} itens`
+      cache: {
+        totalItems: stats.totalItems,
+        keys: stats.keys,
+        message: `Cache contém ${stats.totalItems} itens`
+      },
+      metrics: stats.metrics
     });
   } catch (error) {
     console.error('Erro ao buscar estatísticas do cache:', error);
@@ -164,6 +167,8 @@ router.get('/health', authenticateToken, (req, res) => {
       status: isHealthy ? 'healthy' : 'unhealthy',
       totalItems: stats.totalItems,
       testPassed: isHealthy,
+      hitRate: stats.metrics?.summary?.hitRate || '0%',
+      performance: stats.metrics?.performance?.performanceImprovement || '0%',
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -175,5 +180,148 @@ router.get('/health', authenticateToken, (req, res) => {
     });
   }
 });
+
+// GET /api/cache-admin/metrics - Métricas detalhadas de performance
+router.get('/metrics', authenticateToken, (req, res) => {
+  try {
+    const stats = cache.getStats();
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      metrics: stats.metrics,
+      recommendations: generateCacheRecommendations(stats.metrics)
+    });
+  } catch (error) {
+    console.error('Erro ao buscar métricas do cache:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// GET /api/cache-admin/report - Relatório de performance
+router.get('/report', authenticateToken, (req, res) => {
+  try {
+    const report = cache.generatePerformanceReport();
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      report: report,
+      status: 'generated'
+    });
+  } catch (error) {
+    console.error('Erro ao gerar relatório do cache:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+// POST /api/cache-admin/metrics/reset - Reset métricas
+router.post('/metrics/reset', authenticateToken, (req, res) => {
+  try {
+    cache.resetMetrics();
+    
+    res.json({
+      message: 'Métricas de cache resetadas com sucesso',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Erro ao resetar métricas do cache:', error);
+    res.status(500).json({ 
+      error: 'Erro interno do servidor',
+      message: error.message 
+    });
+  }
+});
+
+/**
+ * Gera recomendações baseadas nas métricas de cache
+ */
+function generateCacheRecommendations(metrics) {
+  const recommendations = [];
+  
+  if (!metrics || !metrics.summary) {
+    return ['Métricas insuficientes para gerar recomendações'];
+  }
+  
+  const hitRate = parseFloat(metrics.summary.hitRate);
+  const totalRequests = metrics.summary.totalRequests;
+  
+  // Análise da taxa de acerto
+  if (hitRate < 60) {
+    recommendations.push({
+      type: 'warning',
+      category: 'hit_rate',
+      message: `Taxa de acerto baixa (${hitRate}%). Considere aumentar TTL para dados estáveis.`,
+      priority: 'high'
+    });
+  } else if (hitRate > 85) {
+    recommendations.push({
+      type: 'success',
+      category: 'hit_rate',
+      message: `Excelente taxa de acerto (${hitRate}%). Cache bem otimizado.`,
+      priority: 'info'
+    });
+  }
+  
+  // Análise por categoria
+  if (metrics.categoryBreakdown) {
+    metrics.categoryBreakdown.forEach(category => {
+      const catHitRate = parseFloat(category.hitRate);
+      
+      if (catHitRate < 50 && (category.hits + category.misses) > 10) {
+        recommendations.push({
+          type: 'warning',
+          category: 'category_performance',
+          message: `Categoria '${category.category}' com baixa taxa de acerto (${category.hitRate}). Revisar estratégia de cache.`,
+          priority: 'medium'
+        });
+      }
+    });
+  }
+  
+  // Análise de volume
+  if (totalRequests < 100) {
+    recommendations.push({
+      type: 'info',
+      category: 'volume',
+      message: 'Volume baixo de requisições. Métricas podem não ser representativas.',
+      priority: 'low'
+    });
+  }
+  
+  // Análise de performance
+  if (metrics.performance && metrics.performance.performanceImprovement) {
+    const improvement = parseFloat(metrics.performance.performanceImprovement);
+    
+    if (improvement > 70) {
+      recommendations.push({
+        type: 'success',
+        category: 'performance',
+        message: `Excelente melhoria de performance (${improvement}%). Cache muito efetivo.`,
+        priority: 'info'
+      });
+    } else if (improvement < 30) {
+      recommendations.push({
+        type: 'warning',
+        category: 'performance',
+        message: `Melhoria modesta de performance (${improvement}%). Verificar se queries estão sendo otimizadas.`,
+        priority: 'medium'
+      });
+    }
+  }
+  
+  return recommendations.length > 0 ? recommendations : [
+    {
+      type: 'info',
+      category: 'general',
+      message: 'Sistema de cache funcionando dentro dos parâmetros normais.',
+      priority: 'info'
+    }
+  ];
+}
 
 module.exports = router; 

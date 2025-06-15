@@ -5,6 +5,7 @@ import { LogOut, RefreshCw, DollarSign, Receipt, Calculator, TrendingUp, AlertTr
 import { useToast } from '@/components/ui/use-toast';
 import { expenseService } from '@/services/expenseService';
 import { profitCalculatorService } from '@/services/profitCalculatorService';
+import { tonyAnalyticsService } from '@/services/tonyAnalyticsService';
 import InfoCard from './InfoCard';
 import TonyBanner from './TonyBanner';
 import AddExpenseForm from './AddExpenseForm';
@@ -19,6 +20,7 @@ const TonyDashboardPage = () => {
   const { toast } = useToast();
   const [expensesData, setExpensesData] = useState([]);
   const [financialSummary, setFinancialSummary] = useState(null);
+  const [salesData, setSalesData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
@@ -28,13 +30,16 @@ const TonyDashboardPage = () => {
     sessionData: session
   });
 
-  const fetchFinancialData = async (date = selectedDate) => {
+  const fetchFinancialData = async (date = selectedDate, forceRefresh = false) => {
     try {
       setIsLoading(true);
-      console.log('💰 TonyDashboardPage - Buscando dados financeiros para:', date);
+      console.log('💰 TonyDashboardPage - Buscando dados financeiros para:', date, forceRefresh ? '(FORCE REFRESH)' : '');
       
-      // Buscar despesas do dia e resumo financeiro
-      const [expenses, summary] = await Promise.all([
+      // Force refresh - adicionar timestamp para evitar cache
+      const cacheBreaker = forceRefresh ? `&_t=${Date.now()}` : '';
+      
+      // Buscar despesas, resumo financeiro E dados de vendas
+      const [expenses, summary, analytics] = await Promise.all([
         expenseService.getAllExpenses({
           tipo: 'despesa',
           data_inicio: date,
@@ -43,14 +48,17 @@ const TonyDashboardPage = () => {
         expenseService.getExpensesSummary({
           data_inicio: date,
           data_fim: date
-        })
+        }),
+        tonyAnalyticsService.getTodayAnalytics(date)
       ]);
 
       console.log('📊 TonyDashboardPage - Despesas:', expenses);
       console.log('📊 TonyDashboardPage - Resumo:', summary);
+      console.log('📊 TonyDashboardPage - Vendas:', analytics);
       
       setExpensesData(expenses);
       setFinancialSummary(summary);
+      setSalesData(analytics);
       
       console.log('✅ TonyDashboardPage - Dados financeiros carregados');
     } catch (error) {
@@ -70,6 +78,14 @@ const TonyDashboardPage = () => {
         quantidade_receitas: 0,
         saldo: 0
       });
+      setSalesData({
+        consolidated: {
+          totais_gerais: {
+            vendas_brutas: 0,
+            total_pedidos: 0
+          }
+        }
+      });
     } finally {
       setIsLoading(false);
     }
@@ -79,8 +95,52 @@ const TonyDashboardPage = () => {
     console.log('💰 TonyDashboardPage - useEffect executado');
     fetchFinancialData();
     
+    // Atualização automática a cada 30 segundos
+    const interval = setInterval(() => {
+      console.log('🔄 TonyDashboardPage - Atualizando dados automaticamente');
+      fetchFinancialData();
+    }, 30000);
+    
+    // Escutar eventos de pedidos salvos/entregues para atualização em tempo real
+    const handleOrderUpdate = async (event) => {
+      console.log('📱 TonyDashboardPage - Evento de pedido detectado:', event.type, event.detail);
+      toast({
+        title: '🔄 Atualizando dados...',
+        description: 'Novo pedido detectado, atualizando dados financeiros.',
+        duration: 2000
+      });
+      
+      // Limpar cache do backend primeiro
+      try {
+        await fetch('http://localhost:3001/api/cache-admin/clear', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('✅ TonyDashboard - Cache do backend limpo');
+      } catch (error) {
+        console.log('⚠️ TonyDashboard - Erro ao limpar cache:', error.message);
+      }
+      
+      setTimeout(() => fetchFinancialData(selectedDate, true), 1500); // Delay maior para garantir cache limpo
+    };
+    
+    window.addEventListener('orderSaved', handleOrderUpdate);
+    window.addEventListener('orderStatusChanged', handleOrderUpdate);
+    window.addEventListener('orderDelivered', handleOrderUpdate);
+    window.addEventListener('expenseAdded', handleOrderUpdate);
+    window.addEventListener('expenseDeleted', handleOrderUpdate);
+    
     return () => {
       console.log('💰 TonyDashboardPage - Componente desmontado (cleanup)');
+      clearInterval(interval);
+      window.removeEventListener('orderSaved', handleOrderUpdate);
+      window.removeEventListener('orderStatusChanged', handleOrderUpdate); 
+      window.removeEventListener('orderDelivered', handleOrderUpdate);
+      window.removeEventListener('expenseAdded', handleOrderUpdate);
+      window.removeEventListener('expenseDeleted', handleOrderUpdate);
     };
   }, [selectedDate]);
 
@@ -101,8 +161,24 @@ const TonyDashboardPage = () => {
 
   console.log('✅ TonyDashboardPage - Renderização concluída');
 
-  const handleRefresh = () => {
-    fetchFinancialData();
+  const handleRefresh = async () => {
+    console.log('🔄 TonyDashboard - Refresh manual solicitado');
+    
+    // Limpar cache primeiro
+    try {
+      await fetch('http://localhost:3001/api/cache-admin/clear', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      console.log('✅ TonyDashboard - Cache limpo (refresh manual)');
+    } catch (error) {
+      console.log('⚠️ TonyDashboard - Erro ao limpar cache:', error.message);
+    }
+    
+    fetchFinancialData(selectedDate, true);
   };
 
   const handleDateChange = (event) => {
@@ -146,6 +222,13 @@ const TonyDashboardPage = () => {
       );
     }
     
+    // Calcular receitas reais dos pedidos
+    const vendasBrutas = salesData?.consolidated?.totais_gerais?.vendas_brutas || 0;
+    const totalPedidos = salesData?.consolidated?.totais_gerais?.total_pedidos || 0;
+    const receitasExtras = financialSummary.total_receitas || 0;
+    const receitaTotal = vendasBrutas + receitasExtras;
+    const saldoReal = receitaTotal - financialSummary.total_despesas;
+    
     return (
       <div className="grid gap-6 md:grid-cols-4">
         <InfoCard
@@ -158,24 +241,24 @@ const TonyDashboardPage = () => {
         
         <InfoCard
           title="Receitas do Dia"
-          value={formatCurrency(financialSummary.total_receitas)}
-          subtitle={`${financialSummary.quantidade_receitas} entradas`}
+          value={formatCurrency(receitaTotal)}
+          subtitle={`${totalPedidos} pedidos + ${financialSummary.quantidade_receitas} extras`}
           icon={DollarSign}
           color="text-green-400"
         />
         
         <InfoCard
           title="Saldo do Dia"
-          value={formatCurrency(financialSummary.saldo)}
-          subtitle={financialSummary.saldo >= 0 ? "Positivo" : "Negativo"}
+          value={formatCurrency(saldoReal)}
+          subtitle={saldoReal >= 0 ? "Positivo ✅" : "Negativo ⚠️"}
           icon={PiggyBank}
-          color={financialSummary.saldo >= 0 ? "text-green-400" : "text-red-400"}
+          color={saldoReal >= 0 ? "text-green-400" : "text-red-400"}
         />
         
         <InfoCard
-          title="Total Movimentado"
-          value={formatCurrency(financialSummary.total_despesas + financialSummary.total_receitas)}
-          subtitle="Hoje"
+          title="Vendas Mesa+Delivery"
+          value={formatCurrency(vendasBrutas)}
+          subtitle={`${totalPedidos} pedidos finalizados`}
           icon={TrendingUp}
           color="text-blue-400"
         />

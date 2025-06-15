@@ -1,7 +1,7 @@
 console.log('🧪 TESTE SIMPLES DOS ENDPOINTS DE DELIVERY');
 console.log('========================================');
 
-console.log('\n📱 ENDPOINTS CRIADOS PARA APP FLUTTER:');
+console.log('\n📱 ENDPOINTS CRIADOS PARA APP DE ENTREGA:');
 console.log('=====================================');
 console.log('✅ GET /api/delivery/pedidos-delivery - Listar todos os pedidos');
 console.log('✅ GET /api/delivery/pedido/{id} - Buscar pedido específico');
@@ -108,7 +108,7 @@ console.log('• saiu_para_entrega - Saiu para entrega');
 console.log('• entregue - Pedido entregue ao cliente');
 console.log('• cancelado - Pedido cancelado');
 
-console.log('\n💡 DICAS PARA O APP FLUTTER:');
+console.log('\n💡 DICAS PARA O APP DE ENTREGA:');
 console.log('===========================');
 console.log('📱 Use os endpoints de filtro por status para organizar a UI');
 console.log('📱 O endpoint de estatísticas é ideal para dashboard');
@@ -116,5 +116,5 @@ console.log('📱 Todos os valores monetários vêm como number, não string');
 console.log('📱 Os endpoints são simples e diretos - apenas recebem informações');
 console.log('📱 Para atualizar status, basta enviar o novo status no PUT');
 
-console.log('\n✅ ENDPOINTS PRONTOS PARA USO NO FLUTTER!');
+console.log('\n✅ ENDPOINTS PRONTOS PARA USO NO APP DE ENTREGA!');
 console.log('=========================================='); 
