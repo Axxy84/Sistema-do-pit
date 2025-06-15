@@ -1,8 +1,0 @@
-
-<svg width="1080" height="1920" xmlns="http://www.w3.org/2000/svg">
-  <rect width="1080" height="1920" fill="#d32f2f"/>
-  <circle cx="540" cy="800" r="120" fill="white"/>
-  <rect x="420" y="960" width="240" height="150" rx="30" fill="white"/>
-  <text x="540" y="1200" text-anchor="middle" fill="white" font-family="Arial" font-size="48" font-weight="bold">SISTEMA DO PIT</text>
-  <text x="540" y="1280" text-anchor="middle" fill="white" font-family="Arial" font-size="32">App do Entregador</text>
-</svg>

@@ -184,7 +184,7 @@ router.get('/pedidos/disponiveis', authenticateDeliverer, async (req, res) => {
       LEFT JOIN clientes c ON p.cliente_id = c.id 
       WHERE p.tipo_pedido = 'delivery' 
         AND p.status_pedido IN ('preparando', 'pronto')
-        AND (p.entregador_id IS NULL OR p.entregador_id = '')
+        AND p.entregador_id IS NULL
       ORDER BY p.created_at ASC
       LIMIT 10
     `;
@@ -380,7 +380,6 @@ router.post('/pedidos/:id/entregar', authenticateDeliverer, async (req, res) => 
     const updateResult = await db.query(`
       UPDATE pedidos 
       SET status_pedido = 'entregue',
-          data_entrega = NOW(),
           updated_at = NOW()
       WHERE id = $1
       RETURNING *
@@ -392,7 +391,7 @@ router.post('/pedidos/:id/entregar', authenticateDeliverer, async (req, res) => 
       pedido: {
         id: updateResult.rows[0].id,
         status: updateResult.rows[0].status_pedido,
-        data_entrega: updateResult.rows[0].data_entrega
+        data_entrega: updateResult.rows[0].updated_at
       }
     });
 
@@ -500,7 +499,7 @@ router.get('/historico', authenticateDeliverer, async (req, res) => {
         p.endereco_entrega,
         p.status_pedido,
         p.data_pedido,
-        p.data_entrega,
+        p.updated_at as data_entrega,
         p.taxa_entrega,
         c.nome as cliente_nome
       FROM pedidos p 
@@ -508,7 +507,7 @@ router.get('/historico', authenticateDeliverer, async (req, res) => {
       WHERE p.tipo_pedido = 'delivery' 
         AND p.entregador_id = $1
         AND p.status_pedido = 'entregue'
-      ORDER BY p.data_entrega DESC
+      ORDER BY p.updated_at DESC
       LIMIT $2 OFFSET $3
     `;
     

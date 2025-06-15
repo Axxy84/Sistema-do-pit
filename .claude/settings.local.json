@@ -48,7 +48,15 @@
       "Bash(ss:*)",
       "Bash(./build_apk.sh:*)",
       "Bash(rg:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(ipconfig)",
+      "Bash(kill:*)",
+      "Bash(npx expo start:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(./gradlew:*)",
+      "Bash(npx expo run:android:*)",
+      "Bash(npx expo:*)",
+      "Bash(npx react-native:*)"
     ],
     "deny": []
   }
