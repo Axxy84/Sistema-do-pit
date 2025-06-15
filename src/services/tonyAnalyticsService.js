@@ -23,9 +23,9 @@ export const tonyAnalyticsService = {
         })
       ]);
 
-      const orders = ordersResponse.data.orders || [];
-      const deliverers = deliverersResponse.data.deliverers || [];
-      const consolidated = dashboardResponse.data;
+      const orders = ordersResponse?.data?.orders || ordersResponse?.data || [];
+      const deliverers = deliverersResponse?.data?.deliverers || deliverersResponse?.data || [];
+      const consolidated = dashboardResponse?.data || {};
 
       return {
         orders,
@@ -35,12 +35,24 @@ export const tonyAnalyticsService = {
       };
     } catch (error) {
       console.error('Erro ao buscar analytics do Tony:', error);
-      throw error;
+      // Retornar dados padrão em caso de erro
+      return {
+        orders: [],
+        deliverers: [],
+        consolidated: {},
+        analytics: {
+          totalRevenue: 0,
+          totalOrders: 0,
+          averageTicket: 0,
+          deliveryCount: 0,
+          tableCount: 0
+        }
+      };
     }
   },
 
   // Calcular métricas analíticas
-  calculateAnalytics(orders, deliverers, consolidated) {
+  calculateAnalytics(orders = [], deliverers = [], consolidated = {}) {
     const deliveredOrders = orders.filter(order => order.status_pedido === 'entregue');
     const pendingOrders = orders.filter(order => 
       !['entregue', 'cancelado', 'fechado'].includes(order.status_pedido)
