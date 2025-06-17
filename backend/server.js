@@ -9,6 +9,9 @@ const config = require('./config/env');
 const db = require('./config/database');
 const delivererWS = require('./routes/deliverer-websocket');
 
+// Importar configuração do Swagger
+const { specs, swaggerUi, swaggerOptions } = require('./swagger-config');
+
 const app = express();
 
 // Middlewares de segurança
@@ -100,7 +103,11 @@ const profitCalculatorRoutes = require('./routes/profit-calculator');
 const deliveryEndpointsRoutes = require('./routes/delivery-endpoints');
 const delivererAppRoutes = require('./routes/deliverer-app');
 
-// Registrar rotas
+// Importar as novas APIs dos apps premium
+const waiterAppRoutes = require('./routes/waiter-app');
+const ownerAppRoutes = require('./routes/owner-app');
+
+// Registrar rotas existentes
 app.use('/api/auth', authRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/products', productsRoutes);
@@ -118,6 +125,100 @@ app.use('/api/configurations', configurationsRoutes);
 app.use('/api/profit-calculator', profitCalculatorRoutes);
 app.use('/api/delivery', deliveryEndpointsRoutes);
 app.use('/api/deliverer-app', delivererAppRoutes);
+
+// 📱 APIs dos Apps Premium
+app.use('/api/waiter', waiterAppRoutes);        // App do Garçom
+app.use('/api/deliverer', delivererAppRoutes);  // App do Entregador (reutilizando)
+app.use('/api/owner', ownerAppRoutes);          // App do Dono
+
+// 📚 Documentação Swagger/OpenAPI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, swaggerOptions));
+
+// 📖 Endpoints de documentação específica
+app.get('/docs/waiter-app', (req, res) => {
+  res.json({
+    title: 'App do Garçom - Documentação',
+    description: 'API para gestão de mesas e pedidos',
+    endpoints: [
+      'GET /api/waiter/tables - Listar mesas',
+      'GET /api/waiter/table/:tableNumber/orders - Pedidos da mesa',
+      'POST /api/waiter/orders - Criar pedido',
+      'PATCH /api/waiter/orders/:orderId/status - Atualizar status',
+      'POST /api/waiter/table/:tableNumber/close - Fechar conta',
+      'GET /api/waiter/menu - Cardápio',
+      'GET /api/waiter/notifications - Notificações'
+    ],
+    authentication: 'Bearer JWT token com role garcom ou admin',
+    rate_limit: '200 requests per 15 minutes'
+  });
+});
+
+app.get('/docs/deliverer-app', (req, res) => {
+  res.json({
+    title: 'App do Entregador - Documentação',
+    description: 'API para gestão de entregas e rotas',
+    endpoints: [
+      'GET /api/deliverer/profile - Perfil do entregador',
+      'PATCH /api/deliverer/status - Atualizar status',
+      'GET /api/deliverer/deliveries - Listar entregas',
+      'POST /api/deliverer/deliveries/:orderId/accept - Aceitar entrega',
+      'POST /api/deliverer/deliveries/:orderId/complete - Finalizar entrega',
+      'POST /api/deliverer/location - Atualizar localização',
+      'GET /api/deliverer/stats - Estatísticas'
+    ],
+    authentication: 'Bearer JWT token com role entregador ou admin',
+    rate_limit: '300 requests per 15 minutes'
+  });
+});
+
+app.get('/docs/owner-app', (req, res) => {
+  res.json({
+    title: 'App do Dono - Documentação',
+    description: 'API para analytics e métricas executivas',
+    endpoints: [
+      'GET /api/owner/dashboard - Dashboard executivo',
+      'GET /api/owner/reports/financial - Relatórios financeiros',
+      'GET /api/owner/analytics/customers - Análise de clientes',
+      'GET /api/owner/analytics/operations - Análise operacional',
+      'GET /api/owner/alerts - Alertas e notificações'
+    ],
+    authentication: 'Bearer JWT token com role admin ou dono',
+    rate_limit: '500 requests per 15 minutes'
+  });
+});
+
+app.get('/docs/authentication', (req, res) => {
+  res.json({
+    title: 'Sistema de Autenticação - Guia',
+    description: 'Guia completo do sistema de autenticação JWT',
+    token_types: {
+      waiter: 'Válido por 12h - Acesso a mesas e pedidos',
+      deliverer: 'Válido por 24h - Acesso a entregas',
+      owner: 'Válido por 7d - Acesso a analytics',
+      system: 'Válido por 1h - Sistema principal'
+    },
+    how_to_authenticate: [
+      '1. POST /api/auth/signin com email/senha',
+      '2. Receber JWT token na resposta',
+      '3. Incluir header: Authorization: Bearer {token}',
+      '4. Token é validado em cada requisição'
+    ],
+    roles_permissions: {
+      admin: 'Acesso total a todos os apps',
+      garcom: 'Acesso ao app do garçom',
+      entregador: 'Acesso ao app do entregador',
+      atendente: 'Acesso limitado ao sistema principal'
+    },
+    error_codes: {
+      'NO_TOKEN': 'Token não fornecido',
+      'INVALID_TOKEN': 'Token inválido ou malformado',
+      'TOKEN_EXPIRED': 'Token expirado',
+      'INVALID_APP_TOKEN': 'Token não válido para este app',
+      'USER_NOT_AUTHORIZED': 'Usuário sem permissão',
+      'USER_INACTIVE': 'Usuário inativo'
+    }
+  });
+});
 
 // Ignorar requisições para favicon.ico
 app.get('/favicon.ico', (req, res) => res.status(204).end());

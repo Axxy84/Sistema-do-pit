@@ -1,33 +1,53 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const db = require('../config/database');
-const config = require('../config/env');
-
+const { Pool } = require('pg');
 const router = express.Router();
 
-// Middleware de autenticação específico para entregadores
-const authenticateDeliverer = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+// Database connection
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'pizzaria_db',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || '8477'
+});
 
-  if (!token) {
-    return res.status(401).json({ error: 'Token de acesso necessário' });
-  }
+// Middleware de autenticação específico para entregador
+const authenticateDeliverer = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ error: 'Token de acesso requerido' });
+    }
 
-  jwt.verify(token, config.JWT_SECRET, (err, decoded) => {
-    if (err) {
-      return res.status(403).json({ error: 'Token inválido' });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'pizzaria-secret-key');
+    
+    // Verificar se é entregador ou admin
+    const userResult = await pool.query(
+      'SELECT * FROM usuarios WHERE id = $1 AND (tipo_usuario = $2 OR tipo_usuario = $3)',
+      [decoded.userId, 'entregador', 'admin']
+    );
+
+    if (userResult.rows.length === 0) {
+      // Se não é usuário do sistema, verificar na tabela entregadores
+      const delivererResult = await pool.query(
+        'SELECT * FROM entregadores WHERE id = $1 AND ativo = true',
+        [decoded.userId]
+      );
+      
+      if (delivererResult.rows.length === 0) {
+        return res.status(403).json({ error: 'Acesso negado - usuário não é entregador' });
+      }
+      
+      req.user = { ...delivererResult.rows[0], tipo_usuario: 'entregador' };
+    } else {
+      req.user = userResult.rows[0];
     }
     
-    // Verificar se é um token de entregador
-    if (decoded.type !== 'deliverer') {
-      return res.status(403).json({ error: 'Token de entregador necessário' });
-    }
-    
-    req.deliverer = decoded;
     next();
-  });
+  } catch (error) {
+    res.status(401).json({ error: 'Token inválido' });
+  }
 };
 
 // Função para gerar token JWT específico para entregador
