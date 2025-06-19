@@ -1,0 +1,53 @@
+{
+  "appId": "com.pitstop.pizzaria",
+  "productName": "Sistema Pizzaria",
+  "directories": {
+    "output": "instaladores"
+  },
+  "files": [
+    "electron-main.js",
+    "preload.js",
+    "dist/**/*",
+    "backend/**/*",
+    "public/icon.ico",
+    "!backend/node_modules/sqlite3/build/**/*",
+    "!backend/**/*.log",
+    "!backend/**/*.pid"
+  ],
+  "extraResources": [
+    {
+      "from": "backend",
+      "to": "backend",
+      "filter": ["**/*", "!node_modules/sqlite3/build/**/*"]
+    }
+  ],
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64", "ia32"]
+      }
+    ],
+    "icon": "public/icon.ico",
+    "requestedExecutionLevel": "requireAdministrator"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "installerIcon": "public/icon.ico",
+    "uninstallerIcon": "public/icon.ico",
+    "installerHeaderIcon": "public/icon.ico",
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "Sistema Pizzaria",
+    "license": "LICENSE.txt",
+    "language": "1046",
+    "installerSidebar": "public/installer-sidebar.bmp",
+    "uninstallerSidebar": "public/installer-sidebar.bmp"
+  },
+  "publish": {
+    "provider": "github",
+    "owner": "Axxy84",
+    "repo": "Sistema-do-pit"
+  }
+}
