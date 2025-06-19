@@ -1,0 +1,26 @@
+=== INSTALAÇÃO RÁPIDA DO SISTEMA ===
+
+1) INSTALAR DOCKER:
+   - Windows: Baixar em https://docker.com
+   - Linux: sudo apt install docker.io docker-compose
+
+2) PREPARAR SISTEMA:
+   chmod +x deploy.sh
+   cp .env.production .env
+
+3) EDITAR SENHAS (IMPORTANTE!):
+   nano .env
+   # Mudar DB_PASSWORD e JWT_SECRET
+
+4) INSTALAR:
+   ./deploy.sh dev
+
+5) ACESSAR:
+   http://localhost
+   Login: admin@pizzaria.com
+   Senha: admin123
+
+COMANDOS ÚTEIS:
+- Ver logs: ./deploy.sh logs
+- Parar: ./deploy.sh stop
+- Backup: ./deploy.sh backup

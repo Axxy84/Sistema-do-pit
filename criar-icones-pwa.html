@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Criar Ícones PWA</title>
+</head>
+<body>
+    <h2>Gerador de Ícones PWA - PIT Pizzaria</h2>
+    <canvas id="canvas192" width="192" height="192" style="border: 1px solid #ccc; margin: 10px;"></canvas>
+    <canvas id="canvas512" width="512" height="512" style="border: 1px solid #ccc; margin: 10px;"></canvas>
+    <br>
+    <button onclick="downloadIcons()">Download Ícones</button>
+
+    <script>
+        // Criar ícone 192x192
+        const canvas192 = document.getElementById('canvas192');
+        const ctx192 = canvas192.getContext('2d');
+        
+        // Fundo vermelho
+        ctx192.fillStyle = '#dc2626';
+        ctx192.fillRect(0, 0, 192, 192);
+        
+        // Círculo branco
+        ctx192.fillStyle = 'white';
+        ctx192.beginPath();
+        ctx192.arc(96, 96, 80, 0, 2 * Math.PI);
+        ctx192.fill();
+        
+        // Texto PIT
+        ctx192.fillStyle = '#dc2626';
+        ctx192.font = 'bold 48px Arial';
+        ctx192.textAlign = 'center';
+        ctx192.fillText('PIT', 96, 110);
+        
+        // Pizza emoji
+        ctx192.font = '40px Arial';
+        ctx192.fillText('🍕', 96, 60);
+
+        // Criar ícone 512x512
+        const canvas512 = document.getElementById('canvas512');
+        const ctx512 = canvas512.getContext('2d');
+        
+        // Fundo vermelho
+        ctx512.fillStyle = '#dc2626';
+        ctx512.fillRect(0, 0, 512, 512);
+        
+        // Círculo branco
+        ctx512.fillStyle = 'white';
+        ctx512.beginPath();
+        ctx512.arc(256, 256, 200, 0, 2 * Math.PI);
+        ctx512.fill();
+        
+        // Texto PIT
+        ctx512.fillStyle = '#dc2626';
+        ctx512.font = 'bold 120px Arial';
+        ctx512.textAlign = 'center';
+        ctx512.fillText('PIT', 256, 290);
+        
+        // Pizza emoji
+        ctx512.font = '100px Arial';
+        ctx512.fillText('🍕', 256, 180);
+
+        function downloadIcons() {
+            // Download 192x192
+            const link192 = document.createElement('a');
+            link192.download = 'icon-192.png';
+            link192.href = canvas192.toDataURL();
+            link192.click();
+            
+            // Download 512x512
+            setTimeout(() => {
+                const link512 = document.createElement('a');
+                link512.download = 'icon-512.png';
+                link512.href = canvas512.toDataURL();
+                link512.click();
+            }, 500);
+            
+            alert('Ícones baixados! Mova para a pasta public/');
+        }
+    </script>
+</body>
+</html>

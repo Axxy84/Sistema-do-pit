@@ -31,7 +31,7 @@ echo ""
 
 echo -e "${YELLOW}Método 2: Se você tem a senha do usuário postgres${NC}"
 echo "Execute:"
-echo -e "${GREEN}psql -h 192.168.0.105 -U postgres -c \"ALTER USER pizzaria_user WITH PASSWORD 'nova_senha_123';\"${NC}"
+echo -e "${GREEN}psql -h localhost -U postgres -c \"ALTER USER pizzaria_user WITH PASSWORD 'nova_senha_123';\"${NC}"
 echo ""
 
 echo -e "${YELLOW}Método 3: Criar novo usuário (se pizzaria_user não existir)${NC}"

@@ -1,0 +1,27 @@
+============================================
+   SISTEMA PIZZARIA - INSTALAÇÃO RÁPIDA
+============================================
+
+PARA INSTALAR:
+1. Execute como Administrador:
+   instalacao\instalar-local-automatico.bat
+
+2. Siga as instruções na tela
+
+3. Acesse o sistema em:
+   http://localhost:5173
+
+CREDENCIAIS PADRÃO:
+Email: admin@pizzaria.com
+Senha: admin123
+
+IMPORTANTE:
+- Altere a senha após o primeiro acesso
+- O sistema funciona 100% offline
+- Dados salvos no próprio computador
+
+SUPORTE:
+- Veja a pasta "docs" para mais detalhes
+- Documentação completa disponível
+
+============================================

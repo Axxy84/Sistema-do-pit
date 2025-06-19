@@ -56,7 +56,13 @@
       "Bash(./gradlew:*)",
       "Bash(npx expo run:android:*)",
       "Bash(npx expo:*)",
-      "Bash(npx react-native:*)"
+      "Bash(npx react-native:*)",
+      "Bash(cp:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(convert:*)",
+      "Bash(git rm:*)"
     ],
     "deny": []
   }

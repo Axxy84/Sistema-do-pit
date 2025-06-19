@@ -10,6 +10,19 @@ export default defineConfig({
     }
   },
   server: {
-    port: 5173
+    port: 5173,
+    host: 'localhost', // Acesso apenas local
+    strictPort: true
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-select']
+        }
+      }
+    }
   }
 })
