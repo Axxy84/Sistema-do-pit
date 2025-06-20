@@ -1,26 +1,40 @@
 === INSTALAÇÃO RÁPIDA DO SISTEMA ===
 
-1) INSTALAR DOCKER:
-   - Windows: Baixar em https://docker.com
-   - Linux: sudo apt install docker.io docker-compose
+1) INSTALAR DEPENDÊNCIAS:
+   - Node.js: https://nodejs.org (versão 16 ou superior)
+   - PostgreSQL: https://postgresql.org (versão 12 ou superior)
 
-2) PREPARAR SISTEMA:
-   chmod +x deploy.sh
-   cp .env.production .env
+2) CONFIGURAR BANCO DE DADOS:
+   - Criar banco: pizzaria_db
+   - Usuário: postgres (ou criar novo)
+   - Executar scripts de migração
 
-3) EDITAR SENHAS (IMPORTANTE!):
+3) PREPARAR SISTEMA:
+   cd backend
+   npm install
+   cp production.env .env
+
+4) EDITAR CONFIGURAÇÕES (IMPORTANTE!):
    nano .env
-   # Mudar DB_PASSWORD e JWT_SECRET
+   # Configurar DB_PASSWORD e JWT_SECRET
 
-4) INSTALAR:
-   ./deploy.sh dev
+5) EXECUTAR MIGRAÇÕES:
+   npm run migrate
 
-5) ACESSAR:
-   http://localhost
+6) INICIAR BACKEND:
+   npm start
+
+7) INICIAR FRONTEND (novo terminal):
+   cd ..
+   npm install
+   npm run dev
+
+8) ACESSAR:
+   http://localhost:5173
    Login: admin@pizzaria.com
    Senha: admin123
 
 COMANDOS ÚTEIS:
-- Ver logs: ./deploy.sh logs
-- Parar: ./deploy.sh stop
-- Backup: ./deploy.sh backup
+- Parar: Ctrl+C nos terminais
+- Logs: Ver console dos terminais
+- Backup: pg_dump -U postgres pizzaria_db > backup.sql

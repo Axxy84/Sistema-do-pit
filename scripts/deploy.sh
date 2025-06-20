@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Script de Deploy - Sistema Pizzaria
-# Uso: ./deploy.sh [dev|prod|stop|logs|backup]
+# Script de Deploy Manual - Sistema Pizzaria
+# Uso: ./deploy.sh [start|stop|restart|migrate|backup]
 
 set -e
 
@@ -25,102 +25,90 @@ warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-# Verificar Docker
-check_docker() {
-    if ! command -v docker &> /dev/null; then
-        error "Docker não está instalado!"
+# Verificar dependências
+check_dependencies() {
+    if ! command -v node &> /dev/null; then
+        error "Node.js não está instalado!"
     fi
     
-    if ! command -v docker-compose &> /dev/null; then
-        error "Docker Compose não está instalado!"
+    if ! command -v npm &> /dev/null; then
+        error "npm não está instalado!"
     fi
     
-    if ! docker info &> /dev/null; then
-        error "Docker daemon não está rodando!"
+    if ! command -v psql &> /dev/null; then
+        warning "PostgreSQL client não está instalado. Backup pode não funcionar."
     fi
 }
 
-# Deploy desenvolvimento
-deploy_dev() {
-    log "Iniciando deploy em modo DESENVOLVIMENTO..."
+# Iniciar serviços
+start_services() {
+    log "Iniciando serviços..."
     
-    # Criar network se não existir
-    docker network create pizzaria-network 2>/dev/null || true
+    # Backend
+    cd backend
+    if [ ! -d "node_modules" ]; then
+        log "Instalando dependências do backend..."
+        npm install
+    fi
     
-    # Build e start com profile dev (inclui adminer)
-    docker-compose --profile dev up -d --build
+    log "Iniciando backend..."
+    npm start &
+    BACKEND_PID=$!
+    echo $BACKEND_PID > backend.pid
     
-    log "Aguardando serviços iniciarem..."
-    sleep 10
+    cd ..
     
-    # Verificar saúde dos serviços
-    docker-compose ps
+    # Frontend
+    if [ ! -d "node_modules" ]; then
+        log "Instalando dependências do frontend..."
+        npm install
+    fi
     
-    log "Deploy desenvolvimento concluído!"
-    log "Frontend: http://localhost"
+    log "Iniciando frontend..."
+    npm run dev &
+    FRONTEND_PID=$!
+    echo $FRONTEND_PID > frontend.pid
+    
+    log "Serviços iniciados!"
+    log "Frontend: http://localhost:5173"
     log "Backend: http://localhost:3001"
-    log "Adminer: http://localhost:8080"
-}
-
-# Deploy produção
-deploy_prod() {
-    log "Iniciando deploy em modo PRODUÇÃO..."
-    
-    # Verificar arquivo de ambiente
-    if [ ! -f ".env.production" ]; then
-        error "Arquivo .env.production não encontrado!"
-    fi
-    
-    # Carregar variáveis de produção
-    set -a
-    source .env.production
-    set +a
-    
-    # Validar variáveis críticas
-    if [ -z "$JWT_SECRET" ] || [ "$JWT_SECRET" == "sua_chave_jwt_super_segura_aqui_com_64_caracteres_pelo_menos!!" ]; then
-        error "JWT_SECRET não foi configurado em .env.production!"
-    fi
-    
-    if [ -z "$DB_PASSWORD" ] || [ "$DB_PASSWORD" == "senha_super_segura_aqui_123!@#" ]; then
-        error "DB_PASSWORD não foi configurado em .env.production!"
-    fi
-    
-    # Build das imagens
-    log "Construindo imagens Docker..."
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache
-    
-    # Deploy com configurações de produção
-    docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-    
-    log "Aguardando serviços iniciarem..."
-    sleep 15
-    
-    # Executar migrações
-    log "Executando migrações do banco de dados..."
-    docker-compose exec backend npm run migrate
-    
-    # Verificar saúde dos serviços
-    docker-compose ps
-    
-    log "Deploy produção concluído!"
-    log "Sistema disponível em: ${FRONTEND_URL:-http://localhost}"
 }
 
 # Parar serviços
 stop_services() {
-    log "Parando todos os serviços..."
-    docker-compose down
+    log "Parando serviços..."
+    
+    if [ -f backend.pid ]; then
+        kill $(cat backend.pid) 2>/dev/null || true
+        rm backend.pid
+    fi
+    
+    if [ -f frontend.pid ]; then
+        kill $(cat frontend.pid) 2>/dev/null || true
+        rm frontend.pid
+    fi
+    
+    # Parar processos node órfãos
+    pkill -f "node.*backend" || true
+    pkill -f "node.*vite" || true
+    
     log "Serviços parados!"
 }
 
-# Ver logs
-show_logs() {
-    service=$1
-    if [ -z "$service" ]; then
-        docker-compose logs -f --tail=100
-    else
-        docker-compose logs -f --tail=100 $service
-    fi
+# Reiniciar serviços
+restart_services() {
+    stop_services
+    sleep 2
+    start_services
+}
+
+# Executar migrações
+run_migrations() {
+    log "Executando migrações..."
+    cd backend
+    node scripts/migrate.js
+    cd ..
+    log "Migrações concluídas!"
 }
 
 # Backup manual
@@ -130,49 +118,52 @@ manual_backup() {
     # Criar diretório de backup se não existir
     mkdir -p backups
     
+    # Ler configurações do .env
+    if [ -f "backend/.env" ]; then
+        export $(cat backend/.env | grep -v '^#' | xargs)
+    fi
+    
     # Executar backup
-    docker-compose exec postgres pg_dump -U postgres pizzaria_db > "backups/manual_backup_$(date +%Y%m%d_%H%M%S).sql"
+    PGPASSWORD=$DB_PASSWORD pg_dump -h $DB_HOST -p $DB_PORT -U $DB_USER $DB_NAME > "backups/backup_$(date +%Y%m%d_%H%M%S).sql"
     
     log "Backup salvo em: backups/"
 }
 
 # Menu principal
 case "$1" in
-    dev)
-        check_docker
-        deploy_dev
-        ;;
-    prod)
-        check_docker
-        deploy_prod
+    start)
+        check_dependencies
+        start_services
         ;;
     stop)
-        check_docker
         stop_services
         ;;
-    logs)
-        check_docker
-        show_logs $2
+    restart)
+        check_dependencies
+        restart_services
+        ;;
+    migrate)
+        check_dependencies
+        run_migrations
         ;;
     backup)
-        check_docker
+        check_dependencies
         manual_backup
         ;;
     *)
-        echo "Sistema de Deploy - Pizzaria"
-        echo "Uso: $0 {dev|prod|stop|logs|backup}"
+        echo "Sistema de Deploy Manual - Pizzaria"
+        echo "Uso: $0 {start|stop|restart|migrate|backup}"
         echo ""
         echo "Comandos:"
-        echo "  dev     - Deploy em modo desenvolvimento (com Adminer)"
-        echo "  prod    - Deploy em modo produção"
+        echo "  start   - Iniciar backend e frontend"
         echo "  stop    - Parar todos os serviços"
-        echo "  logs    - Ver logs dos serviços (opcional: nome do serviço)"
+        echo "  restart - Reiniciar serviços"
+        echo "  migrate - Executar migrações do banco"
         echo "  backup  - Executar backup manual do banco"
         echo ""
         echo "Exemplos:"
-        echo "  $0 dev"
-        echo "  $0 prod"
-        echo "  $0 logs backend"
+        echo "  $0 start"
+        echo "  $0 stop"
         echo "  $0 backup"
         exit 1
         ;;

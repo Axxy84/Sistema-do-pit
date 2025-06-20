@@ -1,29 +1,27 @@
 ==================================
-INSTALAÇÃO SUPER SIMPLES - 3 PASSOS
+INSTALAÇÃO SUPER SIMPLES - WINDOWS
 ==================================
 
-1) INSTALAR DOCKER
-   - Baixe: https://docker.com
-   - Instale normal
+1) INSTALAR PRÉ-REQUISITOS
+   - Node.js: https://nodejs.org
+   - PostgreSQL: https://www.postgresql.org/download/windows/
 
 2) COPIAR A PASTA DO SISTEMA
    - Copie tudo para C:\sistema-pizzaria
 
-3) RODAR 1 COMANDO
-   - Abra o terminal na pasta
-   - Digite: docker-compose up -d
+3) CONFIGURAR E RODAR
+   - Configure o banco de dados
+   - Execute: npm install
+   - Execute: npm run dev
 
 PRONTO! 🎉
 
-Sistema rodando em: http://localhost
+Sistema rodando em: http://localhost:5173
 Login: admin@pizzaria.com
 Senha: admin123
 
 ==================================
-SÓ ISSO! NADA MAIS!
+INSTALAÇÃO MANUAL COMPLETA
 ==================================
 
-Comandos úteis:
-- Parar: docker-compose down
-- Ver logs: docker-compose logs
-- Reiniciar: docker-compose restart
+Siga o guia INSTALACAO_MANUAL_WINDOWS.md para instruções detalhadas.

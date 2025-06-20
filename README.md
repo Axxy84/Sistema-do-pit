@@ -106,82 +106,6 @@ npm run dev
 
 O frontend estará disponível em `http://localhost:5173`
 
-## 🐳 Docker (Opcional)
-
-### Dockerfile para Backend
-
-```dockerfile
-# backend/Dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --only=production
-
-COPY . .
-
-EXPOSE 3001
-
-CMD ["npm", "start"]
-```
-
-### Docker Compose
-
-```yaml
-# docker-compose.yml (na raiz do projeto)
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: pizzaria_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  backend:
-    build: ./backend
-    depends_on:
-      - postgres
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: pizzaria_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      JWT_SECRET: sua_chave_secreta_muito_forte
-      PORT: 3001
-      NODE_ENV: production
-      CORS_ORIGIN: http://localhost:5173
-    ports:
-      - "3001:3001"
-
-  frontend:
-    build: .
-    depends_on:
-      - backend
-    ports:
-      - "5173:5173"
-
-volumes:
-  postgres_data:
-```
-
-### Executar com Docker
-
-```bash
-# Construir e executar
-docker-compose up --build
-
-# Executar migrações
-docker-compose exec backend npm run migrate
-```
-
 ## 📝 Estrutura do Projeto
 
 ```
@@ -269,4 +193,4 @@ Para produção, considere:
 - Frontend: 5173
 - PostgreSQL: 5432
 
-Certifique-se de que essas portas estão livres. 
+Certifique-se de que essas portas estão livres.

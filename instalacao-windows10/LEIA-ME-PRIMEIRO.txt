@@ -1,0 +1,32 @@
+=========================================
+    SISTEMA PIT - INSTALAÇÃO WINDOWS 10
+=========================================
+
+INSTRUÇÕES RÁPIDAS:
+
+1) CLIQUE COM BOTÃO DIREITO em:
+   instalar-sistema-completo.bat
+   
+2) SELECIONE:
+   "Executar como administrador"
+   
+3) SIGA AS INSTRUÇÕES NA TELA
+
+=========================================
+
+APÓS A INSTALAÇÃO:
+
+- Use o atalho "Sistema PIT" na área de trabalho
+- Ou execute: iniciar-sistema.bat
+
+CREDENCIAIS:
+Email: admin@pizzaria.com
+Senha: admin123
+
+=========================================
+
+PROBLEMAS?
+- Execute: diagnostico-instalacao.bat
+- Leia: README.md
+
+=========================================
