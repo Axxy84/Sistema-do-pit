@@ -5,8 +5,10 @@
 Esta pasta contém todos os arquivos necessários para instalar o Sistema PIT no Windows 10.
 
 ### Arquivos de Instalação:
-- **`instalar-sistema-completo.bat`** - Instalador automático principal
-- **`iniciar-sistema.bat`** - Inicia o sistema após instalação
+- **`instalar-sistema-completo.bat`** - Instalador automático principal (navegador)
+- **`instalar-com-electron.bat`** - Instalador com Electron (app desktop)
+- **`iniciar-sistema.bat`** - Inicia o sistema no navegador
+- **`sistema-pit.bat`** - Inicia como app desktop Electron
 - **`parar-sistema.bat`** - Para todos os processos do sistema
 - **`diagnostico-instalacao.bat`** - Verifica problemas na instalação
 - **`reiniciar-sistema.bat`** - Reinicia o sistema
