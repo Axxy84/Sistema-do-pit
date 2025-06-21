@@ -256,14 +256,16 @@ powershell -Command "$WshShell = New-Object -comObject WScript.Shell; $Shortcut 
 echo %GREEN%✅ Scripts criados%RESET%
 echo.
 
-:: Executar migrações se necessário
-if exist "backend\scripts\migrate.js" (
-    echo Executando migrações iniciais...
-    cd backend
+:: Executar migrações universais
+echo Executando migrações universais...
+cd backend
+if exist "scripts\migrate-universal.js" (
+    node scripts/migrate-universal.js
+) else (
     node scripts/migrate.js
-    cd ..
-    echo %GREEN%✅ Migrações executadas%RESET%
 )
+cd ..
+echo %GREEN%✅ Migrações executadas%RESET%
 
 echo.
 echo %BLUE%═══════════════════════════════════════════════════════%RESET%
