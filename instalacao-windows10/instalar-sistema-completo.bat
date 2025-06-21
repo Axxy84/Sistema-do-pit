@@ -68,9 +68,21 @@ echo Digite a senha do usuario postgres do PostgreSQL:
 set /p PGPASSWORD=
 
 :: Criar banco de dados
-psql -U postgres -c "CREATE DATABASE IF NOT EXISTS pizzaria_db;"
-psql -U postgres -c "CREATE USER IF NOT EXISTS pizzaria_user WITH PASSWORD 'pizzaria_pass';"
-psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE pizzaria_db TO pizzaria_user;"
+echo Testando conexão com PostgreSQL...
+set PGPASSWORD=%PGPASSWORD%
+psql -U postgres -c "SELECT version();" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [!] Erro de conexão com PostgreSQL!
+    echo Configurando para usar SQLite como alternativa...
+    echo USAR_SQLITE=true > ..\backend\.env.local
+    goto configuracao_concluida
+)
+
+psql -U postgres -c "CREATE DATABASE pizzaria_db;" 2>nul
+psql -U postgres -c "CREATE USER pizzaria_user WITH PASSWORD 'pizzaria_pass';" 2>nul
+psql -U postgres -c "GRANT ALL PRIVILEGES ON DATABASE pizzaria_db TO pizzaria_user;" 2>nul
+
+:configuracao_concluida
 
 :: Executar migrações
 echo.

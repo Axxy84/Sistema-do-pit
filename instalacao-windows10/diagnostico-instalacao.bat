@@ -1,6 +1,14 @@
 @echo off
 chcp 65001 > nul
 cls
+
+:: Cores para output
+set "GREEN=[92m"
+set "RED=[91m"
+set "YELLOW=[93m"
+set "BLUE=[94m"
+set "RESET=[0m"
+
 echo.
 echo ═══════════════════════════════════════════════════════
 echo    🔍 DIAGNÓSTICO DE INSTALAÇÃO - SISTEMA PIZZARIA
@@ -134,8 +142,12 @@ echo    instalacao\instalar-local-automatico.bat
 echo.
 echo Se há itens ❌, corrija-os primeiro!
 echo.
-echo 💡 INSTALAÇÃO MANUAL ALTERNATIVA:
+echo 💡 OPÇÕES DE INSTALAÇÃO:
 echo.
+echo %GREEN%🚀 AUTOMÁTICA (Recomendada):%RESET%
+echo    instalar-universal.bat
+echo.
+echo %YELLOW%⚙️  MANUAL:%RESET%
 echo 1. Abra 2 prompts de comando como Administrador
 echo.
 echo 2. No primeiro prompt:
@@ -148,5 +160,11 @@ echo    npm install
 echo    npm run dev
 echo.
 echo 4. Acesse: http://localhost:5173
+echo.
+echo %BLUE%🔧 PROBLEMAS COMUNS:%RESET%
+echo • Node.js não instalado → https://nodejs.org
+echo • Porta ocupada → Reinicie o computador
+echo • Erro de permissão → Execute como Administrador
+echo • PostgreSQL erro → Use SQLite (mais simples)
 echo.
 pause
